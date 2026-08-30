@@ -64,4 +64,11 @@ class PdfToolTest {
         assertEquals(ToolCategory.EditEnhance, edit.category)
         assertTrue(edit.title.isNotBlank())
     }
+
+    @Test
+    fun `watermark is registered under Edit and Enhance`() {
+        val watermark = pdfTools.single { it.id == "watermark" }
+        assertEquals(ToolCategory.EditEnhance, watermark.category)
+        assertTrue(watermark.title.isNotBlank())
+    }
 }

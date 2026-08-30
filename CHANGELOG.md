@@ -42,3 +42,6 @@ merged PR under `## [Unreleased]`. Same convention as the sibling web repo's
 - **Edit Metadata**: change a PDF's title, author, subject, and keywords.
   A blank field leaves the existing value untouched — this edits only the
   fields you fill in, it doesn't clear the rest.
+- **Add Watermark**: stamp text onto every page of a PDF, once centered
+  (with adjustable size, colour, opacity, and rotation) or tiled across
+  the whole page.
