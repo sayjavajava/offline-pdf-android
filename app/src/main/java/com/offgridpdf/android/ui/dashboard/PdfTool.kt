@@ -3,6 +3,7 @@ package com.offgridpdf.android.ui.dashboard
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.MergeType
+import androidx.compose.material.icons.filled.Reorder
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.ui.graphics.vector.ImageVector
 
@@ -48,6 +49,13 @@ val pdfTools: List<PdfTool> = listOf(
         title = "Rotate Pages",
         description = "Rotate selected pages by 90°, 180°, or 270°.",
         icon = Icons.Filled.Refresh,
+        category = ToolCategory.OrganizePages,
+    ),
+    PdfTool(
+        id = "rearrange",
+        title = "Delete / Reorder",
+        description = "Keep pages in a custom order; omit pages to delete them.",
+        icon = Icons.Filled.Reorder,
         category = ToolCategory.OrganizePages,
     ),
 )

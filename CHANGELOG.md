@@ -31,3 +31,5 @@ merged PR under `## [Unreleased]`. Same convention as the sibling web repo's
   by 90°, 180°, or 270° — added to each page's current rotation, not set
   absolutely, so rotating an already-rotated page keeps compounding as
   expected.
+- **Delete / Reorder**: keep only the pages you list, in that order —
+  omitting a page deletes it, listing one more than once duplicates it.

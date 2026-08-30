@@ -36,4 +36,11 @@ class PdfToolTest {
         assertEquals(ToolCategory.OrganizePages, rotate.category)
         assertTrue(rotate.title.isNotBlank())
     }
+
+    @Test
+    fun `rearrange is registered under Organize Pages`() {
+        val rearrange = pdfTools.single { it.id == "rearrange" }
+        assertEquals(ToolCategory.OrganizePages, rearrange.category)
+        assertTrue(rearrange.title.isNotBlank())
+    }
 }
