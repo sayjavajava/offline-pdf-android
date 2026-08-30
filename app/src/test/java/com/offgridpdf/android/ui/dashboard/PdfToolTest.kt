@@ -50,4 +50,11 @@ class PdfToolTest {
         assertEquals(ToolCategory.Security, protect.category)
         assertTrue(protect.title.isNotBlank())
     }
+
+    @Test
+    fun `unlock is registered under Security`() {
+        val unlock = pdfTools.single { it.id == "unlock" }
+        assertEquals(ToolCategory.Security, unlock.category)
+        assertTrue(unlock.title.isNotBlank())
+    }
 }
