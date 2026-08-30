@@ -13,7 +13,7 @@ there first.
 ## Requirements
 
 - JDK 17
-- Android SDK, `compileSdk`/`targetSdk` 36
+- Android SDK, `compileSdk`/`targetSdk` 37
 - No NDK — this project deliberately has no native code
 
 ## Build

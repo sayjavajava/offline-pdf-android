@@ -5,12 +5,15 @@ plugins {
 
 android {
     namespace = "com.offgridpdf.android"
-    compileSdk = 36
+    // 37, not 36: Compose BOM 2026.08.00's artifacts (1.12.0) declare a
+    // minCompileSdk of 37 in their AAR metadata — found by a real CI
+    // failure ("CheckAarMetadataWorkAction"), not assumed from release notes.
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.offgridpdf.android"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 1
         versionName = "0.1.0"
 
