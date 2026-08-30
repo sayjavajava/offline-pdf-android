@@ -3,6 +3,7 @@ package com.offgridpdf.android.ui.dashboard
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.MergeType
 import androidx.compose.material.icons.filled.Reorder
 import androidx.compose.material.icons.filled.Refresh
@@ -64,6 +65,13 @@ val pdfTools: List<PdfTool> = listOf(
         title = "Protect PDF",
         description = "Add a password so only someone who knows it can open the file.",
         icon = Icons.Filled.Lock,
+        category = ToolCategory.Security,
+    ),
+    PdfTool(
+        id = "unlock",
+        title = "Unlock PDF",
+        description = "Remove password protection from encrypted PDF files.",
+        icon = Icons.Filled.LockOpen,
         category = ToolCategory.Security,
     ),
 )

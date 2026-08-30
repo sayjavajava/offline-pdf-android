@@ -13,6 +13,7 @@ import com.offgridpdf.android.ui.tool.RearrangeScreen
 import com.offgridpdf.android.ui.tool.RotateScreen
 import com.offgridpdf.android.ui.tool.SplitScreen
 import com.offgridpdf.android.ui.tool.ToolPlaceholderScreen
+import com.offgridpdf.android.ui.tool.UnlockScreen
 
 private const val ROUTE_DASHBOARD = "dashboard"
 private const val ROUTE_TOOL = "tool/{toolId}"
@@ -36,6 +37,7 @@ fun OffGridNavHost() {
                 "rotate" -> RotateScreen()
                 "rearrange" -> RearrangeScreen()
                 "protect" -> ProtectScreen()
+                "unlock" -> UnlockScreen()
                 else -> ToolPlaceholderScreen(toolId = toolId)
             }
         }

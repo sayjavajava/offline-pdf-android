@@ -37,3 +37,5 @@ merged PR under `## [Unreleased]`. Same convention as the sibling web repo's
   printing, copying, or editing with a separate permissions password — PDF
   readers grant full access to whoever supplies the password used to open
   the file, so a genuine restriction needs two distinct passwords, not one.
+- **Unlock PDF**: remove password protection from an encrypted PDF, given
+  its password.
