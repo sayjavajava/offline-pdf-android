@@ -7,6 +7,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.offgridpdf.android.ui.dashboard.DashboardScreen
+import com.offgridpdf.android.ui.tool.EditMetadataScreen
 import com.offgridpdf.android.ui.tool.MergeScreen
 import com.offgridpdf.android.ui.tool.ProtectScreen
 import com.offgridpdf.android.ui.tool.RearrangeScreen
@@ -38,6 +39,7 @@ fun OffGridNavHost() {
                 "rearrange" -> RearrangeScreen()
                 "protect" -> ProtectScreen()
                 "unlock" -> UnlockScreen()
+                "edit" -> EditMetadataScreen()
                 else -> ToolPlaceholderScreen(toolId = toolId)
             }
         }
