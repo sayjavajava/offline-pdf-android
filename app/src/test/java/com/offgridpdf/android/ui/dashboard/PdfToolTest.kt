@@ -43,4 +43,11 @@ class PdfToolTest {
         assertEquals(ToolCategory.OrganizePages, rearrange.category)
         assertTrue(rearrange.title.isNotBlank())
     }
+
+    @Test
+    fun `protect is registered under Security`() {
+        val protect = pdfTools.single { it.id == "protect" }
+        assertEquals(ToolCategory.Security, protect.category)
+        assertTrue(protect.title.isNotBlank())
+    }
 }

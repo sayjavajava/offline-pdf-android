@@ -2,6 +2,7 @@ package com.offgridpdf.android.ui.dashboard
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MergeType
 import androidx.compose.material.icons.filled.Reorder
 import androidx.compose.material.icons.filled.Refresh
@@ -57,5 +58,12 @@ val pdfTools: List<PdfTool> = listOf(
         description = "Keep pages in a custom order; omit pages to delete them.",
         icon = Icons.Filled.Reorder,
         category = ToolCategory.OrganizePages,
+    ),
+    PdfTool(
+        id = "protect",
+        title = "Protect PDF",
+        description = "Add a password so only someone who knows it can open the file.",
+        icon = Icons.Filled.Lock,
+        category = ToolCategory.Security,
     ),
 )
