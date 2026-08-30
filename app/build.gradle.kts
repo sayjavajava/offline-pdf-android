@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
 }
 
@@ -29,9 +28,9 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
+    // No android.kotlinOptions{} block: that was the removed kotlin-android
+    // plugin's DSL. Built-in Kotlin's jvmTarget defaults to
+    // compileOptions.targetCompatibility above (17) — nothing else to set.
 
     buildFeatures {
         compose = true

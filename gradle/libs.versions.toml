@@ -33,5 +33,8 @@ junit = { group = "junit", name = "junit", version.ref = "junit" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+# No kotlin-android entry: AGP 9.0+ compiles Kotlin itself ("built-in
+# Kotlin") and rejects org.jetbrains.kotlin.android as a conflict if
+# applied alongside it. kotlin-compose (the Compose *compiler* plugin,
+# a separate concern) is still required.
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
