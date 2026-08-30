@@ -53,3 +53,15 @@ suspend fun writeBytesToUri(context: Context, uri: Uri, bytes: ByteArray) {
         stream.use { it.write(bytes) }
     }
 }
+
+/**
+ * A reasonable filename base for a save-suggestion, e.g. for
+ * `"${suggestedBaseName(uri)}_rotated90.pdf"`. Extracted here after it was
+ * first written as a private copy in `SplitScreen.kt` (A-3) — every
+ * single-file tool from here on needs the same thing, so it belongs in
+ * shared infra rather than being pasted into each new screen.
+ */
+fun suggestedBaseName(uri: Uri): String {
+    val name = uri.lastPathSegment?.substringAfterLast('/') ?: "document"
+    return name.removeSuffix(".pdf").removeSuffix(".PDF")
+}
