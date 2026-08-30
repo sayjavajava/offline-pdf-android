@@ -57,4 +57,11 @@ class PdfToolTest {
         assertEquals(ToolCategory.Security, unlock.category)
         assertTrue(unlock.title.isNotBlank())
     }
+
+    @Test
+    fun `edit is registered under Edit and Enhance`() {
+        val edit = pdfTools.single { it.id == "edit" }
+        assertEquals(ToolCategory.EditEnhance, edit.category)
+        assertTrue(edit.title.isNotBlank())
+    }
 }

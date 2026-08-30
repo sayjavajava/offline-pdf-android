@@ -39,3 +39,6 @@ merged PR under `## [Unreleased]`. Same convention as the sibling web repo's
   the file, so a genuine restriction needs two distinct passwords, not one.
 - **Unlock PDF**: remove password protection from an encrypted PDF, given
   its password.
+- **Edit Metadata**: change a PDF's title, author, subject, and keywords.
+  A blank field leaves the existing value untouched — this edits only the
+  fields you fill in, it doesn't clear the rest.

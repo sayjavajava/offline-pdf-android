@@ -1,6 +1,7 @@
 package com.offgridpdf.android.ui.dashboard
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
@@ -73,5 +74,12 @@ val pdfTools: List<PdfTool> = listOf(
         description = "Remove password protection from encrypted PDF files.",
         icon = Icons.Filled.LockOpen,
         category = ToolCategory.Security,
+    ),
+    PdfTool(
+        id = "edit",
+        title = "Edit Metadata",
+        description = "Modify your PDF's title, author, subject, and keywords.",
+        icon = Icons.Filled.Edit,
+        category = ToolCategory.EditEnhance,
     ),
 )
