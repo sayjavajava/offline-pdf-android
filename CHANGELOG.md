@@ -27,3 +27,7 @@ merged PR under `## [Unreleased]`. Same convention as the sibling web repo's
 - **Merge PDF**: combine two or more PDFs into one, in the order they were
   selected. A file that can't be read — wrong password, not a PDF at all —
   is named specifically rather than a generic "merge failed" error.
+- **Rotate Pages**: rotate the whole document, or just the pages you list,
+  by 90°, 180°, or 270° — added to each page's current rotation, not set
+  absolutely, so rotating an already-rotated page keeps compounding as
+  expected.
