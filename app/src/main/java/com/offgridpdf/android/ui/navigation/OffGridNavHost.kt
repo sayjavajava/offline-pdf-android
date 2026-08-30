@@ -7,11 +7,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.offgridpdf.android.ui.dashboard.DashboardScreen
+import com.offgridpdf.android.ui.tool.SmokeTestScreen
 import com.offgridpdf.android.ui.tool.ToolPlaceholderScreen
 
 private const val ROUTE_DASHBOARD = "dashboard"
 private const val ROUTE_TOOL = "tool/{toolId}"
 private const val ARG_TOOL_ID = "toolId"
+private const val ROUTE_SMOKE_TEST = "smoke-test"
 
 @Composable
 fun OffGridNavHost() {
@@ -19,7 +21,10 @@ fun OffGridNavHost() {
 
     NavHost(navController = navController, startDestination = ROUTE_DASHBOARD) {
         composable(ROUTE_DASHBOARD) {
-            DashboardScreen(onToolSelected = { toolId -> navController.navigate("tool/$toolId") })
+            DashboardScreen(
+                onToolSelected = { toolId -> navController.navigate("tool/$toolId") },
+                onOpenSmokeTest = { navController.navigate(ROUTE_SMOKE_TEST) },
+            )
         }
         composable(
             route = ROUTE_TOOL,
@@ -27,6 +32,9 @@ fun OffGridNavHost() {
         ) { backStackEntry ->
             val toolId = backStackEntry.arguments?.getString(ARG_TOOL_ID).orEmpty()
             ToolPlaceholderScreen(toolId = toolId)
+        }
+        composable(ROUTE_SMOKE_TEST) {
+            SmokeTestScreen()
         }
     }
 }

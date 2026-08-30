@@ -38,6 +38,20 @@ android {
     buildFeatures {
         compose = true
     }
+
+    testOptions {
+        unitTests {
+            // PdfBox-Android's own code calls android.util.Log internally
+            // (confirmed by direct bytecode inspection in
+            // NATIVE_ANDROID_SPIKE.md, tool-docs repo) — three logging
+            // call sites, nothing that affects correctness. Without this,
+            // AGP's default stubbed android.jar throws on any android.*
+            // call from a plain (non-Robolectric) unit test; this makes
+            // it a harmless no-op instead, avoiding a Robolectric
+            // dependency for tests that don't otherwise need one.
+            isReturnDefaultValues = true
+        }
+    }
 }
 
 dependencies {
@@ -50,6 +64,7 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.kotlinx.coroutines.android)
 
     // PDF manipulation — pure-JVM, no NDK. Verified against Maven Central's
     // real published .aar in NATIVE_ANDROID_SPIKE.md before this dependency

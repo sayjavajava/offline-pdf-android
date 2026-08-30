@@ -13,6 +13,7 @@ navigationCompose = "2.9.7"
 pdfboxAndroid = "2.0.27.0"
 bouncyCastle = "1.72"
 junit = "4.13.2"
+kotlinxCoroutines = "1.11.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -30,6 +31,7 @@ bouncycastle-bcprov = { group = "org.bouncycastle", name = "bcprov-jdk15to18", v
 bouncycastle-bcpkix = { group = "org.bouncycastle", name = "bcpkix-jdk15to18", version.ref = "bouncyCastle" }
 bouncycastle-bcutil = { group = "org.bouncycastle", name = "bcutil-jdk15to18", version.ref = "bouncyCastle" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

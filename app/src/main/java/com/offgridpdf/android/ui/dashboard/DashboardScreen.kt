@@ -15,6 +15,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -32,12 +33,19 @@ import androidx.compose.ui.unit.dp
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DashboardScreen(onToolSelected: (String) -> Unit) {
+fun DashboardScreen(onToolSelected: (String) -> Unit, onOpenSmokeTest: () -> Unit) {
     var selectedCategory by remember { mutableStateOf(ToolCategory.OrganizePages) }
     val visibleTools = pdfTools.filter { it.category == selectedCategory }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("OffGridPDF") }) },
+        topBar = {
+            TopAppBar(
+                title = { Text("OffGridPDF") },
+                // Temporary, until A-3 (Split PDF) gives this app its first
+                // real tool — see SmokeTestScreen.kt's own header comment.
+                actions = { TextButton(onClick = onOpenSmokeTest) { Text("Debug") } },
+            )
+        },
     ) { innerPadding ->
         Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             ScrollableTabRow(selectedTabIndex = selectedCategory.ordinal) {
