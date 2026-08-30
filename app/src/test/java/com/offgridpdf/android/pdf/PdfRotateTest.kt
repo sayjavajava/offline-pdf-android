@@ -36,10 +36,17 @@ class PdfRotateTest {
 
     @Test
     fun `accepts every allowed angle`() {
+        // Compared normalized to 0..359, not the literal requested value:
+        // PDFBox normalizes a negative /Rotate to its positive equivalent
+        // on save (confirmed by this test actually failing on the raw
+        // comparison first) -- -90 round-trips as 270, which renders
+        // identically. That's a PDF-spec-level equivalence, not a bug in
+        // rotatePdf: the angle was still accepted and applied.
         for (angle in listOf(90, 180, 270, -90, -180, -270)) {
             val doc = buildPdf(1)
             val bytes = rotatePdf(doc, angle)
-            assertEquals(listOf(angle), rotations(bytes))
+            val normalized = ((angle % 360) + 360) % 360
+            assertEquals(listOf(normalized), rotations(bytes))
             doc.close()
         }
     }
@@ -53,7 +60,7 @@ class PdfRotateTest {
     }
 
     @Test
-    fun `rotates every page when pages is "all" case-insensitively`() {
+    fun `rotates every page when pages is all case-insensitively`() {
         val doc = buildPdf(3)
         val bytes = rotatePdf(doc, 90, pages = "ALL")
         assertEquals(listOf(90, 90, 90), rotations(bytes))
