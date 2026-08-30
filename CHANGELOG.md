@@ -17,5 +17,10 @@ merged PR under `## [Unreleased]`. Same convention as the sibling web repo's
   needed (wrong or missing) rather than a generic error, Storage-Access-
   Framework file pickers (open one/many, choose a save location) with no
   storage permission requested, and a reusable tool-screen scaffold
-  (pick file → password if needed → tool options → run → progress →
+  (pick file → optional password → tool options → run → progress →
   result).
+- **Split PDF**: extract a page range (e.g. "1, 3-5, 8", or "all") from a
+  PDF into a new file, or download each selected page as its own file
+  (zipped when there's more than one). Invalid or out-of-range segments
+  are named specifically rather than a generic error — "1-3, 99" against a
+  5-page document reports 99 as the problem, not the whole range.

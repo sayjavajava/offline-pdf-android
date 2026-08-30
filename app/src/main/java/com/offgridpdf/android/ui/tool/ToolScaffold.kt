@@ -18,17 +18,18 @@ import androidx.compose.ui.unit.dp
 
 /**
  * The shape every tool screen shares (`ANDROID_IMPLEMENTATION_PLAN.md` A-2,
- * tool-docs repo): pick a file, supply a password if the file turns out to
- * need one, configure whatever this specific tool needs via [options], run
- * it, see progress, see the result. Mirrors the common shape every
- * `*Tool.tsx` component in the web app already follows — go look at
- * `SplitTool.tsx` for the web-side reference this was modeled on, not
- * translated from.
+ * tool-docs repo): pick a file, optionally supply a password, configure
+ * whatever this specific tool needs via [options], run it, see progress,
+ * see the result. Mirrors the common shape every `*Tool.tsx` component in
+ * the web app already follows.
  *
- * Deliberately narrow: this is the first real consumer is `SmokeTestScreen`
- * (this PR) and the next is Split PDF (A-3) — expand this API only once a
- * second or third tool's real needs make the right shape obvious, not
- * speculatively now.
+ * The password field is always shown, labeled "(if encrypted)", never
+ * conditionally revealed after a failed load — corrected here in A-3 after
+ * checking the real precedent (`SplitTool.tsx`, `MergeTool.tsx`: both show
+ * a plain, always-present password field, not a reactive one). A-2's first
+ * draft guessed a conditional field before a second real tool existed to
+ * check that guess against — exactly the "expand/correct once real needs
+ * are obvious" case its own header comment anticipated.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,7 +37,6 @@ fun ToolScaffold(
     title: String,
     pickedFileName: String?,
     onPickFile: () -> Unit,
-    passwordRequired: Boolean,
     password: String,
     onPasswordChange: (String) -> Unit,
     runEnabled: Boolean,
@@ -57,15 +57,13 @@ fun ToolScaffold(
                 Text(pickedFileName ?: "Choose a PDF")
             }
 
-            if (passwordRequired) {
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = onPasswordChange,
-                    label = { Text("Password") },
-                    visualTransformation = PasswordVisualTransformation(),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
+            OutlinedTextField(
+                value = password,
+                onValueChange = onPasswordChange,
+                label = { Text("Password (if encrypted)") },
+                visualTransformation = PasswordVisualTransformation(),
+                modifier = Modifier.fillMaxWidth(),
+            )
 
             options()
 
