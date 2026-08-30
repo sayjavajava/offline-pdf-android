@@ -1,5 +1,7 @@
 package com.offgridpdf.android.ui.dashboard
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.List
 import androidx.compose.ui.graphics.vector.ImageVector
 
 /**
@@ -24,9 +26,12 @@ data class PdfTool(
     val category: ToolCategory,
 )
 
-/**
- * Empty until the first real tool PR (A-3, Split PDF) adds an entry — this
- * scaffolding PR (A-1) intentionally ships no tools, only the shell that
- * later PRs plug into.
- */
-val pdfTools: List<PdfTool> = emptyList()
+val pdfTools: List<PdfTool> = listOf(
+    PdfTool(
+        id = "split",
+        title = "Split PDF",
+        description = "Extract pages or divide documents with surgical precision.",
+        icon = Icons.Filled.List,
+        category = ToolCategory.OrganizePages,
+    ),
+)

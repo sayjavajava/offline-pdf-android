@@ -11,11 +11,11 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -33,19 +33,12 @@ import androidx.compose.ui.unit.dp
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DashboardScreen(onToolSelected: (String) -> Unit, onOpenSmokeTest: () -> Unit) {
+fun DashboardScreen(onToolSelected: (String) -> Unit) {
     var selectedCategory by remember { mutableStateOf(ToolCategory.OrganizePages) }
     val visibleTools = pdfTools.filter { it.category == selectedCategory }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("OffGridPDF") },
-                // Temporary, until A-3 (Split PDF) gives this app its first
-                // real tool — see SmokeTestScreen.kt's own header comment.
-                actions = { TextButton(onClick = onOpenSmokeTest) { Text("Debug") } },
-            )
-        },
+        topBar = { TopAppBar(title = { Text("OffGridPDF") }) },
     ) { innerPadding ->
         Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             ScrollableTabRow(selectedTabIndex = selectedCategory.ordinal) {
@@ -83,6 +76,7 @@ fun DashboardScreen(onToolSelected: (String) -> Unit, onOpenSmokeTest: () -> Uni
 private fun ToolCard(tool: PdfTool, onClick: () -> Unit) {
     Card(onClick = onClick) {
         Column(modifier = Modifier.padding(16.dp)) {
+            Icon(imageVector = tool.icon, contentDescription = null)
             Text(tool.title)
             Text(tool.description)
         }
