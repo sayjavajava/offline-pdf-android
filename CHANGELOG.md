@@ -24,3 +24,6 @@ merged PR under `## [Unreleased]`. Same convention as the sibling web repo's
   (zipped when there's more than one). Invalid or out-of-range segments
   are named specifically rather than a generic error — "1-3, 99" against a
   5-page document reports 99 as the problem, not the whole range.
+- **Merge PDF**: combine two or more PDFs into one, in the order they were
+  selected. A file that can't be read — wrong password, not a PDF at all —
+  is named specifically rather than a generic "merge failed" error.

@@ -7,6 +7,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.offgridpdf.android.ui.dashboard.DashboardScreen
+import com.offgridpdf.android.ui.tool.MergeScreen
 import com.offgridpdf.android.ui.tool.SplitScreen
 import com.offgridpdf.android.ui.tool.ToolPlaceholderScreen
 
@@ -28,6 +29,7 @@ fun OffGridNavHost() {
         ) { backStackEntry ->
             when (val toolId = backStackEntry.arguments?.getString(ARG_TOOL_ID).orEmpty()) {
                 "split" -> SplitScreen()
+                "merge" -> MergeScreen()
                 else -> ToolPlaceholderScreen(toolId = toolId)
             }
         }
