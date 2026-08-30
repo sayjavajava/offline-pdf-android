@@ -2,6 +2,7 @@ package com.offgridpdf.android.ui.dashboard
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.filled.MergeType
 import androidx.compose.ui.graphics.vector.ImageVector
 
 /**
@@ -32,6 +33,13 @@ val pdfTools: List<PdfTool> = listOf(
         title = "Split PDF",
         description = "Extract pages or divide documents with surgical precision.",
         icon = Icons.Filled.List,
+        category = ToolCategory.OrganizePages,
+    ),
+    PdfTool(
+        id = "merge",
+        title = "Merge PDF",
+        description = "Combine multiple PDF documents into a single file.",
+        icon = Icons.Filled.MergeType,
         category = ToolCategory.OrganizePages,
     ),
 )

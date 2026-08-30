@@ -22,4 +22,11 @@ class PdfToolTest {
         assertEquals(ToolCategory.OrganizePages, split.category)
         assertTrue(split.title.isNotBlank())
     }
+
+    @Test
+    fun `merge is registered under Organize Pages`() {
+        val merge = pdfTools.single { it.id == "merge" }
+        assertEquals(ToolCategory.OrganizePages, merge.category)
+        assertTrue(merge.title.isNotBlank())
+    }
 }
