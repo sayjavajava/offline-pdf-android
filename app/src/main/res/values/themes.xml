@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        A plain platform theme, not a Material Components XML theme — real
+        theming (colors, typography) lives in ui/theme/Theme.kt via Compose's
+        own MaterialTheme, following Compose's own recommended split. This
+        XML theme only needs to exist because AndroidManifest.xml requires a
+        theme resource before Compose ever runs; it's intentionally minimal.
+    -->
+    <style name="Theme.OffGridPDF" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

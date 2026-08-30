@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      # GitHub-hosted Ubuntu runners ship a preinstalled Android SDK, but not
+      # necessarily the exact compileSdk/build-tools this project pins — this
+      # action fills in whatever's missing without assuming the runner image
+      # already has it.
+      - uses: android-actions/setup-android@v3
+
+      - name: Unit tests
+        run: ./gradlew testDebugUnitTest --stacktrace
+
+      - name: Lint
+        run: ./gradlew lint --stacktrace
+
+      - name: Assemble debug APK
+        run: ./gradlew assembleDebug --stacktrace
+
+      # The offline guarantee (README.md, ANDROID_IMPLEMENTATION_PLAN.md in
+      # the tool-docs repo): no <uses-permission> for INTERNET, anywhere,
+      # ever. Checked against the *merged* manifest, not the source one —
+      # a future library dependency could add the permission via its own
+      # manifest, and the source file alone wouldn't show that.
+      - name: Offline guarantee — no INTERNET permission in the merged manifest
+        run: |
+          MERGED=$(find app/build/intermediates/merged_manifests -name AndroidManifest.xml | head -n 1)
+          if [ -z "$MERGED" ]; then
+            echo "::error::Could not find a merged manifest to check — did the assembleDebug step run?"
+            exit 1
+          fi
+          if grep -q 'android.permission.INTERNET' "$MERGED"; then
+            echo "::error::INTERNET permission found in the merged manifest ($MERGED). This app's offline guarantee depends on never declaring it — see ANDROID_IMPLEMENTATION_PLAN.md §3 in the tool-docs repo before adding a dependency that wants it."
+            exit 1
+          fi
+          echo "✓ No INTERNET permission in the merged manifest."
+
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: offgridpdf-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

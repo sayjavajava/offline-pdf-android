@@ -1,0 +1,37 @@
+# Version catalog — every dependency pinned to an exact version, none
+# left floating. Bumping a version here is its own PR (mirrors the
+# sibling web repo's package-lock.json discipline: dependency bumps are
+# reviewed and CI-verified on their own, never folded into a feature PR).
+[versions]
+agp = "9.2.0"
+kotlin = "2.4.0"
+composeBom = "2026.08.00"
+coreKtx = "1.15.0"
+lifecycleRuntimeKtx = "2.9.0"
+activityCompose = "1.10.0"
+navigationCompose = "2.9.7"
+pdfboxAndroid = "2.0.27.0"
+bouncyCastle = "1.72"
+junit = "4.13.2"
+
+[libraries]
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
+androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
+androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
+androidx-ui = { group = "androidx.compose.ui", name = "ui" }
+androidx-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
+androidx-ui-tooling = { group = "androidx.compose.ui", name = "ui-tooling" }
+androidx-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
+androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
+androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
+pdfbox-android = { group = "com.tom-roush", name = "pdfbox-android", version.ref = "pdfboxAndroid" }
+bouncycastle-bcprov = { group = "org.bouncycastle", name = "bcprov-jdk15to18", version.ref = "bouncyCastle" }
+bouncycastle-bcpkix = { group = "org.bouncycastle", name = "bcpkix-jdk15to18", version.ref = "bouncyCastle" }
+bouncycastle-bcutil = { group = "org.bouncycastle", name = "bcutil-jdk15to18", version.ref = "bouncyCastle" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }

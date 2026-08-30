@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    No <uses-permission> for INTERNET, anywhere in this file, ever — see
+    ANDROID_IMPLEMENTATION_PLAN.md §3 (tool-docs repo). Its absence is what
+    makes "fully offline" a guarantee the OS enforces at the socket layer,
+    not just an intention. CI's offline-gate step greps the merged
+    manifest for this exact string and fails the build if it appears.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.OffGridPDF"
+        android:supportsRtl="true">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.OffGridPDF">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>
