@@ -33,3 +33,7 @@ merged PR under `## [Unreleased]`. Same convention as the sibling web repo's
   expected.
 - **Delete / Reorder**: keep only the pages you list, in that order —
   omitting a page deletes it, listing one more than once duplicates it.
+- **Protect PDF**: add an AES-256 password to a PDF. Optionally restrict
+  printing, copying, or editing with a separate permissions password — PDF
+  readers grant full access to whoever supplies the password used to open
+  the file, so a genuine restriction needs two distinct passwords, not one.

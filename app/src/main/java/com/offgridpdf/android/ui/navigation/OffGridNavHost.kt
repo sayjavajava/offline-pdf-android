@@ -8,6 +8,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.offgridpdf.android.ui.dashboard.DashboardScreen
 import com.offgridpdf.android.ui.tool.MergeScreen
+import com.offgridpdf.android.ui.tool.ProtectScreen
 import com.offgridpdf.android.ui.tool.RearrangeScreen
 import com.offgridpdf.android.ui.tool.RotateScreen
 import com.offgridpdf.android.ui.tool.SplitScreen
@@ -34,6 +35,7 @@ fun OffGridNavHost() {
                 "merge" -> MergeScreen()
                 "rotate" -> RotateScreen()
                 "rearrange" -> RearrangeScreen()
+                "protect" -> ProtectScreen()
                 else -> ToolPlaceholderScreen(toolId = toolId)
             }
         }
