@@ -155,8 +155,15 @@ class PdfTextPositionSpikeTest {
         val page2Words = collectWordPositions(document, pageNumber = 2)
         document.close()
 
-        assertEquals(listOf("Secret", "Content"), page1Words.map { it.text })
-        assertEquals(listOf("Secret", "Content"), page2Words.map { it.text })
+        // PDFTextStripper's own word-splitting is gap-based, not whitespace-
+        // based -- a real, plain space character drawn within one showText
+        // call has an entirely ordinary glyph advance, so it doesn't trigger
+        // the "unexpectedly large gap" heuristic `writeString` splits words
+        // on. Confirmed by this real run: both pages capture "Secret
+        // Content" as a single run, its own `chars` list still covering
+        // every character (including the space) with its own real position.
+        assertEquals(listOf("Secret Content"), page1Words.map { it.text })
+        assertEquals(listOf("Secret Content"), page2Words.map { it.text })
 
         val page1FirstChar = page1Words[0].chars[0]
         val page2FirstChar = page2Words[0].chars[0]
@@ -208,8 +215,11 @@ class PdfTextPositionSpikeTest {
             words[touch.wordIndex].chars.subList(touch.startInWord, touch.endInWord)
         }
         // Effective display height for a 90-rotated Letter page: 612pt
-        // (the mediaBox's own width).
-        val rect = unionCharBoxes(boxes, pageHeightPts = PDRectangle.LETTER.width)
+        // (the mediaBox's own width). rotation=90 matters here too -- see
+        // unionCharBoxes's own header comment: on a 90/270 page, "same
+        // line" means similar X, not similar Y, a real finding this test
+        // caught before it was documented.
+        val rect = unionCharBoxes(boxes, pageHeightPts = PDRectangle.LETTER.width, rotation = 90)
         requireNotNull(rect)
         assertTrue("width should be positive, got ${rect.width}", rect.width > 0f)
         assertTrue("height should be positive, got ${rect.height}", rect.height > 0f)

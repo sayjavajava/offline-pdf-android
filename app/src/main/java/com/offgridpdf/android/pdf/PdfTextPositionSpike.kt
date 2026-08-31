@@ -176,13 +176,43 @@ private const val MATCH_PADDING_PT = 1.5f
  * they don't share one visual line — no single rectangle is honest for a
  * match that crosses a line break; the caller counts these as skipped
  * rather than guessing, mirroring `pdf-search.ts`'s own `unionMatchRects`.
+ *
+ * [rotation] (the page's own `/Rotate`, 0/90/180/270) matters for the
+ * *same-line* check specifically, not the union math — a real, caught-by-
+ * the-rotated-page-test finding: on a 90°/270° page, characters advancing
+ * along the original horizontal reading direction move through
+ * *increasing Y* (not X) in [CharBox]'s rotation-adjusted frame, since a
+ * horizontal content-stream line becomes a vertical *displayed* line. So
+ * "same line" means "similar Y" only for 0°/180°; for 90°/270° it means
+ * "similar X" instead. The bounding-box union itself needs no such
+ * distinction — a plain min/max box is correct either way.
+ *
+ * One residual open question, disclosed rather than silently assumed
+ * solved: `TextPosition.getWidth()` is confirmed rotation-swapped (it
+ * measures along whatever the real reading-direction axis is, verified
+ * against the source), but `getHeight()`/`maxHeight` — the glyph's
+ * *cross*-reading-direction extent — is documented in the real source as
+ * "not really a rotation-dependent calculation" (`getHeightDir()`'s own
+ * comment). Whether that cross-axis value still needs its own rotation
+ * correction beyond what's applied here is unresolved by this spike;
+ * `unionCharBoxes`'s own rotated-page test only asserts the resulting
+ * rect has a positive width/height and lands within generous page
+ * bounds — not an exact numeric shape — specifically because of this.
+ * Worth a closer look if A-21's real rotated-page output looks visually
+ * off in one dimension.
  */
-fun unionCharBoxes(boxes: List<CharBox>, pageHeightPts: Float): RedactionRect? {
+fun unionCharBoxes(boxes: List<CharBox>, pageHeightPts: Float, rotation: Int = 0): RedactionRect? {
     if (boxes.isEmpty()) return null
 
-    val midY = { box: CharBox -> box.y + box.height / 2f }
-    val firstMidY = midY(boxes[0])
-    val sameLine = boxes.all { kotlin.math.abs(midY(it) - firstMidY) <= LINE_TOLERANCE_PT }
+    val sameLine = if (rotation == 90 || rotation == 270) {
+        val midX = { box: CharBox -> box.x + box.width / 2f }
+        val firstMidX = midX(boxes[0])
+        boxes.all { kotlin.math.abs(midX(it) - firstMidX) <= LINE_TOLERANCE_PT }
+    } else {
+        val midY = { box: CharBox -> box.y + box.height / 2f }
+        val firstMidY = midY(boxes[0])
+        boxes.all { kotlin.math.abs(midY(it) - firstMidY) <= LINE_TOLERANCE_PT }
+    }
     if (!sameLine) return null
 
     val left = boxes.minOf { it.x } - MATCH_PADDING_PT
