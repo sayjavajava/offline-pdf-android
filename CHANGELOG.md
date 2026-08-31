@@ -68,3 +68,9 @@ merged PR under `## [Unreleased]`. Same convention as the sibling web repo's
   an uploaded image — onto a page. A visual mark, not a cryptographic
   digital signature. Placement is entered directly in the page's own
   point-space (no live preview yet, pending page rendering).
+- **Extract Images**: pull the embedded images out of a PDF without
+  modifying it — JPEG images are exported as-is, and PNG-style images are
+  re-encoded from their raw pixel data. A single image downloads as
+  itself; more than one is bundled into a zip. Images the extractor can't
+  safely export (uncommon encodings or colour spaces) are named and
+  skipped rather than silently dropped or exported wrong.
