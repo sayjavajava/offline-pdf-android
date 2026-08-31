@@ -78,4 +78,11 @@ class PdfToolTest {
         assertEquals(ToolCategory.EditEnhance, pageNumbers.category)
         assertTrue(pageNumbers.title.isNotBlank())
     }
+
+    @Test
+    fun `images-to-pdf is registered under Convert and Export`() {
+        val imagesToPdf = pdfTools.single { it.id == "images-to-pdf" }
+        assertEquals(ToolCategory.ConvertExport, imagesToPdf.category)
+        assertTrue(imagesToPdf.title.isNotBlank())
+    }
 }
