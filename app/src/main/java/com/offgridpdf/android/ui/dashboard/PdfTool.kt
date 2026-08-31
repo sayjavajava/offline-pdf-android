@@ -6,6 +6,7 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Compress
 import androidx.compose.material.icons.filled.Crop
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Draw
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Image
@@ -117,6 +118,13 @@ val pdfTools: List<PdfTool> = listOf(
         title = "Convert Images to PDF",
         description = "Combine JPEG or PNG images into a single PDF.",
         icon = Icons.Filled.Image,
+        category = ToolCategory.ConvertExport,
+    ),
+    PdfTool(
+        id = "docx-to-pdf",
+        title = "Convert DOCX to PDF",
+        description = "Convert a Word document to a real, text-based PDF.",
+        icon = Icons.Filled.Description,
         category = ToolCategory.ConvertExport,
     ),
     PdfTool(

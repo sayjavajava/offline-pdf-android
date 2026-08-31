@@ -127,4 +127,11 @@ class PdfToolTest {
         assertEquals(ToolCategory.EditEnhance, compress.category)
         assertTrue(compress.title.isNotBlank())
     }
+
+    @Test
+    fun `docx-to-pdf is registered under Convert and Export`() {
+        val docxToPdf = pdfTools.single { it.id == "docx-to-pdf" }
+        assertEquals(ToolCategory.ConvertExport, docxToPdf.category)
+        assertTrue(docxToPdf.title.isNotBlank())
+    }
 }
