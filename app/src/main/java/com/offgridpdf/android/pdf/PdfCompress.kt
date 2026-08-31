@@ -34,6 +34,14 @@ private const val JPEG_QUALITY = 80
  * only-replace-if-smaller, and no-images-is-a-safe-no-op *structure*,
  * but not real compressed image quality or size — that needs manual
  * verification on a device/emulator, same as A-12/A-15 and Spike A.
+ *
+ * Unlike `createFromByteArray` (A-12/A-15's silent no-op under the stub),
+ * `getImage()` actually validates the *decoded* bitmap's dimensions and
+ * throws a real `IOException` when they come back degenerate — caught
+ * here, per image, so one image that fails to decode (a real corrupt
+ * embedded image, or — under this sandbox's `BitmapFactory` stub — any
+ * image at all) is skipped rather than aborting the whole compress pass,
+ * same fail-safe spirit as "only replace if smaller."
  */
 fun compressPdf(document: PDDocument): ByteArray {
     for (page in document.pages) {
@@ -42,14 +50,19 @@ fun compressPdf(document: PDDocument): ByteArray {
             val xObject = resources.getXObject(name)
             if (xObject !is PDImageXObject) continue
 
-            val originalBytes = xObject.cosObject.createRawInputStream().use { it.readBytes() }
-            val bitmap = xObject.image ?: continue
-            val recompressed = ByteArrayOutputStream().also {
-                bitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, it)
-            }.toByteArray()
+            try {
+                val originalBytes = xObject.cosObject.createRawInputStream().use { it.readBytes() }
+                val bitmap = xObject.image ?: continue
+                val recompressed = ByteArrayOutputStream().also {
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, it)
+                }.toByteArray()
 
-            if (recompressed.isNotEmpty() && recompressed.size < originalBytes.size) {
-                resources.put(name, PDImageXObject.createFromByteArray(document, recompressed, name.name))
+                if (recompressed.isNotEmpty() && recompressed.size < originalBytes.size) {
+                    resources.put(name, PDImageXObject.createFromByteArray(document, recompressed, name.name))
+                }
+            } catch (e: Exception) {
+                // Leave this image untouched rather than failing the
+                // whole document over one image that couldn't be decoded.
             }
         }
     }
