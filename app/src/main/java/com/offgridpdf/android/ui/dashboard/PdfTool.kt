@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Collections
+import androidx.compose.material.icons.filled.Compress
 import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.Draw
 import androidx.compose.material.icons.filled.Edit
@@ -137,6 +138,13 @@ val pdfTools: List<PdfTool> = listOf(
         title = "Fill PDF Forms",
         description = "Fill in text fields, checkboxes, dropdowns, and radio buttons, then download the result.",
         icon = Icons.Filled.Assignment,
+        category = ToolCategory.EditEnhance,
+    ),
+    PdfTool(
+        id = "compress",
+        title = "Compress PDF",
+        description = "Shrink a PDF, mainly by recompressing its embedded images.",
+        icon = Icons.Filled.Compress,
         category = ToolCategory.EditEnhance,
     ),
     PdfTool(

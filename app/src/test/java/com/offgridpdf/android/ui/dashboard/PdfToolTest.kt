@@ -120,4 +120,11 @@ class PdfToolTest {
         assertEquals(ToolCategory.ConvertExport, extractText.category)
         assertTrue(extractText.title.isNotBlank())
     }
+
+    @Test
+    fun `compress is registered under Edit and Enhance`() {
+        val compress = pdfTools.single { it.id == "compress" }
+        assertEquals(ToolCategory.EditEnhance, compress.category)
+        assertTrue(compress.title.isNotBlank())
+    }
 }

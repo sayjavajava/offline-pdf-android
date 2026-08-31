@@ -7,6 +7,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.offgridpdf.android.ui.dashboard.DashboardScreen
+import com.offgridpdf.android.ui.tool.CompressScreen
 import com.offgridpdf.android.ui.tool.CropResizeScreen
 import com.offgridpdf.android.ui.tool.EditMetadataScreen
 import com.offgridpdf.android.ui.tool.ExtractImagesScreen
@@ -56,6 +57,7 @@ fun OffGridNavHost() {
                 "extract-text" -> ExtractTextScreen()
                 "fill-form" -> FillFormScreen()
                 "signature" -> SignatureScreen()
+                "compress" -> CompressScreen()
                 else -> ToolPlaceholderScreen(toolId = toolId)
             }
         }

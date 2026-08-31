@@ -78,3 +78,8 @@ merged PR under `## [Unreleased]`. Same convention as the sibling web repo's
   range) as a plain text file, optionally marked with where each page
   starts. A scanned PDF has no text layer and comes back empty — flagged
   as most likely scanned rather than silently downloading a blank file.
+- **Compress PDF**: shrink a PDF by recompressing its embedded images as
+  JPEG, only replacing an image when the result actually comes out
+  smaller — a text-only document, or one that's already efficiently
+  compressed, is safely returned unchanged rather than made bigger.
+  Lossy for any image that is recompressed, disclosed up front.
