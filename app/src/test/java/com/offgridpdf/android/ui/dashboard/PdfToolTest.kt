@@ -134,4 +134,11 @@ class PdfToolTest {
         assertEquals(ToolCategory.ConvertExport, docxToPdf.category)
         assertTrue(docxToPdf.title.isNotBlank())
     }
+
+    @Test
+    fun `pdf-to-images is registered under Convert and Export`() {
+        val pdfToImages = pdfTools.single { it.id == "pdf-to-images" }
+        assertEquals(ToolCategory.ConvertExport, pdfToImages.category)
+        assertTrue(pdfToImages.title.isNotBlank())
+    }
 }

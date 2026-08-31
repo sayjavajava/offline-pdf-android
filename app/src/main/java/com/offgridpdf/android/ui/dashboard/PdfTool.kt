@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.MergeType
 import androidx.compose.material.icons.filled.Numbers
+import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Reorder
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.TextSnippet
@@ -125,6 +126,13 @@ val pdfTools: List<PdfTool> = listOf(
         title = "Convert DOCX to PDF",
         description = "Convert a Word document to a real, text-based PDF.",
         icon = Icons.Filled.Description,
+        category = ToolCategory.ConvertExport,
+    ),
+    PdfTool(
+        id = "pdf-to-images",
+        title = "PDF to Images",
+        description = "Render PDF pages to PNG images.",
+        icon = Icons.Filled.PhotoLibrary,
         category = ToolCategory.ConvertExport,
     ),
     PdfTool(
