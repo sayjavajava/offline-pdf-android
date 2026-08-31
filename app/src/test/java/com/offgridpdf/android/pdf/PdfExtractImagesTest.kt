@@ -212,8 +212,13 @@ class PdfExtractImagesTest {
         val page2 = PDPage()
         document.addPage(page1)
         document.addPage(page2)
+        // Different lengths: same resource name ("Im0" is local to each page's
+        // own resource dictionary, so both pages naturally reuse it) but the
+        // dedup key is name+rawByteLength, so distinct-length images here
+        // must NOT collapse together the way the genuinely-reused image in
+        // the test above does.
         addImageXObject(document, page1, "Im0", byteArrayOf(1, 2, 3), COSName.DCT_DECODE, 1, 1, 8, PDDeviceRGB.INSTANCE)
-        addImageXObject(document, page2, "Im0", byteArrayOf(4, 5, 6), COSName.DCT_DECODE, 1, 1, 8, PDDeviceRGB.INSTANCE)
+        addImageXObject(document, page2, "Im0", byteArrayOf(4, 5, 6, 7, 8), COSName.DCT_DECODE, 1, 1, 8, PDDeviceRGB.INSTANCE)
 
         val result = extractImages(document)
 
