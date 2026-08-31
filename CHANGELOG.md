@@ -44,7 +44,11 @@ merged PR under `## [Unreleased]`. Same convention as the sibling web repo's
   annotations underneath the box, so nothing under it stays selectable,
   copyable, or searchable. A drawn box can be copied onto other
   same-sized pages in one step; pages with a different size are skipped
-  and named rather than silently mismatched.
+  and named rather than silently mismatched. Or search for text across
+  the whole document and turn every occurrence into a reviewable box
+  automatically — nothing is applied until you hit Apply, same as a
+  hand-drawn box; a match spanning a line break is skipped and counted
+  rather than guessed at.
 - **Edit Metadata**: change a PDF's title, author, subject, and keywords.
   A blank field leaves the existing value untouched — this edits only the
   fields you fill in, it doesn't clear the rest.

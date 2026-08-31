@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.OutlinedButton
@@ -47,10 +48,12 @@ import com.offgridpdf.android.files.rememberOpenDocumentLauncher
 import com.offgridpdf.android.files.suggestedBaseName
 import com.offgridpdf.android.files.writeBytesToUri
 import com.offgridpdf.android.pdf.ApplyToRangeResult
+import com.offgridpdf.android.pdf.FindMatchResult
 import com.offgridpdf.android.pdf.PdfLoadResult
 import com.offgridpdf.android.pdf.PixelPoint
 import com.offgridpdf.android.pdf.RedactionRect
 import com.offgridpdf.android.pdf.applyBoxesToRange
+import com.offgridpdf.android.pdf.findTextMatches
 import com.offgridpdf.android.pdf.loadPdfFromUri
 import com.offgridpdf.android.pdf.pixelToPdfRect
 import com.offgridpdf.android.pdf.redactPdf
@@ -68,17 +71,19 @@ private const val PREVIEW_SCALE = 1.5f
 private const val MIN_BOX_PT = 4f / PREVIEW_SCALE
 
 /**
- * Web reference: `RedactTool.tsx` + `redactPdf`/`toPixelRect` (`pdf-redact.ts`).
- * Hand-drawn boxes only (A-19) — the web version's Find (F-24) is a
- * separate, later item (A-21, `ANDROID_IMPLEMENTATION_PLAN.md`), gated on
- * Spike D's own per-character text-position work, which this tool does
- * not need.
+ * Web reference: `RedactTool.tsx` + `redactPdf`/`toPixelRect` (`pdf-redact.ts`),
+ * plus its Find UI + `findTextMatches` (`pdf-search.ts`). Hand-drawn boxes
+ * (A-19) and Find (A-21, built on Spike D's `PdfTextPositionSpike.kt`) both
+ * land on the same `redactions` box-list state — "Add all" is a plain map
+ * merge, no translation layer, exactly like the web's own
+ * `handleAddAllMatches`.
  *
  * Unlike every other tool screen, this one keeps a loaded `PDDocument`
- * open across the whole editing session (pick → draw boxes across
- * several pages → apply-to-range → Apply & Download) rather than loading
- * and closing it within a single button press — genuinely necessary here
- * since drawing and page navigation both need the same open document.
+ * open across the whole editing session (pick → draw boxes or search
+ * across several pages → apply-to-range → Apply & Download) rather than
+ * loading and closing it within a single button press — genuinely
+ * necessary here since drawing, page navigation, and Find all need the
+ * same open document.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -107,6 +112,12 @@ fun RedactScreen() {
     var applyRangeText by remember { mutableStateOf("") }
     var applying by remember { mutableStateOf(false) }
     var resultMessage by remember { mutableStateOf<String?>(null) }
+
+    var searchQuery by remember { mutableStateOf("") }
+    var caseSensitive by remember { mutableStateOf(false) }
+    var searching by remember { mutableStateOf(false) }
+    var findResult by remember { mutableStateOf<FindMatchResult?>(null) }
+    var findMessage by remember { mutableStateOf<String?>(null) }
 
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
 
@@ -144,6 +155,9 @@ fun RedactScreen() {
         resultMessage = null
         loadMessage = null
         previewImage = null
+        searchQuery = ""
+        findResult = null
+        findMessage = null
     }
 
     val saveLauncher = rememberCreateDocumentLauncher("application/pdf") { uri ->
@@ -169,6 +183,9 @@ fun RedactScreen() {
                     pageCount = result.document.numberOfPages
                     pageIndex = 0
                     redactions = emptyMap()
+                    searchQuery = ""
+                    findResult = null
+                    findMessage = null
                     try {
                         renderCurrentPage(result.document, 0)
                     } catch (e: Exception) {
@@ -209,7 +226,9 @@ fun RedactScreen() {
                     "Draw boxes over content to permanently remove — this deletes the underlying text and " +
                         "image data, not just draws over it, so nothing under a box stays selectable, copyable, " +
                         "or searchable. Every page you redact loses its own text layer entirely, since it is " +
-                        "rebuilt as a plain image; pages you leave untouched keep theirs.",
+                        "rebuilt as a plain image; pages you leave untouched keep theirs. Or search for text " +
+                        "below to find every occurrence across the document and turn them into boxes " +
+                        "automatically — review them like any other box before applying.",
                 )
             }
             item {
@@ -238,6 +257,97 @@ fun RedactScreen() {
             val doc = document
             val image = previewImage
             if (doc != null && image != null) {
+                item {
+                    Text("Find text to redact")
+                }
+                item {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        label = { Text("e.g. a name or account number") },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                item {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(checked = caseSensitive, onCheckedChange = { caseSensitive = it })
+                        Text("Match case")
+                    }
+                }
+                item {
+                    Button(
+                        onClick = {
+                            searching = true
+                            findResult = null
+                            findMessage = null
+                            scope.launch {
+                                try {
+                                    findResult = findTextMatches(doc, searchQuery, caseSensitive)
+                                } catch (e: IllegalArgumentException) {
+                                    findMessage = e.message
+                                } catch (e: Exception) {
+                                    findMessage = e.message ?: "Could not search this PDF."
+                                }
+                                searching = false
+                            }
+                        },
+                        enabled = !searching,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(if (searching) "Searching..." else "Find")
+                    }
+                }
+                findMessage?.let { message -> item { Text(message) } }
+                findResult?.let { result ->
+                    item {
+                        Text(
+                            if (result.totalMatches == 0) {
+                                "No matches found for \"$searchQuery\"."
+                            } else {
+                                "Found ${result.totalMatches} match${if (result.totalMatches == 1) "" else "es"} across " +
+                                    "${result.matchesByPage.size} page${if (result.matchesByPage.size == 1) "" else "s"}."
+                            },
+                        )
+                    }
+                    val totalSkipped = result.skippedByPage.values.sum()
+                    if (totalSkipped > 0) {
+                        item {
+                            Text(
+                                "$totalSkipped match${if (totalSkipped == 1) "" else "es"} skipped — " +
+                                    "${if (totalSkipped == 1) "it spans" else "they span"} a line break, so draw " +
+                                    "${if (totalSkipped == 1) "that one" else "those"} by hand.",
+                            )
+                        }
+                    }
+                    if (result.noTextLayerPages.isNotEmpty()) {
+                        item {
+                            Text(
+                                "No text layer on page${if (result.noTextLayerPages.size == 1) "" else "s"} " +
+                                    "${result.noTextLayerPages.joinToString(", ")} — likely scanned; redact " +
+                                    "${if (result.noTextLayerPages.size == 1) "that one" else "those"} manually.",
+                            )
+                        }
+                    }
+                    if (result.totalMatches > 0) {
+                        item {
+                            OutlinedButton(
+                                onClick = {
+                                    val merged = redactions.toMutableMap()
+                                    for ((page, rects) in result.matchesByPage) {
+                                        merged[page] = merged[page].orEmpty() + rects
+                                    }
+                                    redactions = merged
+                                    findMessage = "Added ${result.totalMatches} match${if (result.totalMatches == 1) "" else "es"} " +
+                                        "as redaction box${if (result.totalMatches == 1) "" else "es"}."
+                                    findResult = null
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text("Add all ${result.totalMatches} as redaction box${if (result.totalMatches == 1) "" else "es"}")
+                            }
+                        }
+                    }
+                }
                 item {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = { goToPage(pageIndex - 1) }, enabled = pageIndex > 0) { Text("Previous") }
