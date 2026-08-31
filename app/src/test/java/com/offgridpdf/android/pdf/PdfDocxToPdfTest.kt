@@ -44,10 +44,17 @@ class PdfDocxToPdfTest {
               <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
             </Relationships>
         """.trimIndent()
-        val documentXml = """
-            <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-            <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>$bodyXml</w:body></w:document>
-        """.trimIndent()
+        // Built via concatenation, not a `.trimIndent()`'d triple-quoted
+        // template: when `bodyXml` is itself an already-`.trimIndent()`'d
+        // multi-line string, its zero-indent lines drag the *outer*
+        // template's computed common indentation down to zero too, so the
+        // `<?xml...?>` line's real leading whitespace survives untouched
+        // and is no longer the document's literal first characters —
+        // `XmlPullParserException: PI must not start with xml`. Plain
+        // concatenation has no shared-indentation computation to corrupt.
+        val documentXml = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n" +
+            "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">" +
+            "<w:body>$bodyXml</w:body></w:document>"
 
         val out = ByteArrayOutputStream()
         ZipOutputStream(out).use { zip ->
