@@ -7,6 +7,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.offgridpdf.android.ui.dashboard.DashboardScreen
+import com.offgridpdf.android.ui.tool.CropResizeScreen
 import com.offgridpdf.android.ui.tool.EditMetadataScreen
 import com.offgridpdf.android.ui.tool.ImagesToPdfScreen
 import com.offgridpdf.android.ui.tool.MergeScreen
@@ -40,6 +41,7 @@ fun OffGridNavHost() {
                 "merge" -> MergeScreen()
                 "rotate" -> RotateScreen()
                 "rearrange" -> RearrangeScreen()
+                "crop-resize" -> CropResizeScreen()
                 "protect" -> ProtectScreen()
                 "unlock" -> UnlockScreen()
                 "edit" -> EditMetadataScreen()

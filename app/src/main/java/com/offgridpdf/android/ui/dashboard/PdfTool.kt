@@ -2,6 +2,7 @@ package com.offgridpdf.android.ui.dashboard
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.List
@@ -62,6 +63,13 @@ val pdfTools: List<PdfTool> = listOf(
         title = "Delete / Reorder",
         description = "Keep pages in a custom order; omit pages to delete them.",
         icon = Icons.Filled.Reorder,
+        category = ToolCategory.OrganizePages,
+    ),
+    PdfTool(
+        id = "crop-resize",
+        title = "Crop / Resize Pages",
+        description = "Trim margins non-destructively, or rescale pages to a target size.",
+        icon = Icons.Filled.Crop,
         category = ToolCategory.OrganizePages,
     ),
     PdfTool(

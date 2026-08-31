@@ -52,3 +52,9 @@ merged PR under `## [Unreleased]`. Same convention as the sibling web repo's
 - **Convert Images to PDF**: combine one or more JPEG or PNG images into a
   single PDF, one page per image sized to that image's own dimensions, in
   the order they were selected.
+- **Crop / Resize Pages**: crop trims a fixed margin from each edge
+  non-destructively (only the visible window shrinks — content and the
+  original page size are untouched), while resize actually rescales
+  content and page size together to a target paper size (A4, Letter,
+  Legal, or custom), defaulting to a centered scale-to-fit so nothing is
+  distorted unless you choose to stretch.
