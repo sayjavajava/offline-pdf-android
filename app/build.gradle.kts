@@ -94,14 +94,17 @@ dependencies {
 
     debugImplementation(libs.androidx.ui.tooling)
 
-    // Spike B experiment only (ANDROID_IMPLEMENTATION_PLAN.md, tool-docs
-    // repo) -- added as `implementation`, not `testImplementation`, so
-    // `assembleDebug` (already part of CI) exercises real dexing, not
-    // just JVM unit-test behavior. Remove if the spike concludes this
-    // approach isn't the one to use.
-    implementation(libs.apache.poi.ooxml)
-
     testImplementation(libs.junit)
+    // Spike B (ANDROID_IMPLEMENTATION_PLAN.md, tool-docs repo) already
+    // proved poi-ooxml dexes cleanly on `implementation` -- see
+    // CODE_AUDIT.md's Spike B write-up and PR #18's CI run. That question
+    // is settled, and the spike's own decision favors the direct OOXML/
+    // kxml2 approach (zero new runtime dependency) for the real A-25, so
+    // this moves to `testImplementation`: DocxSpikePoiTest.kt keeps
+    // running as a real, JVM-verified record, without every future build
+    // paying poi-ooxml's ~36.8 MB APK / dex-time cost for code no shipped
+    // tool actually uses.
+    testImplementation(libs.apache.poi.ooxml)
     // Spike B comparison approach only -- see the note on apache.poi.ooxml
     // above.
     testImplementation(libs.kxml2)
