@@ -74,3 +74,7 @@ merged PR under `## [Unreleased]`. Same convention as the sibling web repo's
   itself; more than one is bundled into a zip. Images the extractor can't
   safely export (uncommon encodings or colour spaces) are named and
   skipped rather than silently dropped or exported wrong.
+- **Extract Text**: pull the text out of a PDF (all pages, or a page
+  range) as a plain text file, optionally marked with where each page
+  starts. A scanned PDF has no text layer and comes back empty — flagged
+  as most likely scanned rather than silently downloading a blank file.
