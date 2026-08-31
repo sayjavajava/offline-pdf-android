@@ -6,19 +6,22 @@ import com.tom_roush.pdfbox.pdmodel.PDPageContentStream
 import com.tom_roush.pdfbox.pdmodel.font.PDType1Font
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Assert.fail
 import org.junit.Test
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 
 /**
  * Spike C measurement — see `PdfCompressSpike.kt`'s header and
- * `CODE_AUDIT.md`'s Spike C write-up for the full context. This
- * deliberately fails with the real measured numbers so the CI log (the
- * only place this sandbox can actually run PdfBox-Android) carries them
- * back out — a repeat of the same technique used before a real bug (double
- * -compression) was caught by this very correctness check and fixed in
- * `PdfCompressSpike.kt`.
+ * `CODE_AUDIT.md`'s Spike C write-up for the full context and real
+ * measured result: recompressing this fixture's content stream through
+ * `recompressPageContentStreams` measured **original=1119 bytes,
+ * recompressed=1119 bytes — byte-for-byte identical**, on the only
+ * environment this sandbox can actually run PdfBox-Android in (CI; no
+ * local Gradle here). Not a bug: the content was already written through
+ * the same default Flate filter this experiment re-runs, so re-encoding
+ * the same bytes with the same encoder and no way to pick a different
+ * level reproduces the same output exactly — the real, load-bearing
+ * finding for this spike (see the write-up for what that means for A-22).
  */
 class PdfCompressSpikeTest {
 
@@ -43,9 +46,15 @@ class PdfCompressSpikeTest {
     }
 
     @Test
-    fun `measure real before-after size and verify recompressed content is still valid`() {
+    fun `recompressing through the only available filter reproduces the same bytes and preserves the text`() {
         val document = buildRepetitiveFixture()
         val result = recompressPageContentStreams(document)
+
+        assertEquals(
+            "with no public API to choose a compression level, re-encoding through the same default filter should reproduce the same size",
+            result.originalBytes,
+            result.recompressedBytes,
+        )
 
         val out = ByteArrayOutputStream()
         document.save(out)
@@ -56,7 +65,5 @@ class PdfCompressSpikeTest {
         assertTrue("recompressed content must still contain its original text", text.contains(repeatedLine))
         assertEquals(200, Regex(Regex.escape(repeatedLine)).findAll(text).count())
         reloaded.close()
-
-        fail("MEASURED: original=${result.originalBytes} recompressed=${result.recompressedBytes}")
     }
 }
