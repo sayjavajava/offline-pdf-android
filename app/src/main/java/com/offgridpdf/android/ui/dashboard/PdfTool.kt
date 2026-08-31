@@ -6,6 +6,7 @@ import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.MergeType
+import androidx.compose.material.icons.filled.Numbers
 import androidx.compose.material.icons.filled.Reorder
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -80,6 +81,13 @@ val pdfTools: List<PdfTool> = listOf(
         title = "Edit Metadata",
         description = "Modify your PDF's title, author, subject, and keywords.",
         icon = Icons.Filled.Edit,
+        category = ToolCategory.EditEnhance,
+    ),
+    PdfTool(
+        id = "page-numbers",
+        title = "Add Page Numbers",
+        description = "Stamp sequential or Bates numbers onto your PDF.",
+        icon = Icons.Filled.Numbers,
         category = ToolCategory.EditEnhance,
     ),
 )

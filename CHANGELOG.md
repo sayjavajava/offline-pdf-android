@@ -42,3 +42,7 @@ merged PR under `## [Unreleased]`. Same convention as the sibling web repo's
 - **Edit Metadata**: change a PDF's title, author, subject, and keywords.
   A blank field leaves the existing value untouched — this edits only the
   fields you fill in, it doesn't clear the rest.
+- **Add Page Numbers**: stamp sequential page numbers, "page x of y", or
+  zero-padded Bates numbers, onto some or all pages. Numbering counts from
+  the chosen start value across the stamped pages only, not the
+  document's absolute page index.
