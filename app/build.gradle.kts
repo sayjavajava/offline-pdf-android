@@ -94,5 +94,15 @@ dependencies {
 
     debugImplementation(libs.androidx.ui.tooling)
 
+    // Spike B experiment only (ANDROID_IMPLEMENTATION_PLAN.md, tool-docs
+    // repo) -- added as `implementation`, not `testImplementation`, so
+    // `assembleDebug` (already part of CI) exercises real dexing, not
+    // just JVM unit-test behavior. Remove if the spike concludes this
+    // approach isn't the one to use.
+    implementation(libs.apache.poi.ooxml)
+
     testImplementation(libs.junit)
+    // Spike B comparison approach only -- see the note on apache.poi.ooxml
+    // above.
+    testImplementation(libs.kxml2)
 }

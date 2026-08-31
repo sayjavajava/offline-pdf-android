@@ -14,6 +14,17 @@ pdfboxAndroid = "2.0.27.0"
 bouncyCastle = "1.72"
 junit = "4.13.2"
 kotlinxCoroutines = "1.11.0"
+# Spike B (ANDROID_IMPLEMENTATION_PLAN.md, tool-docs repo) only — not yet
+# used by any shipped tool. Pinned to the latest stable tag (REL_5_5_1 on
+# GitHub) at spike time.
+apachePoiOoxml = "5.5.1"
+# Spike B, comparison approach only: kxml2 is the same XmlPullParser
+# implementation Android's own android.util.Xml.newPullParser() wraps,
+# but usable standalone under plain JUnit (android.util.Xml itself is an
+# Android-framework class not available there). Long-stable, unchanged
+# for years -- this exact version already ships inside the Android
+# platform itself.
+kxml2 = "2.3.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -36,6 +47,8 @@ bouncycastle-bcpkix = { group = "org.bouncycastle", name = "bcpkix-jdk15to18", v
 bouncycastle-bcutil = { group = "org.bouncycastle", name = "bcutil-jdk15to18", version.ref = "bouncyCastle" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
+apache-poi-ooxml = { group = "org.apache.poi", name = "poi-ooxml", version.ref = "apachePoiOoxml" }
+kxml2 = { group = "net.sf.kxml", name = "kxml2", version.ref = "kxml2" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
