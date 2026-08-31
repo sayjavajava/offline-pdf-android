@@ -34,10 +34,14 @@ import java.util.zip.ZipInputStream
  *
  * Deliberately bounded scope, matching the web version's own "rough
  * parity, not pixel-identical" bar (`docx-layout.ts`'s header comment) but
- * narrower still: headings, paragraphs, and bold/italic runs only. Lists,
- * tables, and images are not supported in this pass — named and counted
- * as warnings, never silently dropped, same honesty standard as the web
- * version's own unencodable-character/skipped-image warnings.
+ * narrower still: headings, paragraphs, and bold/italic runs are laid out
+ * properly. Tables and images are not supported in this pass — skipped
+ * and counted as warnings, never silently dropped, same honesty standard
+ * as the web version's own unencodable-character/skipped-image warnings.
+ * List item text is not lost either, but its bullet/number marker and
+ * indentation are not preserved yet — a `w:numPr`-marked paragraph is
+ * parsed and drawn as an ordinary paragraph, real content, imperfect
+ * formatting, rather than dropped.
  */
 
 data class DocxRun(val text: String, val bold: Boolean = false, val italic: Boolean = false)

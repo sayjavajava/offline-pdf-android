@@ -83,3 +83,9 @@ merged PR under `## [Unreleased]`. Same convention as the sibling web repo's
   smaller — a text-only document, or one that's already efficiently
   compressed, is safely returned unchanged rather than made bigger.
   Lossy for any image that is recompressed, disclosed up front.
+- **Convert DOCX to PDF**: convert a Word document into a real,
+  text-based PDF — selectable and searchable, not a picture of the page.
+  Headings, paragraphs, and bold/italic text are supported. A table or
+  image is skipped and reported, not silently dropped; list item text
+  still converts (just without its bullet/number marker, which isn't
+  preserved yet).
