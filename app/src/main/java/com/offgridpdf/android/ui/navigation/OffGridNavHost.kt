@@ -7,6 +7,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.offgridpdf.android.ui.dashboard.DashboardScreen
+import com.offgridpdf.android.ui.tool.CompareScreen
 import com.offgridpdf.android.ui.tool.CompressScreen
 import com.offgridpdf.android.ui.tool.CropResizeScreen
 import com.offgridpdf.android.ui.tool.DocxToPdfScreen
@@ -61,6 +62,7 @@ fun OffGridNavHost() {
                 "pdf-to-images" -> PdfToImagesScreen()
                 "extract-images" -> ExtractImagesScreen()
                 "extract-text" -> ExtractTextScreen()
+                "compare" -> CompareScreen()
                 "fill-form" -> FillFormScreen()
                 "signature" -> SignatureScreen()
                 "compress" -> CompressScreen()

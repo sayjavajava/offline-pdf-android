@@ -129,6 +129,13 @@ class PdfToolTest {
     }
 
     @Test
+    fun `compare is registered under Convert and Export`() {
+        val compare = pdfTools.single { it.id == "compare" }
+        assertEquals(ToolCategory.ConvertExport, compare.category)
+        assertTrue(compare.title.isNotBlank())
+    }
+
+    @Test
     fun `compress is registered under Edit and Enhance`() {
         val compress = pdfTools.single { it.id == "compress" }
         assertEquals(ToolCategory.EditEnhance, compress.category)

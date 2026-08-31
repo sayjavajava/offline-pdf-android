@@ -1,0 +1,211 @@
+package com.offgridpdf.android.ui.tool
+
+import android.net.Uri
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.unit.dp
+import com.offgridpdf.android.files.rememberCreateDocumentLauncher
+import com.offgridpdf.android.files.rememberOpenDocumentLauncher
+import com.offgridpdf.android.files.writeBytesToUri
+import com.offgridpdf.android.pdf.CompareResult
+import com.offgridpdf.android.pdf.PageComparison
+import com.offgridpdf.android.pdf.PdfLoadResult
+import com.offgridpdf.android.pdf.buildCompareReport
+import com.offgridpdf.android.pdf.comparePdfs
+import com.offgridpdf.android.pdf.describeComparison
+import com.offgridpdf.android.pdf.loadPdfFromUri
+import kotlinx.coroutines.launch
+
+/**
+ * Web reference: `CompareTool.tsx` + `comparePdfs` (`pdf-compare.ts`).
+ * Read-only — nothing is modified, and no PDF is produced, just a report
+ * of what differs between PDF A and PDF B, page by page.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CompareScreen() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    var uriA by remember { mutableStateOf<Uri?>(null) }
+    var uriB by remember { mutableStateOf<Uri?>(null) }
+    var passwordA by remember { mutableStateOf("") }
+    var passwordB by remember { mutableStateOf("") }
+    var running by remember { mutableStateOf(false) }
+    var result by remember { mutableStateOf<CompareResult?>(null) }
+    var resultMessage by remember { mutableStateOf<String?>(null) }
+    var pendingReportBytes by remember { mutableStateOf<ByteArray?>(null) }
+
+    val pickLauncherA = rememberOpenDocumentLauncher { uri ->
+        uriA = uri
+        passwordA = ""
+        result = null
+        resultMessage = null
+    }
+    val pickLauncherB = rememberOpenDocumentLauncher { uri ->
+        uriB = uri
+        passwordB = ""
+        result = null
+        resultMessage = null
+    }
+
+    val saveReportLauncher = rememberCreateDocumentLauncher("text/plain") { uri ->
+        val bytes = pendingReportBytes
+        if (uri != null && bytes != null) {
+            scope.launch { writeBytesToUri(context, uri, bytes) }
+        }
+        pendingReportBytes = null
+    }
+
+    Scaffold(topBar = { TopAppBar(title = { Text("Compare PDFs") }) }) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier.padding(innerPadding).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            item {
+                Text(
+                    "Find out what changed between two versions of a document — page by page, both " +
+                        "what the text says and what the page looks like. Read-only: nothing is " +
+                        "modified, and no PDF is produced, just a report of what differs.",
+                )
+            }
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { pickLauncherA.launch(arrayOf("application/pdf")) }, modifier = Modifier.fillMaxWidth()) {
+                        Text(uriA?.lastPathSegment ?: "Choose PDF A")
+                    }
+                    OutlinedTextField(
+                        value = passwordA,
+                        onValueChange = { passwordA = it },
+                        label = { Text("Password A (if encrypted)") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(onClick = { pickLauncherB.launch(arrayOf("application/pdf")) }, modifier = Modifier.fillMaxWidth()) {
+                        Text(uriB?.lastPathSegment ?: "Choose PDF B")
+                    }
+                    OutlinedTextField(
+                        value = passwordB,
+                        onValueChange = { passwordB = it },
+                        label = { Text("Password B (if encrypted)") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+            item {
+                Button(
+                    onClick = {
+                        val a = uriA
+                        val b = uriB
+                        if (a == null || b == null) {
+                            resultMessage = "Select a PDF for both A and B."
+                            return@Button
+                        }
+                        running = true
+                        resultMessage = null
+                        result = null
+                        scope.launch {
+                            when (val loadedA = loadPdfFromUri(context, a, passwordA.ifBlank { null })) {
+                                is PdfLoadResult.Success -> {
+                                    when (val loadedB = loadPdfFromUri(context, b, passwordB.ifBlank { null })) {
+                                        is PdfLoadResult.Success -> {
+                                            try {
+                                                val compared = comparePdfs(loadedA.document, loadedB.document)
+                                                result = compared
+                                                val diffCount = compared.pages.count { page ->
+                                                    page !is PageComparison.Both || page.textDiffers == true || page.visuallyDiffers
+                                                }
+                                                resultMessage = if (diffCount == 0) {
+                                                    "Every shared page is identical, and both files have the same page count."
+                                                } else {
+                                                    "$diffCount of ${compared.pages.size} page${if (compared.pages.size == 1) "" else "s"} differ."
+                                                }
+                                            } catch (e: Exception) {
+                                                resultMessage = e.message ?: "Could not compare these PDFs."
+                                            } finally {
+                                                loadedB.document.close()
+                                            }
+                                        }
+                                        PdfLoadResult.PasswordRequired -> {
+                                            resultMessage = if (passwordB.isBlank()) "PDF B needs a password." else "Wrong password for PDF B — try again."
+                                        }
+                                        is PdfLoadResult.Failure -> resultMessage = "PDF B: ${loadedB.message}"
+                                    }
+                                    loadedA.document.close()
+                                }
+                                PdfLoadResult.PasswordRequired -> {
+                                    resultMessage = if (passwordA.isBlank()) "PDF A needs a password." else "Wrong password for PDF A — try again."
+                                }
+                                is PdfLoadResult.Failure -> resultMessage = "PDF A: ${loadedA.message}"
+                            }
+                            running = false
+                        }
+                    },
+                    enabled = !running,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(if (running) "Comparing..." else "Compare")
+                }
+            }
+            if (running) {
+                item { CircularProgressIndicator() }
+            }
+            resultMessage?.let { message -> item { Text(message) } }
+
+            val current = result
+            if (current != null) {
+                item {
+                    Text("A: ${current.pageCountA} page${if (current.pageCountA == 1) "" else "s"} · B: ${current.pageCountB} page${if (current.pageCountB == 1) "" else "s"}")
+                }
+                item {
+                    OutlinedButton(
+                        onClick = {
+                            pendingReportBytes = buildCompareReport(
+                                uriA?.lastPathSegment ?: "A.pdf",
+                                uriB?.lastPathSegment ?: "B.pdf",
+                                current,
+                            ).toByteArray()
+                            saveReportLauncher.launch("compare_report.txt")
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("Download Report") }
+                }
+                items(current.pages.size) { i ->
+                    val p = current.pages[i]
+                    val ratioText = if (p is PageComparison.Both && p.pixelDiffRatio != null) {
+                        " — ${"%.1f".format(p.pixelDiffRatio * 100)}% of pixels"
+                    } else {
+                        ""
+                    }
+                    Text("Page ${p.page}: ${describeComparison(p)}$ratioText")
+                }
+            }
+        }
+    }
+}

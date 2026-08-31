@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Collections
+import androidx.compose.material.icons.filled.Compare
 import androidx.compose.material.icons.filled.Compress
 import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.Description
@@ -155,6 +156,13 @@ val pdfTools: List<PdfTool> = listOf(
         title = "Extract Text",
         description = "Pull the text out of a PDF as a plain text file.",
         icon = Icons.Filled.TextSnippet,
+        category = ToolCategory.ConvertExport,
+    ),
+    PdfTool(
+        id = "compare",
+        title = "Compare PDFs",
+        description = "Find what changed between two versions — page by page, text and visual.",
+        icon = Icons.Filled.Compare,
         category = ToolCategory.ConvertExport,
     ),
     PdfTool(
