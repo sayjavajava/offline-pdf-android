@@ -84,6 +84,12 @@ merged PR under `## [Unreleased]`. Same convention as the sibling web repo's
   range) as a plain text file, optionally marked with where each page
   starts. A scanned PDF has no text layer and comes back empty — flagged
   as most likely scanned rather than silently downloading a blank file.
+- **Compare PDFs**: find what changed between two versions of a document,
+  page by page — text and visual differences are reported independently,
+  since one can change without the other. Read-only: nothing is modified,
+  and no PDF is produced, just a downloadable report. Differently-sized
+  pages skip the text comparison (it can't be trusted there) but are
+  still reported as visually different.
 - **Compress PDF**: shrink a PDF by recompressing its embedded images as
   JPEG, only replacing an image when the result actually comes out
   smaller — a text-only document, or one that's already efficiently
