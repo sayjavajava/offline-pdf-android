@@ -25,6 +25,13 @@ apachePoiOoxml = "5.5.1"
 # for years -- this exact version already ships inside the Android
 # platform itself.
 kxml2 = "2.3.0"
+# Spike A (page rendering, ANDROID_IMPLEMENTATION_PLAN.md, tool-docs repo)
+# only -- instrumented (androidTest) dependencies, needed to run real
+# android.graphics.pdf.PdfRenderer/PDFRenderer comparisons on an actual
+# device/emulator, which no plain JUnit test can reach.
+androidxTestCore = "1.6.1"
+androidxTestRunner = "1.6.2"
+androidxTestExtJunit = "1.2.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -49,6 +56,9 @@ junit = { group = "junit", name = "junit", version.ref = "junit" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "kotlinxCoroutines" }
 apache-poi-ooxml = { group = "org.apache.poi", name = "poi-ooxml", version.ref = "apachePoiOoxml" }
 kxml2 = { group = "net.sf.kxml", name = "kxml2", version.ref = "kxml2" }
+androidx-test-core = { group = "androidx.test", name = "core", version.ref = "androidxTestCore" }
+androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidxTestRunner" }
+androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxTestExtJunit" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

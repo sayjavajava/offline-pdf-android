@@ -108,4 +108,21 @@ dependencies {
     // Spike B comparison approach only -- see the note on apache.poi.ooxml
     // above.
     testImplementation(libs.kxml2)
+
+    // Spike A only (ANDROID_IMPLEMENTATION_PLAN.md, tool-docs repo): real
+    // android.graphics.pdf.PdfRenderer usage needs a live Android runtime,
+    // not the JVM-only android.jar stub testOptions.unitTests relies on
+    // above -- so this lives under androidTest, run via a real emulator in
+    // CI (.github/workflows/spike-a-page-rendering.yml), not
+    // testDebugUnitTest. pdfbox-android is re-declared here even though
+    // it's already `implementation` above: androidTestImplementation does
+    // not inherit the app's own `implementation` classpath at compile
+    // time (only androidTest's own declared deps and the app module's own
+    // main-source-set classes are visible there), so PDFRenderer/PDDocument
+    // types need their own explicit entry to resolve in this source set.
+    androidTestImplementation(libs.pdfbox.android)
+    androidTestImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.test.core)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.ext.junit)
 }

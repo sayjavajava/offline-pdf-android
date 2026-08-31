@@ -1,0 +1,88 @@
+name: Spike A - Page Rendering
+
+# Not a permanent regression suite -- ANDROID_IMPLEMENTATION_PLAN.md
+# (tool-docs repo) calls Spike A "a short, documented spike," run once
+# against a real device/emulator to gather real numbers (visual quality,
+# timing, encrypted-PDF compatibility) that no JVM unit test can reach.
+# Path-filtered so it only fires on PRs that actually touch the spike's
+# own test/workflow, not on every future PR in this repo -- re-run it via
+# workflow_dispatch if the comparison ever needs to be redone (a new
+# PdfBox-Android version, a new minSdk, a new Android API level).
+on:
+  pull_request:
+    paths:
+      - "app/src/androidTest/**"
+      - ".github/workflows/spike-a-page-rendering.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  page-rendering-spike:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      # GitHub-hosted Ubuntu runners support hardware-accelerated (KVM)
+      # Android emulation, but it isn't on by default -- this is the
+      # standard unlock step, real and sourced (github.blog's own
+      # "Hardware accelerated Android virtualization on Actions Windows
+      # and Linux larger hosted runners" changelog post), not a guess.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Boot a real emulator and run Spike A's instrumented test
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          # API 26, not a newer/friendlier level: this app's own minSdk
+          # (app/build.gradle.kts). Spike A's encrypted-PDF comparison is
+          # specifically about the platform renderer's real, API-version-
+          # dependent gaps (password support arrived in API 35, backported
+          # to 30+ only via the PdfRendererPreV mainline module) -- the
+          # true worst case this app must still support, not the newest
+          # image available.
+          api-level: 26
+          target: default
+          arch: x86_64
+          script: |
+            set +e
+            ./gradlew connectedDebugAndroidTest --stacktrace
+            GRADLE_EXIT=$?
+            set -e
+
+            # Pull the real results regardless of pass/fail -- a failing
+            # comparison is still real data worth seeing, not just a red X.
+            mkdir -p spike-a-results
+            adb pull /sdcard/Android/data/com.offgridpdf.android/files/. ./spike-a-results || true
+
+            echo "=================================================="
+            echo "Spike A real results (ANDROID_IMPLEMENTATION_PLAN.md)"
+            echo "=================================================="
+            for f in ./spike-a-results/spike-a-*.txt; do
+              if [ -f "$f" ]; then
+                echo "--- $(basename "$f") ---"
+                cat "$f"
+                echo
+              fi
+            done
+
+            exit $GRADLE_EXIT
+
+      - name: Upload Spike A results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: spike-a-results
+          path: spike-a-results/
+          if-no-files-found: warn
