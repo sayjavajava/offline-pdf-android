@@ -50,6 +50,23 @@ android {
             // it a harmless no-op instead, avoiding a Robolectric
             // dependency for tests that don't otherwise need one.
             isReturnDefaultValues = true
+
+            all { test ->
+                // Gradle's default test-failure summary prints only the
+                // exception class and a line number, not its message or
+                // full cause chain -- not enough to diagnose a real CI
+                // failure (see PR #9's history: two rounds of guessing
+                // before this was added). Full detail on every run, not
+                // just a one-off debugging flag, so the next failure is
+                // diagnosable from the first log without a round-trip.
+                test.testLogging {
+                    events("failed")
+                    exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+                    showCauses = true
+                    showExceptions = true
+                    showStackTraces = true
+                }
+            }
         }
     }
 }
