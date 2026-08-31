@@ -4,23 +4,32 @@ import com.tom_roush.pdfbox.cos.COSName
 import com.tom_roush.pdfbox.cos.COSStream
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import java.io.ByteArrayOutputStream
-import java.util.zip.Deflater
-import java.util.zip.DeflaterOutputStream
 import java.util.zip.Inflater
 
 /**
  * Spike C (`ANDROID_IMPLEMENTATION_PLAN.md`) — a feasibility experiment for
- * A-22's *lossless, stream-level* compression lever only: real, measured
- * evidence for how much a `FlateDecode` stream shrinks when uncompressed
- * and re-deflated at the maximum ratio, using nothing beyond
- * `java.util.zip` — fully testable under plain JUnit, unlike the web
- * version's `qpdf --optimize-images` lever, which needs a real JPEG
- * encoder (`android.graphics.Bitmap`) this sandbox cannot verify. See
- * `CODE_AUDIT.md`'s Spike C write-up for the full honest scoping,
- * including what this experiment deliberately does *not* attempt
- * (lossy image re-encoding, xref/object-stream compaction — PdfBox-Android
- * exposes no equivalent to qpdf's `--object-streams=generate`, confirmed
- * against the real `PDDocument`/`COSWriter` source before concluding so).
+ * A-22's *lossless, stream-level* compression lever: real, measured
+ * evidence for what re-writing a `FlateDecode` stream through PdfBox-
+ * Android's own filter actually does to its size.
+ *
+ * A first version of this experiment tried to control the compression
+ * *ratio* directly (re-deflating at `Deflater.BEST_COMPRESSION` before
+ * writing) — a real bug, caught by CI: `COSStream.createOutputStream(COSBase
+ * filters)` already applies Flate encoding itself to whatever bytes are
+ * written to it (confirmed against the real source after the fact), so
+ * writing already-deflated bytes through it double-compressed the stream,
+ * corrupting it (`PDFStreamParser` choked on the still-compressed "operators"
+ * on the next read). The fix below writes the raw, uncompressed content and
+ * lets PdfBox-Android's own filter do the only compression that happens —
+ * which also surfaces a real, concrete limitation worth recording: **there
+ * is no public API here to choose a compression level**, unlike qpdf's
+ * explicit `--compression-level=9`. See `CODE_AUDIT.md`'s Spike C write-up
+ * for the full honest scoping, including what this deliberately does *not*
+ * attempt (lossy image re-encoding needs a real JPEG encoder —
+ * `android.graphics.Bitmap`, same gap as A-12/A-15 — and xref/object-stream
+ * compaction has no PdfBox-Android equivalent to qpdf's
+ * `--object-streams=generate`, confirmed against the real
+ * `PDDocument`/`COSWriter` source).
  *
  * Not wired into any tool yet — a real A-22 "Compress PDF" tool is a
  * separate, later item once this spike's write-up settles the approach.
@@ -41,27 +50,19 @@ private fun inflateAll(bytes: ByteArray): ByteArray {
     return out.toByteArray()
 }
 
-private fun deflateAllAtMaxRatio(bytes: ByteArray): ByteArray {
-    val out = ByteArrayOutputStream()
-    val deflater = Deflater(Deflater.BEST_COMPRESSION)
-    DeflaterOutputStream(out, deflater).use { it.write(bytes) }
-    deflater.end()
-    return out.toByteArray()
-}
-
 /**
- * Re-deflates [stream] (already `FlateDecode`-filtered) at the maximum
- * compression ratio, in place. Returns the stream's raw byte count before
- * and after, for measurement — the caller decides what, if anything, to
- * do with the difference.
+ * Decodes [stream]'s current `FlateDecode` bytes and writes the raw
+ * content straight back out through the stream's own filter — the only
+ * "recompression" this API surface allows, since there is no way to pick
+ * a compression level. Returns the stream's raw byte count before and
+ * after, for measurement.
  */
 private fun recompressFlateStream(stream: COSStream): StreamRecompressionResult {
     val originalBytes = stream.createRawInputStream().use { it.readBytes() }
     val decoded = inflateAll(originalBytes)
-    val recompressed = deflateAllAtMaxRatio(decoded)
-    stream.setItem(COSName.FILTER, COSName.FLATE_DECODE)
-    stream.createOutputStream(COSName.FLATE_DECODE).use { it.write(recompressed) }
-    return StreamRecompressionResult(originalBytes.size, recompressed.size)
+    stream.createOutputStream(COSName.FLATE_DECODE).use { it.write(decoded) }
+    val recompressedBytes = stream.createRawInputStream().use { it.readBytes() }
+    return StreamRecompressionResult(originalBytes.size, recompressedBytes.size)
 }
 
 /**
