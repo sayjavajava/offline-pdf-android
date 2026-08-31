@@ -55,6 +55,18 @@ suspend fun writeBytesToUri(context: Context, uri: Uri, bytes: ByteArray) {
 }
 
 /**
+ * Reads the full contents of a picked `Uri` as raw bytes — for tools that
+ * need the file's own bytes directly (batch image-to-PDF, A-12) rather
+ * than a parsed `PDDocument` (`loadPdfFromUri`, `PdfLoaderAndroid.kt`).
+ */
+suspend fun readBytesFromUri(context: Context, uri: Uri): ByteArray =
+    withContext(Dispatchers.IO) {
+        val stream = context.contentResolver.openInputStream(uri)
+            ?: throw IOException("Could not open the selected file.")
+        stream.use { it.readBytes() }
+    }
+
+/**
  * A reasonable filename base for a save-suggestion, e.g. for
  * `"${suggestedBaseName(uri)}_rotated90.pdf"`. Extracted here after it was
  * first written as a private copy in `SplitScreen.kt` (A-3) — every

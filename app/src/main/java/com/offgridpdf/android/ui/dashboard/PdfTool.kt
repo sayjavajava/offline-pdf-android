@@ -3,6 +3,7 @@ package com.offgridpdf.android.ui.dashboard
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
@@ -97,5 +98,12 @@ val pdfTools: List<PdfTool> = listOf(
         description = "Stamp sequential or Bates numbers onto your PDF.",
         icon = Icons.Filled.Numbers,
         category = ToolCategory.EditEnhance,
+    ),
+    PdfTool(
+        id = "images-to-pdf",
+        title = "Convert Images to PDF",
+        description = "Combine JPEG or PNG images into a single PDF.",
+        icon = Icons.Filled.Image,
+        category = ToolCategory.ConvertExport,
     ),
 )

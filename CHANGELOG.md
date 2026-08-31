@@ -49,3 +49,6 @@ merged PR under `## [Unreleased]`. Same convention as the sibling web repo's
   zero-padded Bates numbers, onto some or all pages. Numbering counts from
   the chosen start value across the stamped pages only, not the
   document's absolute page index.
+- **Convert Images to PDF**: combine one or more JPEG or PNG images into a
+  single PDF, one page per image sized to that image's own dimensions, in
+  the order they were selected.
