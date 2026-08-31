@@ -92,4 +92,11 @@ class PdfToolTest {
         assertEquals(ToolCategory.ConvertExport, imagesToPdf.category)
         assertTrue(imagesToPdf.title.isNotBlank())
     }
+
+    @Test
+    fun `fill-form is registered under Edit and Enhance`() {
+        val fillForm = pdfTools.single { it.id == "fill-form" }
+        assertEquals(ToolCategory.EditEnhance, fillForm.category)
+        assertTrue(fillForm.title.isNotBlank())
+    }
 }

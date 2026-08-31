@@ -9,6 +9,7 @@ import androidx.navigation.navArgument
 import com.offgridpdf.android.ui.dashboard.DashboardScreen
 import com.offgridpdf.android.ui.tool.CropResizeScreen
 import com.offgridpdf.android.ui.tool.EditMetadataScreen
+import com.offgridpdf.android.ui.tool.FillFormScreen
 import com.offgridpdf.android.ui.tool.ImagesToPdfScreen
 import com.offgridpdf.android.ui.tool.MergeScreen
 import com.offgridpdf.android.ui.tool.PageNumbersScreen
@@ -48,6 +49,7 @@ fun OffGridNavHost() {
                 "watermark" -> WatermarkScreen()
                 "page-numbers" -> PageNumbersScreen()
                 "images-to-pdf" -> ImagesToPdfScreen()
+                "fill-form" -> FillFormScreen()
                 else -> ToolPlaceholderScreen(toolId = toolId)
             }
         }
