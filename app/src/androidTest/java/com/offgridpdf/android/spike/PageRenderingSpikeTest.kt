@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.pdf.PdfRenderer
 import android.os.ParcelFileDescriptor
+import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.offgridpdf.android.pdf.PdfLoadResult
@@ -38,15 +39,20 @@ private const val SPIKE_DPI = 150f
  * genuinely cannot substitute for (no unit test can construct a
  * `ParcelFileDescriptor` or drive the platform renderer's native code).
  *
- * Each test writes its own plain-text result to the app's internal files
- * dir; CI pulls those files off the emulator (via `adb exec-out run-as`,
- * root-independent) and prints them into the job log after the Gradle
- * task finishes, so the real numbers are visible directly in the PR's CI
- * output — not just in logcat, and not lost if a later test in the run
- * fails. `ANDROID_CODE_AUDIT.md` (tool-docs repo)
- * is where the actual write-up and renderer recommendation live, filled
- * in from those real numbers once this runs green — this file is the
- * evidence, gathered once, not a permanent regression suite (see the
+ * Each test logs its own result via `Log.i("SpikeA", ...)`; CI dumps
+ * `adb logcat -d` after the Gradle task finishes and greps for that tag,
+ * so the real numbers are visible directly in the PR's CI output. This
+ * replaced an earlier app-private-file-based approach that reliably
+ * produced zero retrievable data: `connectedDebugAndroidTest` uninstalls
+ * the app (wiping its private storage with it) immediately after the
+ * test run completes, before any post-hoc `adb pull`/`run-as` step can
+ * read it back -- confirmed for real via `run-as: unknown package` in a
+ * real CI run, not assumed. `logcat`'s system-wide ring buffer has no
+ * such lifecycle tie to the package that wrote to it, which is what
+ * makes it the right mechanism here. `ANDROID_CODE_AUDIT.md` (tool-docs
+ * repo) is where the actual write-up and renderer recommendation live,
+ * filled in from those real numbers once this runs green — this file is
+ * the evidence, gathered once, not a permanent regression suite (see the
  * workflow's own path-filtered trigger).
  *
  * Kept as several independent `@Test` methods rather than one long one so
@@ -56,23 +62,21 @@ private const val SPIKE_DPI = 150f
 @RunWith(AndroidJUnit4::class)
 class PageRenderingSpikeTest {
 
+    companion object {
+        private const val TAG = "SpikeA"
+    }
+
     private val context: Context
         get() = InstrumentationRegistry.getInstrumentation().targetContext
 
-    // context.filesDir (internal storage), not getExternalFilesDir: a real
-    // first CI run found the latter produced zero pullable files on this
-    // AVD image (either a null/unmounted external-storage path or a
-    // storage-layout difference on the "default" -- not "google_apis" --
-    // system image) -- internal storage always exists for an installed
-    // app, and CI retrieves it via `adb exec-out run-as <pkg> cat ...`,
-    // the standard way to read a debuggable app's private files without
-    // root, which works regardless of whether the AVD itself is rooted.
-    private fun writeResult(name: String, content: String) {
-        File(context.filesDir, "spike-a-$name.txt").writeText(content)
+    private fun logResult(name: String, content: String) {
+        Log.i(TAG, "===$name===")
+        content.trimEnd('\n').lines().forEach { Log.i(TAG, it) }
+        Log.i(TAG, "===END $name===")
     }
 
-    private fun appendDiagnostic(line: String) {
-        File(context.filesDir, "spike-a-diagnostics.txt").appendText(line + "\n")
+    private fun logDiagnostic(line: String) {
+        Log.i(TAG, "[diag] $line")
     }
 
     // --- fixtures, built via this project's own already-proven PdfBox-Android
@@ -209,7 +213,7 @@ class PageRenderingSpikeTest {
         // actionable from this file instead of another guess-and-push
         // round trip.
         val onDisk = file.readBytes()
-        appendDiagnostic(
+        logDiagnostic(
             "renderWithPlatform($pageIndex): inMemoryLen=${pdfBytes.size} onDiskLen=${onDisk.size} " +
                 "identical=${onDisk.contentEquals(pdfBytes)} " +
                 "header=${onDisk.take(8).joinToString(" ") { "%02x".format(it) }} " +
@@ -220,7 +224,7 @@ class PageRenderingSpikeTest {
         val renderer = try {
             PdfRenderer(pfd)
         } catch (e: Exception) {
-            appendDiagnostic("renderWithPlatform($pageIndex): PdfRenderer(pfd) threw ${e.javaClass.name}: ${e.message}")
+            logDiagnostic("renderWithPlatform($pageIndex): PdfRenderer(pfd) threw ${e.javaClass.name}: ${e.message}")
             pfd.close()
             file.delete()
             throw e
@@ -268,7 +272,7 @@ class PageRenderingSpikeTest {
             abs(pdfBoxBitmap.height - platformBitmap.height) <= 1
         val meanDiff = if (dimsMatch) meanAbsoluteDifference(pdfBoxBitmap, platformBitmap) else Double.NaN
 
-        writeResult(
+        logResult(
             "quality",
             "pdfbox-android size: ${pdfBoxBitmap.width}x${pdfBoxBitmap.height}\n" +
                 "platform size: ${platformBitmap.width}x${platformBitmap.height}\n" +
@@ -284,7 +288,7 @@ class PageRenderingSpikeTest {
         val file = File(context.cacheDir, "spike-a-encrypted-platform.pdf")
         file.writeBytes(encryptedBytes)
         val onDisk = file.readBytes()
-        appendDiagnostic(
+        logDiagnostic(
             "encrypted-platform: inMemoryLen=${encryptedBytes.size} onDiskLen=${onDisk.size} " +
                 "identical=${onDisk.contentEquals(encryptedBytes)} " +
                 "header=${onDisk.take(8).joinToString(" ") { "%02x".format(it) }} " +
@@ -305,7 +309,7 @@ class PageRenderingSpikeTest {
             file.delete()
         }
 
-        writeResult(
+        logResult(
             "encrypted-platform",
             "android.graphics.pdf.PdfRenderer(ParcelFileDescriptor) on API ${android.os.Build.VERSION.SDK_INT}: " +
                 "threw ${thrown.javaClass.name}: ${thrown.message}\n" +
@@ -332,7 +336,7 @@ class PageRenderingSpikeTest {
         }
         assertTrue("Decrypted PdfBox-Android render should show real content, not a blank page", hasVisibleContent(bitmap))
 
-        writeResult(
+        logResult(
             "encrypted-pdfbox",
             "PdfBox-Android loadPdf(bytes, password) + PDFRenderer: opened and rendered successfully.\n" +
                 "Real, working password-protected-PDF support at this app's minSdk=26, unlike the platform " +
@@ -355,7 +359,7 @@ class PageRenderingSpikeTest {
         val file = File(context.cacheDir, "spike-a-timing.pdf")
         file.writeBytes(pdfBytes)
         val onDisk = file.readBytes()
-        appendDiagnostic(
+        logDiagnostic(
             "timing fixture ($pageCount pages): inMemoryLen=${pdfBytes.size} onDiskLen=${onDisk.size} " +
                 "identical=${onDisk.contentEquals(pdfBytes)} " +
                 "header=${onDisk.take(8).joinToString(" ") { "%02x".format(it) }}",
@@ -365,7 +369,7 @@ class PageRenderingSpikeTest {
         val renderer = try {
             PdfRenderer(pfd)
         } catch (e: Exception) {
-            appendDiagnostic("timing fixture: PdfRenderer(pfd) threw ${e.javaClass.name}: ${e.message}")
+            logDiagnostic("timing fixture: PdfRenderer(pfd) threw ${e.javaClass.name}: ${e.message}")
             pfd.close()
             file.delete()
             throw e
@@ -389,7 +393,7 @@ class PageRenderingSpikeTest {
         }
         val platformMs = (System.nanoTime() - platformStart) / 1_000_000
 
-        writeResult(
+        logResult(
             "timing",
             "CI-emulator timing -- NOT representative of a real device's performance, only a same-run " +
                 "relative comparison. See Spike A's ANDROID_CODE_AUDIT.md write-up before quoting these as " +
@@ -450,7 +454,7 @@ class PageRenderingSpikeTest {
         // each renderer should throw. Malformed-PDF recovery behavior is
         // inherently implementation-specific; the point is to record the
         // real reaction, not gate CI on a guessed one.
-        writeResult(
+        logResult(
             "malformed",
             "Observational only, no pass/fail assertion -- real reaction of each renderer to a truncated " +
                 "(60% of original bytes) PDF:\n" +

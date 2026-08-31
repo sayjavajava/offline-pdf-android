@@ -64,11 +64,3 @@ jobs:
           # non-zero, before a later line ever runs. A real script file
           # avoids that entirely.
           script: bash scripts/run-spike-a.sh
-
-      - name: Upload Spike A results
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: spike-a-results
-          path: spike-a-results/
-          if-no-files-found: warn
