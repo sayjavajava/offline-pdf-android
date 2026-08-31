@@ -55,38 +55,15 @@ jobs:
           api-level: 26
           target: default
           arch: x86_64
-          script: |
-            set +e
-            ./gradlew connectedDebugAndroidTest --stacktrace
-            GRADLE_EXIT=$?
-            set -e
-
-            # Pull the real results regardless of pass/fail -- a failing
-            # comparison is still real data worth seeing, not just a red X.
-            # Internal storage (context.filesDir in the test), not
-            # /sdcard/.../files: a real first run found nothing under the
-            # external-files path on this "default" (non-Google) system
-            # image. `adb exec-out run-as <pkg> cat ...` is the standard,
-            # root-independent way to read a debuggable app's private
-            # files -- works whether or not the AVD itself is rooted.
-            mkdir -p spike-a-results
-            PKG=com.offgridpdf.android
-            for f in $(adb shell run-as "$PKG" ls files/ 2>/dev/null | tr -d '\r' | grep '^spike-a-' || true); do
-              adb exec-out run-as "$PKG" cat "files/$f" > "spike-a-results/$f" 2>/dev/null || true
-            done
-
-            echo "=================================================="
-            echo "Spike A real results (ANDROID_IMPLEMENTATION_PLAN.md)"
-            echo "=================================================="
-            for f in ./spike-a-results/spike-a-*.txt; do
-              if [ -f "$f" ]; then
-                echo "--- $(basename "$f") ---"
-                cat "$f"
-                echo
-              fi
-            done
-
-            exit $GRADLE_EXIT
+          # A single line, not a multi-line block: a real first run found
+          # this action executes each line of `script:` as its OWN
+          # independent `sh -c` invocation, not one continuous shell
+          # session -- state set on one line (set +e, a variable
+          # assignment) does not survive to the next, and the action
+          # aborts the whole step the instant any one line returns
+          # non-zero, before a later line ever runs. A real script file
+          # avoids that entirely.
+          script: bash scripts/run-spike-a.sh
 
       - name: Upload Spike A results
         if: always()
