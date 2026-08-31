@@ -14,7 +14,7 @@ import kotlin.math.min
  * `cropPdf`/`resizePdf` (`pdf-ops.ts`) both use, and the same as
  * `rotatePdf` (`PdfRotate.kt`) already established on this side.
  */
-private fun resolvePageIndices(pages: String, pageCount: Int): List<Int> {
+private fun resolveCropResizePageIndices(pages: String, pageCount: Int): List<Int> {
     if (pages.isBlank() || pages.trim().equals("all", ignoreCase = true)) {
         return (0 until pageCount).toList()
     }
@@ -49,7 +49,7 @@ fun cropPdf(document: PDDocument, margins: CropMargins, pages: String = "all"): 
         }
     }
 
-    val indices = resolvePageIndices(pages, document.numberOfPages)
+    val indices = resolveCropResizePageIndices(pages, document.numberOfPages)
 
     for (i in indices) {
         val page = document.getPage(i)
@@ -112,7 +112,7 @@ fun resizePdf(document: PDDocument, target: PaperSize, pages: String = "all", st
         throw IllegalArgumentException("Target page size must be a positive width and height.")
     }
 
-    val indices = resolvePageIndices(pages, document.numberOfPages)
+    val indices = resolveCropResizePageIndices(pages, document.numberOfPages)
 
     for (i in indices) {
         val page = document.getPage(i)
