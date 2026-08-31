@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Crop
+import androidx.compose.material.icons.filled.Draw
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.List
@@ -120,6 +121,13 @@ val pdfTools: List<PdfTool> = listOf(
         title = "Fill PDF Forms",
         description = "Fill in text fields, checkboxes, dropdowns, and radio buttons, then download the result.",
         icon = Icons.Filled.Assignment,
+        category = ToolCategory.EditEnhance,
+    ),
+    PdfTool(
+        id = "signature",
+        title = "Add Signature",
+        description = "Type, draw, or upload a signature and place it on a page.",
+        icon = Icons.Filled.Draw,
         category = ToolCategory.EditEnhance,
     ),
 )

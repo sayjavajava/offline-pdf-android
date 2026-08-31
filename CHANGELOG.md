@@ -64,3 +64,7 @@ merged PR under `## [Unreleased]`. Same convention as the sibling web repo's
   still be changed later. Field types this tool doesn't edit (buttons,
   option lists, signature fields) are listed by name rather than hidden
   or silently skipped.
+- **Add Signature**: stamp a visual signature — typed, drawn freehand, or
+  an uploaded image — onto a page. A visual mark, not a cryptographic
+  digital signature. Placement is entered directly in the page's own
+  point-space (no live preview yet, pending page rendering).

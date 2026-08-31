@@ -99,4 +99,11 @@ class PdfToolTest {
         assertEquals(ToolCategory.EditEnhance, fillForm.category)
         assertTrue(fillForm.title.isNotBlank())
     }
+
+    @Test
+    fun `signature is registered under Edit and Enhance`() {
+        val signature = pdfTools.single { it.id == "signature" }
+        assertEquals(ToolCategory.EditEnhance, signature.category)
+        assertTrue(signature.title.isNotBlank())
+    }
 }
