@@ -16,6 +16,7 @@ import com.offgridpdf.android.ui.tool.PageNumbersScreen
 import com.offgridpdf.android.ui.tool.ProtectScreen
 import com.offgridpdf.android.ui.tool.RearrangeScreen
 import com.offgridpdf.android.ui.tool.RotateScreen
+import com.offgridpdf.android.ui.tool.SignatureScreen
 import com.offgridpdf.android.ui.tool.SplitScreen
 import com.offgridpdf.android.ui.tool.ToolPlaceholderScreen
 import com.offgridpdf.android.ui.tool.UnlockScreen
@@ -50,6 +51,7 @@ fun OffGridNavHost() {
                 "page-numbers" -> PageNumbersScreen()
                 "images-to-pdf" -> ImagesToPdfScreen()
                 "fill-form" -> FillFormScreen()
+                "signature" -> SignatureScreen()
                 else -> ToolPlaceholderScreen(toolId = toolId)
             }
         }
