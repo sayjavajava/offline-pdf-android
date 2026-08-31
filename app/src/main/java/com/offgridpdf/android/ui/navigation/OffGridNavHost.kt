@@ -9,6 +9,7 @@ import androidx.navigation.navArgument
 import com.offgridpdf.android.ui.dashboard.DashboardScreen
 import com.offgridpdf.android.ui.tool.EditMetadataScreen
 import com.offgridpdf.android.ui.tool.MergeScreen
+import com.offgridpdf.android.ui.tool.PageNumbersScreen
 import com.offgridpdf.android.ui.tool.ProtectScreen
 import com.offgridpdf.android.ui.tool.RearrangeScreen
 import com.offgridpdf.android.ui.tool.RotateScreen
@@ -42,6 +43,7 @@ fun OffGridNavHost() {
                 "unlock" -> UnlockScreen()
                 "edit" -> EditMetadataScreen()
                 "watermark" -> WatermarkScreen()
+                "page-numbers" -> PageNumbersScreen()
                 else -> ToolPlaceholderScreen(toolId = toolId)
             }
         }

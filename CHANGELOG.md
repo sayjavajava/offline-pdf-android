@@ -45,3 +45,7 @@ merged PR under `## [Unreleased]`. Same convention as the sibling web repo's
 - **Add Watermark**: stamp text onto every page of a PDF, once centered
   (with adjustable size, colour, opacity, and rotation) or tiled across
   the whole page.
+- **Add Page Numbers**: stamp sequential page numbers, "page x of y", or
+  zero-padded Bates numbers, onto some or all pages. Numbering counts from
+  the chosen start value across the stamped pages only, not the
+  document's absolute page index.
