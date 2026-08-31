@@ -1,6 +1,7 @@
 package com.offgridpdf.android.ui.dashboard
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.Edit
@@ -113,5 +114,12 @@ val pdfTools: List<PdfTool> = listOf(
         description = "Combine JPEG or PNG images into a single PDF.",
         icon = Icons.Filled.Image,
         category = ToolCategory.ConvertExport,
+    ),
+    PdfTool(
+        id = "fill-form",
+        title = "Fill PDF Forms",
+        description = "Fill in text fields, checkboxes, dropdowns, and radio buttons, then download the result.",
+        icon = Icons.Filled.Assignment,
+        category = ToolCategory.EditEnhance,
     ),
 )

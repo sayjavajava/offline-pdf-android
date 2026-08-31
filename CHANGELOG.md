@@ -58,3 +58,9 @@ merged PR under `## [Unreleased]`. Same convention as the sibling web repo's
   content and page size together to a target paper size (A4, Letter,
   Legal, or custom), defaulting to a centered scale-to-fit so nothing is
   distorted unless you choose to stretch.
+- **Fill PDF Forms**: fill in a PDF's fillable text fields, checkboxes,
+  dropdowns, and radio buttons, then download the result — flattened so
+  it looks identical in every reader, or left editable so the fields can
+  still be changed later. Field types this tool doesn't edit (buttons,
+  option lists, signature fields) are listed by name rather than hidden
+  or silently skipped.
