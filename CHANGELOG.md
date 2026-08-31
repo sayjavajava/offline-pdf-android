@@ -39,6 +39,12 @@ merged PR under `## [Unreleased]`. Same convention as the sibling web repo's
   the file, so a genuine restriction needs two distinct passwords, not one.
 - **Unlock PDF**: remove password protection from an encrypted PDF, given
   its password.
+- **Redact PDF**: draw boxes over content to permanently delete it — the
+  page is rebuilt as a flattened image with no text, image data, or
+  annotations underneath the box, so nothing under it stays selectable,
+  copyable, or searchable. A drawn box can be copied onto other
+  same-sized pages in one step; pages with a different size are skipped
+  and named rather than silently mismatched.
 - **Edit Metadata**: change a PDF's title, author, subject, and keywords.
   A blank field leaves the existing value untouched — this edits only the
   fields you fill in, it doesn't clear the rest.

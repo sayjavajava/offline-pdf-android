@@ -20,6 +20,7 @@ import com.offgridpdf.android.ui.tool.PageNumbersScreen
 import com.offgridpdf.android.ui.tool.PdfToImagesScreen
 import com.offgridpdf.android.ui.tool.ProtectScreen
 import com.offgridpdf.android.ui.tool.RearrangeScreen
+import com.offgridpdf.android.ui.tool.RedactScreen
 import com.offgridpdf.android.ui.tool.RotateScreen
 import com.offgridpdf.android.ui.tool.SignatureScreen
 import com.offgridpdf.android.ui.tool.SplitScreen
@@ -51,6 +52,7 @@ fun OffGridNavHost() {
                 "crop-resize" -> CropResizeScreen()
                 "protect" -> ProtectScreen()
                 "unlock" -> UnlockScreen()
+                "redact" -> RedactScreen()
                 "edit" -> EditMetadataScreen()
                 "watermark" -> WatermarkScreen()
                 "page-numbers" -> PageNumbersScreen()

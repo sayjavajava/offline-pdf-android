@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.Reorder
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.TextSnippet
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.ui.graphics.vector.ImageVector
 
 /**
@@ -91,6 +92,13 @@ val pdfTools: List<PdfTool> = listOf(
         title = "Unlock PDF",
         description = "Remove password protection from encrypted PDF files.",
         icon = Icons.Filled.LockOpen,
+        category = ToolCategory.Security,
+    ),
+    PdfTool(
+        id = "redact",
+        title = "Redact PDF",
+        description = "Permanently remove content under boxes you draw — deleted, not just covered.",
+        icon = Icons.Filled.VisibilityOff,
         category = ToolCategory.Security,
     ),
     PdfTool(
