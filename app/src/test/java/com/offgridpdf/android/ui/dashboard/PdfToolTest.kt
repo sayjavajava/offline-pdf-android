@@ -45,6 +45,13 @@ class PdfToolTest {
     }
 
     @Test
+    fun `crop-resize is registered under Organize Pages`() {
+        val cropResize = pdfTools.single { it.id == "crop-resize" }
+        assertEquals(ToolCategory.OrganizePages, cropResize.category)
+        assertTrue(cropResize.title.isNotBlank())
+    }
+
+    @Test
     fun `protect is registered under Security`() {
         val protect = pdfTools.single { it.id == "protect" }
         assertEquals(ToolCategory.Security, protect.category)
