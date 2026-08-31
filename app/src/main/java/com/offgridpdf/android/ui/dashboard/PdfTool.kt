@@ -1,6 +1,7 @@
 package com.offgridpdf.android.ui.dashboard
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Lock
@@ -81,6 +82,13 @@ val pdfTools: List<PdfTool> = listOf(
         title = "Edit Metadata",
         description = "Modify your PDF's title, author, subject, and keywords.",
         icon = Icons.Filled.Edit,
+        category = ToolCategory.EditEnhance,
+    ),
+    PdfTool(
+        id = "watermark",
+        title = "Add Watermark",
+        description = "Apply a text watermark to every page of your PDF.",
+        icon = Icons.Filled.AutoAwesome,
         category = ToolCategory.EditEnhance,
     ),
     PdfTool(

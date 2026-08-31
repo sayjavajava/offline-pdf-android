@@ -16,6 +16,7 @@ import com.offgridpdf.android.ui.tool.RotateScreen
 import com.offgridpdf.android.ui.tool.SplitScreen
 import com.offgridpdf.android.ui.tool.ToolPlaceholderScreen
 import com.offgridpdf.android.ui.tool.UnlockScreen
+import com.offgridpdf.android.ui.tool.WatermarkScreen
 
 private const val ROUTE_DASHBOARD = "dashboard"
 private const val ROUTE_TOOL = "tool/{toolId}"
@@ -41,6 +42,7 @@ fun OffGridNavHost() {
                 "protect" -> ProtectScreen()
                 "unlock" -> UnlockScreen()
                 "edit" -> EditMetadataScreen()
+                "watermark" -> WatermarkScreen()
                 "page-numbers" -> PageNumbersScreen()
                 else -> ToolPlaceholderScreen(toolId = toolId)
             }
