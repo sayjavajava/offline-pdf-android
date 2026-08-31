@@ -3,6 +3,7 @@ package com.offgridpdf.android.ui.dashboard
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Assignment
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Crop
 import androidx.compose.material.icons.filled.Draw
 import androidx.compose.material.icons.filled.Edit
@@ -114,6 +115,13 @@ val pdfTools: List<PdfTool> = listOf(
         title = "Convert Images to PDF",
         description = "Combine JPEG or PNG images into a single PDF.",
         icon = Icons.Filled.Image,
+        category = ToolCategory.ConvertExport,
+    ),
+    PdfTool(
+        id = "extract-images",
+        title = "Extract Images",
+        description = "Pull the embedded images out of a PDF, without changing it.",
+        icon = Icons.Filled.Collections,
         category = ToolCategory.ConvertExport,
     ),
     PdfTool(

@@ -106,4 +106,11 @@ class PdfToolTest {
         assertEquals(ToolCategory.EditEnhance, signature.category)
         assertTrue(signature.title.isNotBlank())
     }
+
+    @Test
+    fun `extract-images is registered under Convert and Export`() {
+        val extractImages = pdfTools.single { it.id == "extract-images" }
+        assertEquals(ToolCategory.ConvertExport, extractImages.category)
+        assertTrue(extractImages.title.isNotBlank())
+    }
 }
