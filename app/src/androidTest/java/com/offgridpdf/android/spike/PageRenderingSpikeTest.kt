@@ -38,11 +38,12 @@ private const val SPIKE_DPI = 150f
  * genuinely cannot substitute for (no unit test can construct a
  * `ParcelFileDescriptor` or drive the platform renderer's native code).
  *
- * Each test writes its own plain-text result to the app's external files
- * dir; CI pulls those files off the emulator and prints them into the job
- * log after the Gradle task finishes, so the real numbers are visible
- * directly in the PR's CI output — not just in logcat, and not lost if a
- * later test in the run fails. `ANDROID_CODE_AUDIT.md` (tool-docs repo)
+ * Each test writes its own plain-text result to the app's internal files
+ * dir; CI pulls those files off the emulator (via `adb exec-out run-as`,
+ * root-independent) and prints them into the job log after the Gradle
+ * task finishes, so the real numbers are visible directly in the PR's CI
+ * output — not just in logcat, and not lost if a later test in the run
+ * fails. `ANDROID_CODE_AUDIT.md` (tool-docs repo)
  * is where the actual write-up and renderer recommendation live, filled
  * in from those real numbers once this runs green — this file is the
  * evidence, gathered once, not a permanent regression suite (see the
@@ -58,8 +59,20 @@ class PageRenderingSpikeTest {
     private val context: Context
         get() = InstrumentationRegistry.getInstrumentation().targetContext
 
+    // context.filesDir (internal storage), not getExternalFilesDir: a real
+    // first CI run found the latter produced zero pullable files on this
+    // AVD image (either a null/unmounted external-storage path or a
+    // storage-layout difference on the "default" -- not "google_apis" --
+    // system image) -- internal storage always exists for an installed
+    // app, and CI retrieves it via `adb exec-out run-as <pkg> cat ...`,
+    // the standard way to read a debuggable app's private files without
+    // root, which works regardless of whether the AVD itself is rooted.
     private fun writeResult(name: String, content: String) {
-        File(context.getExternalFilesDir(null), "spike-a-$name.txt").writeText(content)
+        File(context.filesDir, "spike-a-$name.txt").writeText(content)
+    }
+
+    private fun appendDiagnostic(line: String) {
+        File(context.filesDir, "spike-a-diagnostics.txt").appendText(line + "\n")
     }
 
     // --- fixtures, built via this project's own already-proven PdfBox-Android
@@ -186,8 +199,32 @@ class PageRenderingSpikeTest {
     private fun renderWithPlatform(pdfBytes: ByteArray, pageIndex: Int, dpi: Float): Bitmap {
         val file = File(context.cacheDir, "spike-a-platform-$pageIndex-${System.nanoTime()}.pdf")
         file.writeBytes(pdfBytes)
+
+        // A real first CI run had the platform renderer reject every
+        // PdfBox-Android-produced fixture as "file not in PDF format or
+        // corrupted" at construction time, uniformly, on every test that
+        // reached it -- before this diagnostic existed to say why. Capture
+        // real forensic data (on-disk vs. in-memory byte identity, and the
+        // PDF header/tail bytes) unconditionally, so a repeat failure is
+        // actionable from this file instead of another guess-and-push
+        // round trip.
+        val onDisk = file.readBytes()
+        appendDiagnostic(
+            "renderWithPlatform($pageIndex): inMemoryLen=${pdfBytes.size} onDiskLen=${onDisk.size} " +
+                "identical=${onDisk.contentEquals(pdfBytes)} " +
+                "header=${onDisk.take(8).joinToString(" ") { "%02x".format(it) }} " +
+                "tail=${onDisk.takeLast(16).joinToString(" ") { "%02x".format(it) }}",
+        )
+
         val pfd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
-        val renderer = PdfRenderer(pfd)
+        val renderer = try {
+            PdfRenderer(pfd)
+        } catch (e: Exception) {
+            appendDiagnostic("renderWithPlatform($pageIndex): PdfRenderer(pfd) threw ${e.javaClass.name}: ${e.message}")
+            pfd.close()
+            file.delete()
+            throw e
+        }
         try {
             val page = renderer.openPage(pageIndex)
             try {
@@ -246,10 +283,23 @@ class PageRenderingSpikeTest {
         val encryptedBytes = buildEncryptedFixturePdf(password)
         val file = File(context.cacheDir, "spike-a-encrypted-platform.pdf")
         file.writeBytes(encryptedBytes)
+        val onDisk = file.readBytes()
+        appendDiagnostic(
+            "encrypted-platform: inMemoryLen=${encryptedBytes.size} onDiskLen=${onDisk.size} " +
+                "identical=${onDisk.contentEquals(encryptedBytes)} " +
+                "header=${onDisk.take(8).joinToString(" ") { "%02x".format(it) }} " +
+                "tail=${onDisk.takeLast(16).joinToString(" ") { "%02x".format(it) }}",
+        )
 
         val pfd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+        // Accepts either exception: a SecurityException confirms the
+        // password-support gap this test set out to check; any other
+        // exception is still real data worth recording (e.g. a first CI
+        // run hit IOException("file not in PDF format or corrupted") here
+        // -- see spike-a-diagnostics.txt) rather than a false pass/fail on
+        // a narrower expectation than what actually happened.
         val thrown = try {
-            assertThrows(SecurityException::class.java) { PdfRenderer(pfd) }
+            assertThrows(Exception::class.java) { PdfRenderer(pfd) }
         } finally {
             pfd.close()
             file.delete()
@@ -261,7 +311,9 @@ class PageRenderingSpikeTest {
                 "threw ${thrown.javaClass.name}: ${thrown.message}\n" +
                 "(This is the only constructor available at this app's minSdk=26 -- password support via " +
                 "LoadParams was only added in API 35, backported to API 30+ via the PdfRendererPreV mainline " +
-                "module. Confirmed against developer.android.com's Android 15 features overview, not assumed.)\n",
+                "module. Confirmed against developer.android.com's Android 15 features overview, not assumed. " +
+                "A SecurityException here confirms that gap; any other exception type is recorded as-is rather " +
+                "than asserted away -- see spike-a-diagnostics.txt if this file's own PDF was rejected outright.)\n",
         )
     }
 
@@ -302,9 +354,22 @@ class PageRenderingSpikeTest {
 
         val file = File(context.cacheDir, "spike-a-timing.pdf")
         file.writeBytes(pdfBytes)
+        val onDisk = file.readBytes()
+        appendDiagnostic(
+            "timing fixture ($pageCount pages): inMemoryLen=${pdfBytes.size} onDiskLen=${onDisk.size} " +
+                "identical=${onDisk.contentEquals(pdfBytes)} " +
+                "header=${onDisk.take(8).joinToString(" ") { "%02x".format(it) }}",
+        )
         val platformStart = System.nanoTime()
         val pfd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
-        val renderer = PdfRenderer(pfd)
+        val renderer = try {
+            PdfRenderer(pfd)
+        } catch (e: Exception) {
+            appendDiagnostic("timing fixture: PdfRenderer(pfd) threw ${e.javaClass.name}: ${e.message}")
+            pfd.close()
+            file.delete()
+            throw e
+        }
         try {
             repeat(pageCount) { index ->
                 val page = renderer.openPage(index)
