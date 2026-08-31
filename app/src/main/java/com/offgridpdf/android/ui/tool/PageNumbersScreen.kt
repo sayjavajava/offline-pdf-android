@@ -53,13 +53,13 @@ private val POSITIONS = listOf(
     PositionOption("Top right", PageNumberPosition.TOP_RIGHT),
 )
 
-private data class ColorPreset(val label: String, val color: PageNumberColor)
+private data class PageNumberColorPreset(val label: String, val color: PageNumberColor)
 
 private val COLOR_PRESETS = listOf(
-    ColorPreset("Black", PageNumberColor(0f, 0f, 0f)),
-    ColorPreset("Red", PageNumberColor(1f, 0f, 0f)),
-    ColorPreset("Blue", PageNumberColor(0f, 0f, 1f)),
-    ColorPreset("Gray", PageNumberColor(0.5f, 0.5f, 0.5f)),
+    PageNumberColorPreset("Black", PageNumberColor(0f, 0f, 0f)),
+    PageNumberColorPreset("Red", PageNumberColor(1f, 0f, 0f)),
+    PageNumberColorPreset("Blue", PageNumberColor(0f, 0f, 1f)),
+    PageNumberColorPreset("Gray", PageNumberColor(0.5f, 0.5f, 0.5f)),
 )
 
 /** Web reference: `PageNumbersTool.tsx` + `addPageNumbers`/`formatPageNumber` (`pdf-ops.ts`). */
