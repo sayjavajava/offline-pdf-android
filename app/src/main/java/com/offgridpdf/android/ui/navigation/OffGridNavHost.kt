@@ -17,6 +17,7 @@ import com.offgridpdf.android.ui.tool.FillFormScreen
 import com.offgridpdf.android.ui.tool.ImagesToPdfScreen
 import com.offgridpdf.android.ui.tool.MergeScreen
 import com.offgridpdf.android.ui.tool.PageNumbersScreen
+import com.offgridpdf.android.ui.tool.PdfToImagesScreen
 import com.offgridpdf.android.ui.tool.ProtectScreen
 import com.offgridpdf.android.ui.tool.RearrangeScreen
 import com.offgridpdf.android.ui.tool.RotateScreen
@@ -55,6 +56,7 @@ fun OffGridNavHost() {
                 "page-numbers" -> PageNumbersScreen()
                 "images-to-pdf" -> ImagesToPdfScreen()
                 "docx-to-pdf" -> DocxToPdfScreen()
+                "pdf-to-images" -> PdfToImagesScreen()
                 "extract-images" -> ExtractImagesScreen()
                 "extract-text" -> ExtractTextScreen()
                 "fill-form" -> FillFormScreen()

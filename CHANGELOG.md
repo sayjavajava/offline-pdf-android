@@ -89,3 +89,6 @@ merged PR under `## [Unreleased]`. Same convention as the sibling web repo's
   image is skipped and reported, not silently dropped; list item text
   still converts (just without its bullet/number marker, which isn't
   preserved yet).
+- **PDF to Images**: render a page range (or every page) to PNG at a
+  chosen scale (1 = 72dpi). A single page downloads as itself; more than
+  one is bundled into a zip.
