@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.MergeType
 import androidx.compose.material.icons.filled.Numbers
 import androidx.compose.material.icons.filled.Reorder
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.TextSnippet
 import androidx.compose.ui.graphics.vector.ImageVector
 
 /**
@@ -122,6 +123,13 @@ val pdfTools: List<PdfTool> = listOf(
         title = "Extract Images",
         description = "Pull the embedded images out of a PDF, without changing it.",
         icon = Icons.Filled.Collections,
+        category = ToolCategory.ConvertExport,
+    ),
+    PdfTool(
+        id = "extract-text",
+        title = "Extract Text",
+        description = "Pull the text out of a PDF as a plain text file.",
+        icon = Icons.Filled.TextSnippet,
         category = ToolCategory.ConvertExport,
     ),
     PdfTool(
