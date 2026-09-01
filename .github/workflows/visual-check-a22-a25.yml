@@ -1,0 +1,47 @@
+name: Visual check - A-22 / A-25 disclosed gaps
+
+# Not a plan item and not a permanent regression suite -- a one-off,
+# ad hoc follow-up on two gaps CODE_AUDIT.md (tool-docs repo) has carried
+# as disclosed and open: whether A-22's recompressed-image quality and
+# A-25's laid-out DOCX-to-PDF page actually look right to a human eye.
+# Same shape as Spike A's own dedicated workflow -- path-filtered so it
+# only fires on PRs that actually touch this check's own test/workflow,
+# re-run via workflow_dispatch otherwise.
+on:
+  pull_request:
+    paths:
+      - "app/src/androidTest/java/com/offgridpdf/android/spike/VisualCheckSpikeTest.kt"
+      - ".github/workflows/visual-check-a22-a25.yml"
+      - "scripts/run-visual-check.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  visual-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      # Same real, sourced unlock step as spike-a-page-rendering.yml.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Boot a real emulator and run the visual-check instrumented test
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 26
+          target: default
+          arch: x86_64
+          script: bash scripts/run-visual-check.sh
