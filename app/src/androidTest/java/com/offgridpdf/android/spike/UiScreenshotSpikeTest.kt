@@ -2,19 +2,15 @@ package com.offgridpdf.android.spike
 
 import android.app.Activity
 import android.graphics.Bitmap
-import android.os.Handler
-import android.os.Looper
+import android.graphics.Canvas
 import android.util.Base64
 import android.util.Log
-import android.view.PixelCopy
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.offgridpdf.android.MainActivity
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.ByteArrayOutputStream
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 
 /**
  * Ad hoc, one-off: a real screenshot of the app's actual UI on a real
@@ -26,10 +22,17 @@ import java.util.concurrent.TimeUnit
  * storage -- before any later script step could read a saved screenshot
  * file back (`run-spike-a.sh`'s own header comment).
  *
- * Captures via `PixelCopy` (real Android framework API, no new test
- * dependency needed) rather than Compose's own `captureToImage()`, since
- * this project doesn't have `androidx.compose.ui:ui-test-junit4` wired in
- * and adding a new dependency for a one-off screenshot isn't warranted.
+ * Real CI failure, root-caused and fixed: the first version captured via
+ * `PixelCopy.request(Window, ...)`, which failed with "did not report
+ * SUCCESS" on the real CI emulator -- most likely a software-rendered
+ * (SwiftShader) surface-compositor timing issue `PixelCopy`'s hardware-
+ * surface-dependent async path is sensitive to, not a code bug (the app
+ * itself built and launched fine). Switched to `View.draw(Canvas)` on the
+ * decor view instead -- a synchronous, always-available technique that
+ * replays the View hierarchy's own draw calls into a software canvas, with
+ * no dependency on the window compositor or a real GPU surface. Compose's
+ * `AndroidComposeView` renders through the standard View drawing pipeline
+ * like any other View, so this captures real Compose content correctly.
  */
 @RunWith(AndroidJUnit4::class)
 class UiScreenshotSpikeTest {
@@ -41,19 +44,7 @@ class UiScreenshotSpikeTest {
     private fun captureWindow(activity: Activity): Bitmap {
         val decorView = activity.window.decorView
         val bitmap = Bitmap.createBitmap(decorView.width, decorView.height, Bitmap.Config.ARGB_8888)
-        val latch = CountDownLatch(1)
-        var success = false
-        PixelCopy.request(
-            activity.window,
-            bitmap,
-            { result ->
-                success = result == PixelCopy.SUCCESS
-                latch.countDown()
-            },
-            Handler(Looper.getMainLooper()),
-        )
-        latch.await(10, TimeUnit.SECONDS)
-        check(success) { "PixelCopy.request did not report SUCCESS" }
+        decorView.draw(Canvas(bitmap))
         return bitmap
     }
 
