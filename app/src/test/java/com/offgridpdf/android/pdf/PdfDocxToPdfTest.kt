@@ -214,4 +214,42 @@ class PdfDocxToPdfTest {
         val result = convertDocxToPdf(docx, freshParser())
         assertTrue(result.warnings.any { it.contains("table") })
     }
+
+    /**
+     * Real regression test for a real production bug (see this file's own
+     * header comment, and `convertDocxToPdf`'s): `android.util.Xml.
+     * newPullParser()` enables `FEATURE_PROCESS_NAMESPACES` by default,
+     * unlike `kxml2`'s own default (confirmed for real on a device, not
+     * assumed) -- with that feature on, `getName()` returns unprefixed
+     * local names ("p", not "w:p"), silently matching none of
+     * `parseDocxBlocks`'s prefixed checks and producing a blank PDF for
+     * every real DOCX conversion, while every JVM test here (which never
+     * enabled that feature) stayed green throughout. `KXmlParser` is a
+     * real, spec-compliant `XmlPullParser` implementation and supports
+     * being switched into that same namespace-aware mode explicitly, so
+     * this reproduces the exact real bug under the JVM stub rather than
+     * needing another on-device run -- and proves `convertDocxToPdf`'s own
+     * fix (explicitly disabling the feature before parsing) actually
+     * works regardless of what feature state the caller's parser arrives
+     * in.
+     */
+    @Test
+    fun `still parses real content when the caller's parser starts in namespace-aware mode, matching Android's real default`() {
+        val parser: XmlPullParser = KXmlParser()
+        parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, true)
+        val docx = buildDocx(
+            """
+            <w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Report Title</w:t></w:r></w:p>
+            <w:p><w:r><w:t>This is the body paragraph.</w:t></w:r></w:p>
+            """.trimIndent(),
+        )
+
+        val result = convertDocxToPdf(docx, parser)
+
+        val reloaded = PDDocument.load(ByteArrayInputStream(result.bytes))
+        val text = extractText(reloaded, "all").joinToString("\n") { it.text }
+        assertTrue("expected real parsed content, got blank text: \"$text\"", text.contains("Report Title"))
+        assertTrue(text.contains("This is the body paragraph."))
+        reloaded.close()
+    }
 }
