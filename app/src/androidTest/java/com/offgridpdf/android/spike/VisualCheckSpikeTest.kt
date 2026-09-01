@@ -12,6 +12,7 @@ import android.util.Xml
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.offgridpdf.android.pdf.compressPdf
 import com.offgridpdf.android.pdf.convertDocxToPdf
+import com.offgridpdf.android.pdf.extractDocxDocumentXml
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.pdmodel.PDPage
 import com.tom_roush.pdfbox.pdmodel.PDPageContentStream
@@ -151,6 +152,31 @@ class VisualCheckSpikeTest {
     @Test
     fun a25_docxToPdf_real_layout_preview() {
         val docxBytes = buildDocxFixture()
+
+        // Diagnostic, not assumed: a first run's preview came back blank
+        // (870-byte JPEG, no visible marks) despite zero warnings and a
+        // real page being produced -- the same real-vs-JVM-stub
+        // discrepancy this whole device check exists to catch. Log
+        // android.util.Xml.newPullParser()'s real FEATURE_PROCESS_NAMESPACES
+        // default and the actual tag name XmlPullParser.getName() returns
+        // for a real <w:p> element on this real device, rather than
+        // guessing why from source reading or a web search alone.
+        val diagParser = Xml.newPullParser()
+        logLine("[a25][diag] FEATURE_PROCESS_NAMESPACES default = ${diagParser.getFeature(org.xmlpull.v1.XmlPullParser.FEATURE_PROCESS_NAMESPACES)}")
+        val diagDocXml = extractDocxDocumentXml(docxBytes)
+        diagParser.setInput(java.io.InputStreamReader(ByteArrayInputStream(diagDocXml), Charsets.UTF_8))
+        var diagEvent = diagParser.eventType
+        var firstTagName: String? = null
+        var firstTagPrefix: String? = null
+        while (diagEvent != org.xmlpull.v1.XmlPullParser.END_DOCUMENT && firstTagName == null) {
+            if (diagEvent == org.xmlpull.v1.XmlPullParser.START_TAG) {
+                firstTagName = diagParser.name
+                firstTagPrefix = try { diagParser.prefix } catch (e: Exception) { "threw ${e.javaClass.simpleName}" }
+            }
+            diagEvent = diagParser.next()
+        }
+        logLine("[a25][diag] first START_TAG: getName()=\"$firstTagName\" getPrefix()=\"$firstTagPrefix\"")
+
         val result = convertDocxToPdf(docxBytes, Xml.newPullParser())
         logLine("[a25] warnings: ${result.warnings}")
 
