@@ -9,9 +9,17 @@
 # before any later script line can read files back off it. logcat's
 # system-wide ring buffer has no such lifecycle tie, so the test logs
 # base64-encoded preview images there instead of writing files.
+#
+# Real CI failure, fixed: connectedDebugAndroidTest is AGP's own task
+# type (DeviceProviderInstrumentTestTask), not Gradle's built-in `Test`
+# task -- the generic `--tests` CLI filter is registered specifically for
+# `Test`-typed tasks and isn't recognized here at all ("Unknown
+# command-line option '--tests'"). The real filtering mechanism for an
+# instrumented test is a Gradle project property AGP forwards into the
+# instrumentation runner's own `-e class` argument.
 set +e
 adb logcat -c
-./gradlew connectedDebugAndroidTest --tests "com.offgridpdf.android.spike.VisualCheckSpikeTest" --stacktrace
+./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.offgridpdf.android.spike.VisualCheckSpikeTest --stacktrace
 GRADLE_EXIT=$?
 
 echo "=================================================="
