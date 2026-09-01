@@ -1,0 +1,46 @@
+name: UI screenshot check
+
+# Not a plan item and not a permanent regression suite -- a one-off,
+# ad hoc capture of a real screenshot of the app's actual UI, requested
+# directly. Same shape as Spike A's and the visual-check workflow's own
+# dedicated workflows -- path-filtered so it only fires on PRs that
+# actually touch this check's own test/workflow, re-run via
+# workflow_dispatch otherwise.
+on:
+  pull_request:
+    paths:
+      - "app/src/androidTest/java/com/offgridpdf/android/spike/UiScreenshotSpikeTest.kt"
+      - ".github/workflows/ui-screenshot-check.yml"
+      - "scripts/run-ui-screenshot.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ui-screenshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      # Same real, sourced unlock step as the other spike workflows.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Boot a real emulator and capture a real UI screenshot
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 26
+          target: default
+          arch: x86_64
+          script: bash scripts/run-ui-screenshot.sh
