@@ -29,8 +29,21 @@ import java.util.zip.ZipInputStream
  * testable equivalent exists for those), this makes the *entire* pipeline
  * testable under plain JUnit: tests pass a real `kxml2` parser (same
  * technique Spike B's own `DocxSpikeXmlPullTest.kt` used), production code
- * passes Android's own `Xml.newPullParser()` — same interface, same
- * parsing logic, no gap.
+ * passes Android's own `Xml.newPullParser()` — same interface.
+ *
+ * **A real gap this same-interface argument missed, caught only by an
+ * actual on-device run** (a later ad hoc visual check, `CODE_AUDIT.md`):
+ * `android.util.Xml.newPullParser()` enables `FEATURE_PROCESS_NAMESPACES`
+ * by default — confirmed on a real device, not assumed — while `kxml2`'s
+ * `KXmlParser` does not. With that feature on, `getName()` returns the
+ * unprefixed local name ("p", not "w:p"), so every prefixed check below
+ * (`"w:p"`, `"w:r"`, `"w:t"`, ...) silently matched nothing on a real
+ * device, producing zero parsed blocks and a blank PDF for every real
+ * DOCX conversion — while the JVM tests, whose `kxml2` parser never
+ * enables that feature, stayed green throughout. `convertDocxToPdf` now
+ * explicitly disables it so the parser's real behavior matches the JVM
+ * tests' own, instead of relying on an assumption about a shared default
+ * that turned out to be false.
  *
  * Deliberately bounded scope, matching the web version's own "rough
  * parity, not pixel-identical" bar (`docx-layout.ts`'s header comment) but
@@ -341,9 +354,18 @@ private class DocxPdfWriter(private val document: PDDocument) {
  * text, not a rasterized image) using [parser] to walk the DOCX's own
  * OOXML. Pass a freshly constructed, not-yet-`setInput` parser — this
  * function calls `setInput` itself once `word/document.xml` is extracted.
+ *
+ * Explicitly disables `FEATURE_PROCESS_NAMESPACES` first — confirmed for
+ * real (not assumed) that `android.util.Xml.newPullParser()` enables it
+ * by default, unlike the `kxml2` parser this file's own JVM tests pass,
+ * which made `getName()` return unprefixed local names ("p", not "w:p")
+ * and silently matched none of `parseDocxBlocks`'s own prefixed checks —
+ * a real production bug (blank output for every real DOCX conversion)
+ * an ad hoc on-device check caught after this tool had already shipped.
  */
 fun convertDocxToPdf(docxBytes: ByteArray, parser: XmlPullParser): DocxConversionResult {
     val documentXmlBytes = extractDocxDocumentXml(docxBytes)
+    parser.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false)
     parser.setInput(InputStreamReader(ByteArrayInputStream(documentXmlBytes), Charsets.UTF_8))
     val parseResult = parseDocxBlocks(parser)
 
