@@ -5,10 +5,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -43,6 +45,13 @@ import kotlinx.coroutines.launch
  * builds its own bespoke layout rather than using `ToolScaffold` — can
  * match the same look without duplicating it.
  */
+/**
+ * Touch target for a bar's icon button. Android asks for 48dp; 44dp is the
+ * compromise Material itself makes for a dense bar, and it is more than
+ * twice what these icons had.
+ */
+private val BACK_TOUCH_TARGET = 44.dp
+
 @Composable
 fun ScreenTopBar(title: String, modifier: Modifier = Modifier, trailing: @Composable () -> Unit = {}) {
     val palette = LocalOffGridPalette.current
@@ -52,17 +61,34 @@ fun ScreenTopBar(title: String, modifier: Modifier = Modifier, trailing: @Compos
         horizontalArrangement = Arrangement.SpaceBetween,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 22.dp, vertical = 16.dp),
+            // Start padding and vertical padding are smaller than the end
+            // padding because the back button's touch target supplies the
+            // rest -- see below. The title still lands in the same place.
+            .padding(start = 10.dp, end = 22.dp, top = 6.dp, bottom = 6.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            Icon(
-                painter = painterResource(R.drawable.ic_chevron_left),
-                contentDescription = "Back",
-                tint = palette.inkSecondary,
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            // The arrow is drawn at 19dp but hit at 44dp. It used to be both,
+            // which put the back button -- on every screen in the app -- at
+            // well under half the 48dp minimum touch target, and made it
+            // genuinely fiddly to hit. The box carries the click; the icon
+            // inside it only draws.
+            //
+            // The padding above is reduced to match, so this costs 5dp of bar
+            // height and leaves the title within a dp of where it was.
+            Box(
                 modifier = Modifier
-                    .size(19.dp)
+                    .size(BACK_TOUCH_TARGET)
+                    .clip(CircleShape)
                     .clickable(enabled = navController != null) { navController?.popBackStack() },
-            )
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_chevron_left),
+                    contentDescription = "Back",
+                    tint = palette.inkSecondary,
+                    modifier = Modifier.size(19.dp),
+                )
+            }
             Text(title, style = MaterialTheme.typography.titleLarge, color = palette.ink)
         }
         trailing()

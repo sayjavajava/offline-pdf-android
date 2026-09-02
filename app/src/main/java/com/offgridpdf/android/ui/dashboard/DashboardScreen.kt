@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.HorizontalDivider
@@ -179,14 +180,23 @@ private fun Masthead(onSettingsClick: () -> Unit) {
                 )
             }
         }
-        Icon(
-            painter = painterResource(R.drawable.ic_settings),
-            contentDescription = "Settings",
-            tint = palette.inkSecondary,
+        // Drawn at 20dp, hit at 44dp. It used to be both, which is under
+        // half the 48dp minimum touch target -- and this is the only way
+        // into Settings.
+        Box(
             modifier = Modifier
-                .size(20.dp)
+                .size(44.dp)
+                .clip(CircleShape)
                 .clickable(onClick = onSettingsClick),
-        )
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_settings),
+                contentDescription = "Settings",
+                tint = palette.inkSecondary,
+                modifier = Modifier.size(20.dp),
+            )
+        }
     }
 }
 
@@ -314,7 +324,7 @@ private fun PendingFileBanner(fileName: String?, onDismiss: () -> Unit) {
             .clip(RoundedCornerShape(10.dp))
             .background(palette.paperRaised)
             .border(BorderStroke(1.dp, palette.organize), RoundedCornerShape(10.dp))
-            .padding(start = 14.dp, end = 10.dp, top = 12.dp, bottom = 12.dp),
+            .padding(start = 14.dp, end = 0.dp, top = 6.dp, bottom = 6.dp),
     ) {
         Icon(
             painter = painterResource(R.drawable.ic_file),
@@ -336,13 +346,23 @@ private fun PendingFileBanner(fileName: String?, onDismiss: () -> Unit) {
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        Icon(
-            painter = painterResource(R.drawable.ic_close),
-            contentDescription = "Dismiss",
-            tint = palette.inkTertiary,
+        // Drawn at 16dp, hit at 44dp -- it was the smallest target in the
+        // app, and a dismiss control that is hard to hit is one people end
+        // up jabbing at repeatedly. The banner's end padding is reduced to
+        // absorb the extra width.
+        Box(
             modifier = Modifier
-                .size(16.dp)
+                .size(44.dp)
+                .clip(CircleShape)
                 .clickable(onClick = onDismiss),
-        )
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_close),
+                contentDescription = "Dismiss",
+                tint = palette.inkTertiary,
+                modifier = Modifier.size(16.dp),
+            )
+        }
     }
 }
