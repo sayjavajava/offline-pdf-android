@@ -11,6 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -27,6 +28,7 @@ import com.offgridpdf.android.pdf.SplitPage
 import com.offgridpdf.android.pdf.loadPdfFromUri
 import com.offgridpdf.android.pdf.splitPdfToPages
 import com.offgridpdf.android.pdf.splitPdfToSingleFile
+import com.offgridpdf.android.ui.common.NullableUriSaver
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import kotlinx.coroutines.Dispatchers
@@ -40,18 +42,22 @@ fun SplitScreen() {
     val scope = rememberCoroutineScope()
     val accent = LocalOffGridPalette.current.organize
 
-    var pickedUri by remember { mutableStateOf(PendingFile.consume()) }
+    var pickedUri by rememberSaveable(stateSaver = NullableUriSaver) { mutableStateOf(PendingFile.consume()) }
+    // Plain `remember`, deliberately: a document password is never written
+    // to saved instance state (see `ui/common/Savers.kt`).
     var password by remember { mutableStateOf("") }
-    var pagesText by remember { mutableStateOf("") }
-    var separateFiles by remember { mutableStateOf(false) }
+    var pagesText by rememberSaveable { mutableStateOf("") }
+    var separateFiles by rememberSaveable { mutableStateOf(false) }
     var running by remember { mutableStateOf(false) }
-    var resultMessage by remember { mutableStateOf<String?>(null) }
+    var resultMessage by rememberSaveable { mutableStateOf<String?>(null) }
 
     // Set once the result bytes are ready, consumed by whichever save
     // launcher's onResult fires next. Only one of savePdfLauncher /
     // saveZipLauncher is ever launched per run, so there's no ambiguity
     // about which one a given pending value belongs to.
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
+    // Paired with pendingBytes, which a Bundle cannot hold — so neither is
+    // saved (see `ui/common/Savers.kt`).
     var pendingSuccessMessage by remember { mutableStateOf("") }
 
     // Only ever a single PDF's bytes — a zip (multiple output files) isn't

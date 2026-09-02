@@ -16,6 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -27,6 +28,7 @@ import com.offgridpdf.android.files.rememberOpenDocumentLauncher
 import com.offgridpdf.android.files.saveResult
 import com.offgridpdf.android.files.suggestedBaseName
 import com.offgridpdf.android.pdf.convertDocxToPdf
+import com.offgridpdf.android.ui.common.NullableUriSaver
 import com.offgridpdf.android.ui.common.ScreenTopBar
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
@@ -52,10 +54,12 @@ fun DocxToPdfScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var pickedUri by remember { mutableStateOf<Uri?>(null) }
+    var pickedUri by rememberSaveable(stateSaver = NullableUriSaver) { mutableStateOf<Uri?>(null) }
     var running by remember { mutableStateOf(false) }
-    var resultMessage by remember { mutableStateOf<String?>(null) }
+    var resultMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
+    // Paired with pendingBytes, which a Bundle cannot hold — so neither is
+    // saved (see `ui/common/Savers.kt`).
     var pendingSuccessMessage by remember { mutableStateOf("") }
 
     val pickLauncher = rememberOpenDocumentLauncher { uri ->

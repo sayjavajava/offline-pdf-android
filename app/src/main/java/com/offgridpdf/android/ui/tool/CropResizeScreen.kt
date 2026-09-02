@@ -15,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -33,6 +34,7 @@ import com.offgridpdf.android.pdf.PdfLoadResult
 import com.offgridpdf.android.pdf.cropPdf
 import com.offgridpdf.android.pdf.loadPdfFromUri
 import com.offgridpdf.android.pdf.resizePdf
+import com.offgridpdf.android.ui.common.NullableUriSaver
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import kotlinx.coroutines.Dispatchers
@@ -49,25 +51,27 @@ fun CropResizeScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var pickedUri by remember { mutableStateOf(PendingFile.consume()) }
+    var pickedUri by rememberSaveable(stateSaver = NullableUriSaver) { mutableStateOf(PendingFile.consume()) }
+    // Plain `remember`, deliberately: a document password is never written
+    // to saved instance state (see `ui/common/Savers.kt`).
     var password by remember { mutableStateOf("") }
-    var mode by remember { mutableStateOf(Mode.CROP) }
-    var pagesText by remember { mutableStateOf("") }
+    var mode by rememberSaveable { mutableStateOf(Mode.CROP) }
+    var pagesText by rememberSaveable { mutableStateOf("") }
 
     // Crop state.
-    var topText by remember { mutableStateOf("0") }
-    var bottomText by remember { mutableStateOf("0") }
-    var leftText by remember { mutableStateOf("0") }
-    var rightText by remember { mutableStateOf("0") }
+    var topText by rememberSaveable { mutableStateOf("0") }
+    var bottomText by rememberSaveable { mutableStateOf("0") }
+    var leftText by rememberSaveable { mutableStateOf("0") }
+    var rightText by rememberSaveable { mutableStateOf("0") }
 
     // Resize state.
-    var paperOption by remember { mutableStateOf("A4") }
-    var customWidthText by remember { mutableStateOf("595.28") }
-    var customHeightText by remember { mutableStateOf("841.89") }
-    var stretch by remember { mutableStateOf(false) }
+    var paperOption by rememberSaveable { mutableStateOf("A4") }
+    var customWidthText by rememberSaveable { mutableStateOf("595.28") }
+    var customHeightText by rememberSaveable { mutableStateOf("841.89") }
+    var stretch by rememberSaveable { mutableStateOf(false) }
 
     var running by remember { mutableStateOf(false) }
-    var resultMessage by remember { mutableStateOf<String?>(null) }
+    var resultMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
     var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
 

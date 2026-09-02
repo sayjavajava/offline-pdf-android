@@ -11,6 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -24,6 +25,7 @@ import com.offgridpdf.android.pdf.ExtractedPageText
 import com.offgridpdf.android.pdf.PdfLoadResult
 import com.offgridpdf.android.pdf.extractText
 import com.offgridpdf.android.pdf.loadPdfFromUri
+import com.offgridpdf.android.ui.common.NullableUriSaver
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import kotlinx.coroutines.Dispatchers
@@ -36,13 +38,17 @@ fun ExtractTextScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var pickedUri by remember { mutableStateOf(PendingFile.consume()) }
+    var pickedUri by rememberSaveable(stateSaver = NullableUriSaver) { mutableStateOf(PendingFile.consume()) }
+    // Plain `remember`, deliberately: a document password is never written
+    // to saved instance state (see `ui/common/Savers.kt`).
     var password by remember { mutableStateOf("") }
-    var pagesText by remember { mutableStateOf("") }
-    var pageMarkers by remember { mutableStateOf(true) }
+    var pagesText by rememberSaveable { mutableStateOf("") }
+    var pageMarkers by rememberSaveable { mutableStateOf(true) }
     var running by remember { mutableStateOf(false) }
-    var resultMessage by remember { mutableStateOf<String?>(null) }
+    var resultMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
+    // Paired with pendingBytes, which a Bundle cannot hold — so neither is
+    // saved (see `ui/common/Savers.kt`).
     var pendingSuccessMessage by remember { mutableStateOf("") }
 
     val pickLauncher = rememberOpenDocumentLauncher { uri ->

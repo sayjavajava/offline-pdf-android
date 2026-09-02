@@ -25,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -44,6 +45,7 @@ import com.offgridpdf.android.pdf.PdfLoadResult
 import com.offgridpdf.android.pdf.SignaturePlacement
 import com.offgridpdf.android.pdf.addSignature
 import com.offgridpdf.android.pdf.loadPdfFromUri
+import com.offgridpdf.android.ui.common.NullableUriSaver
 import com.offgridpdf.android.ui.common.ScreenTopBar
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
@@ -72,26 +74,31 @@ fun SignatureScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var pickedUri by remember { mutableStateOf(PendingFile.consume()) }
+    var pickedUri by rememberSaveable(stateSaver = NullableUriSaver) { mutableStateOf(PendingFile.consume()) }
+    // Plain `remember`, deliberately: a document password is never written
+    // to saved instance state (see `ui/common/Savers.kt`).
     var password by remember { mutableStateOf("") }
     var openDocument by remember { mutableStateOf<PDDocument?>(null) }
+    // Both describe a document that is open in `openDocument`, which cannot be
+    // saved. A restored non-null pageCount would hide the Load button and
+    // claim a document is ready when none is.
     var pageCount by remember { mutableStateOf<Int?>(null) }
     var loadError by remember { mutableStateOf<String?>(null) }
 
-    var mode by remember { mutableStateOf(SignatureMode.TYPE) }
-    var typedName by remember { mutableStateOf("") }
+    var mode by rememberSaveable { mutableStateOf(SignatureMode.TYPE) }
+    var typedName by rememberSaveable { mutableStateOf("") }
     var strokes by remember { mutableStateOf<List<List<Offset>>>(emptyList()) }
     var currentStroke by remember { mutableStateOf<List<Offset>>(emptyList()) }
     var signatureBytes by remember { mutableStateOf<ByteArray?>(null) }
 
-    var pageText by remember { mutableStateOf("1") }
-    var xText by remember { mutableStateOf("36") }
-    var yText by remember { mutableStateOf("36") }
-    var widthText by remember { mutableStateOf("150") }
-    var heightText by remember { mutableStateOf("50") }
+    var pageText by rememberSaveable { mutableStateOf("1") }
+    var xText by rememberSaveable { mutableStateOf("36") }
+    var yText by rememberSaveable { mutableStateOf("36") }
+    var widthText by rememberSaveable { mutableStateOf("150") }
+    var heightText by rememberSaveable { mutableStateOf("50") }
 
     var running by remember { mutableStateOf(false) }
-    var resultMessage by remember { mutableStateOf<String?>(null) }
+    var resultMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
 
     val pickLauncher = rememberOpenDocumentLauncher { uri ->

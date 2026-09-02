@@ -1,9 +1,5 @@
 package com.offgridpdf.android.ui.tool
 
-import com.offgridpdf.android.chain.PendingFile
-
-import com.offgridpdf.android.ui.theme.LocalOffGridPalette
-
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -17,17 +13,21 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.offgridpdf.android.chain.PendingFile
 import com.offgridpdf.android.files.batchResultMessage
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenMultipleDocumentsLauncher
 import com.offgridpdf.android.files.runOnEachPdf
-import com.offgridpdf.android.files.suggestedBaseName
 import com.offgridpdf.android.files.saveResult
+import com.offgridpdf.android.files.suggestedBaseName
 import com.offgridpdf.android.pdf.rotatePdf
+import com.offgridpdf.android.ui.common.UriListSaver
+import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import kotlinx.coroutines.launch
 
 private val ANGLES = listOf(90, 180, 270)
@@ -43,13 +43,17 @@ fun RotateScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var pickedFiles by remember { mutableStateOf(PendingFile.consume()?.let { listOf(it) } ?: emptyList<Uri>()) }
+    var pickedFiles by rememberSaveable(stateSaver = UriListSaver) { mutableStateOf(PendingFile.consume()?.let { listOf(it) } ?: emptyList<Uri>()) }
+    // Plain `remember`, deliberately: a document password is never written
+    // to saved instance state (see `ui/common/Savers.kt`).
     var password by remember { mutableStateOf("") }
-    var pagesText by remember { mutableStateOf("") }
-    var angle by remember { mutableStateOf(90) }
+    var pagesText by rememberSaveable { mutableStateOf("") }
+    var angle by rememberSaveable { mutableStateOf(90) }
     var running by remember { mutableStateOf(false) }
-    var resultMessage by remember { mutableStateOf<String?>(null) }
+    var resultMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
+    // Paired with pendingBytes, which a Bundle cannot hold — so neither is
+    // saved (see `ui/common/Savers.kt`).
     var pendingSuccessMessage by remember { mutableStateOf("") }
     var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
 

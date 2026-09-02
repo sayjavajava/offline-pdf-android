@@ -1,27 +1,27 @@
 package com.offgridpdf.android.ui.tool
 
-import com.offgridpdf.android.chain.PendingFile
-
-import com.offgridpdf.android.ui.theme.LocalOffGridPalette
-
 import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import com.offgridpdf.android.chain.PendingFile
 import com.offgridpdf.android.files.batchResultMessage
 import com.offgridpdf.android.files.readBytesFromUri
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenMultipleDocumentsLauncher
 import com.offgridpdf.android.files.runOnEachPdf
-import com.offgridpdf.android.files.suggestedBaseName
 import com.offgridpdf.android.files.saveResult
+import com.offgridpdf.android.files.suggestedBaseName
 import com.offgridpdf.android.pdf.compressPdf
-import kotlinx.coroutines.launch
+import com.offgridpdf.android.ui.common.UriListSaver
+import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 /**
  * Web reference: `CompressTool.tsx` + `compressPdf` (`qpdf-engine.ts`). No
@@ -39,12 +39,16 @@ fun CompressScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var pickedFiles by remember { mutableStateOf(PendingFile.consume()?.let { listOf(it) } ?: emptyList<Uri>()) }
+    var pickedFiles by rememberSaveable(stateSaver = UriListSaver) { mutableStateOf(PendingFile.consume()?.let { listOf(it) } ?: emptyList<Uri>()) }
+    // Plain `remember`, deliberately: a document password is never written
+    // to saved instance state (see `ui/common/Savers.kt`).
     var password by remember { mutableStateOf("") }
     var running by remember { mutableStateOf(false) }
-    var resultMessage by remember { mutableStateOf<String?>(null) }
+    var resultMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
+    // Paired with pendingBytes, which a Bundle cannot hold — so neither is
+    // saved (see `ui/common/Savers.kt`).
     var pendingSuccessMessage by remember { mutableStateOf("") }
 
     val pickLauncher = rememberOpenMultipleDocumentsLauncher { uris ->

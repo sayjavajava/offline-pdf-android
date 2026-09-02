@@ -19,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -35,6 +36,7 @@ import com.offgridpdf.android.pdf.buildCompareReport
 import com.offgridpdf.android.pdf.comparePdfs
 import com.offgridpdf.android.pdf.describeComparison
 import com.offgridpdf.android.pdf.loadPdfFromUri
+import com.offgridpdf.android.ui.common.NullableUriSaver
 import com.offgridpdf.android.ui.common.ScreenTopBar
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import kotlinx.coroutines.Dispatchers
@@ -52,13 +54,15 @@ fun CompareScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var uriA by remember { mutableStateOf(PendingFile.consume()) }
-    var uriB by remember { mutableStateOf<Uri?>(null) }
+    var uriA by rememberSaveable(stateSaver = NullableUriSaver) { mutableStateOf(PendingFile.consume()) }
+    var uriB by rememberSaveable(stateSaver = NullableUriSaver) { mutableStateOf<Uri?>(null) }
+    // Plain `remember`, deliberately: a document password is never written
+    // to saved instance state (see `ui/common/Savers.kt`).
     var passwordA by remember { mutableStateOf("") }
     var passwordB by remember { mutableStateOf("") }
     var running by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<CompareResult?>(null) }
-    var resultMessage by remember { mutableStateOf<String?>(null) }
+    var resultMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingReportBytes by remember { mutableStateOf<ByteArray?>(null) }
 
     val pickLauncherA = rememberOpenDocumentLauncher { uri ->

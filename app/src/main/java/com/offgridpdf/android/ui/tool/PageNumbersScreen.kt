@@ -1,9 +1,5 @@
 package com.offgridpdf.android.ui.tool
 
-import com.offgridpdf.android.chain.PendingFile
-
-import com.offgridpdf.android.ui.theme.LocalOffGridPalette
-
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -19,23 +15,27 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.offgridpdf.android.chain.PendingFile
 import com.offgridpdf.android.files.batchResultMessage
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenMultipleDocumentsLauncher
 import com.offgridpdf.android.files.runOnEachPdf
-import com.offgridpdf.android.files.suggestedBaseName
 import com.offgridpdf.android.files.saveResult
+import com.offgridpdf.android.files.suggestedBaseName
 import com.offgridpdf.android.pdf.PageNumberColor
 import com.offgridpdf.android.pdf.PageNumberFormat
 import com.offgridpdf.android.pdf.PageNumberOptions
 import com.offgridpdf.android.pdf.PageNumberPosition
 import com.offgridpdf.android.pdf.addPageNumbers
 import com.offgridpdf.android.pdf.formatPageNumber
+import com.offgridpdf.android.ui.common.UriListSaver
+import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import kotlinx.coroutines.launch
 
 private data class FormatOption(val label: String, val format: PageNumberFormat)
@@ -78,20 +78,28 @@ fun PageNumbersScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var pickedFiles by remember { mutableStateOf(PendingFile.consume()?.let { listOf(it) } ?: emptyList<Uri>()) }
+    var pickedFiles by rememberSaveable(stateSaver = UriListSaver) { mutableStateOf(PendingFile.consume()?.let { listOf(it) } ?: emptyList<Uri>()) }
+    // Plain `remember`, deliberately: a document password is never written
+    // to saved instance state (see `ui/common/Savers.kt`).
     var password by remember { mutableStateOf("") }
-    var format by remember { mutableStateOf(PageNumberFormat.N) }
-    var startText by remember { mutableStateOf("1") }
-    var prefix by remember { mutableStateOf("") }
-    var digitsText by remember { mutableStateOf("6") }
-    var position by remember { mutableStateOf(PageNumberPosition.BOTTOM_CENTER) }
-    var fontSizeText by remember { mutableStateOf("12") }
-    var marginText by remember { mutableStateOf("36") }
-    var color by remember { mutableStateOf(COLOR_PRESETS[0].color) }
-    var pagesText by remember { mutableStateOf("") }
+    var format by rememberSaveable { mutableStateOf(PageNumberFormat.N) }
+    var startText by rememberSaveable { mutableStateOf("1") }
+    var prefix by rememberSaveable { mutableStateOf("") }
+    var digitsText by rememberSaveable { mutableStateOf("6") }
+    var position by rememberSaveable { mutableStateOf(PageNumberPosition.BOTTOM_CENTER) }
+    var fontSizeText by rememberSaveable { mutableStateOf("12") }
+    var marginText by rememberSaveable { mutableStateOf("36") }
+    // The chosen preset's index, not the colour itself: an Int is something a
+    // Bundle can hold, a colour data class is not, and every colour the UI can
+    // pick comes from COLOR_PRESETS anyway.
+    var colorIndex by rememberSaveable { mutableStateOf(0) }
+    val color = COLOR_PRESETS[colorIndex].color
+    var pagesText by rememberSaveable { mutableStateOf("") }
     var running by remember { mutableStateOf(false) }
-    var resultMessage by remember { mutableStateOf<String?>(null) }
+    var resultMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
+    // Paired with pendingBytes, which a Bundle cannot hold — so neither is
+    // saved (see `ui/common/Savers.kt`).
     var pendingSuccessMessage by remember { mutableStateOf("") }
     var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
 
@@ -271,11 +279,11 @@ fun PageNumbersScreen() {
             )
             Text("Colour")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                for (preset in COLOR_PRESETS) {
-                    if (preset.color == color) {
-                        Button(onClick = { color = preset.color }) { Text(preset.label) }
+                COLOR_PRESETS.forEachIndexed { index, preset ->
+                    if (index == colorIndex) {
+                        Button(onClick = { colorIndex = index }) { Text(preset.label) }
                     } else {
-                        OutlinedButton(onClick = { color = preset.color }) { Text(preset.label) }
+                        OutlinedButton(onClick = { colorIndex = index }) { Text(preset.label) }
                     }
                 }
             }
