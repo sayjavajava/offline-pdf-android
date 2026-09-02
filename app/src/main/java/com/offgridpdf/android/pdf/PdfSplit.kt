@@ -32,7 +32,12 @@ private val DIGITS_ONLY = Regex("^\\d+$")
 fun parsePageRange(rangeStr: String, maxPages: Int): ParsePageRangeResult {
     val indices = mutableListOf<Int>()
     val errors = mutableListOf<String>()
-    val outOfRange = mutableListOf<Int>()
+    // Out-of-range pages are collected as intervals, never enumerated. A
+    // typo like "1-999999999" against a 10-page document would otherwise
+    // add two billion page numbers to a list purely to build an error
+    // message — a multi-second freeze followed by an OOM crash, from
+    // ordinary user input.
+    val outOfRange = mutableListOf<IntRange>()
 
     for (rawSegment in rangeStr.split(",")) {
         val segment = rawSegment.trim()
@@ -57,11 +62,12 @@ fun parsePageRange(rangeStr: String, maxPages: Int): ParsePageRangeResult {
                 continue
             }
             if (start < 1 || end > maxPages) {
-                for (i in start..end) {
-                    if (i < 1 || i > maxPages) outOfRange.add(i)
-                }
+                if (start < 1) outOfRange.add(start..minOf(end, 0))
+                if (end > maxPages) outOfRange.add(maxOf(start, maxPages + 1)..end)
                 continue
             }
+            // Only reachable once the range is known to sit inside the
+            // document, so this loop is bounded by maxPages.
             for (i in start..end) {
                 indices.add(i - 1)
             }
@@ -76,7 +82,7 @@ fun parsePageRange(rangeStr: String, maxPages: Int): ParsePageRangeResult {
                 continue
             }
             if (page < 1 || page > maxPages) {
-                outOfRange.add(page)
+                outOfRange.add(page..page)
                 continue
             }
             indices.add(page - 1)
@@ -84,15 +90,20 @@ fun parsePageRange(rangeStr: String, maxPages: Int): ParsePageRangeResult {
     }
 
     if (outOfRange.isNotEmpty()) {
-        val listed = outOfRange.distinct()
-        // A wide range like "1-1000" would otherwise enumerate every page
-        // past the end, producing an unreadably long message.
+        val merged = mergeRanges(outOfRange)
+        // Long, because "1-2147483647" against a 10-page document is a real
+        // (if silly) thing to be able to type, and its count overflows Int.
+        val total = merged.sumOf { it.last.toLong() - it.first.toLong() + 1L }
+        // A wide range like "1-1000" would otherwise produce an unreadably
+        // long message. Taken lazily off the merged ranges, so listing the
+        // first few never walks the rest.
         val maxListed = 8
-        val shown = listed.take(maxListed).joinToString(", ")
-        val remaining = listed.size - maxListed
+        val listed = merged.asSequence().flatMap { (it.first..it.last).asSequence() }.take(maxListed).toList()
+        val shown = listed.joinToString(", ")
+        val remaining = total - listed.size
 
         errors.add(
-            if (listed.size == 1) {
+            if (total == 1L) {
                 "Page $shown is outside this $maxPages-page document."
             } else {
                 "Pages $shown${if (remaining > 0) " and $remaining more" else ""} are outside this $maxPages-page document."
@@ -101,6 +112,27 @@ fun parsePageRange(rangeStr: String, maxPages: Int): ParsePageRangeResult {
     }
 
     return ParsePageRangeResult(indices, errors)
+}
+
+/**
+ * Sorts and merges overlapping/adjacent ranges so [parsePageRange] can count
+ * distinct out-of-range pages without materialising them — `"99, 99-104"`
+ * against a 5-page document is 6 pages out of range, not 7.
+ */
+private fun mergeRanges(ranges: List<IntRange>): List<IntRange> {
+    val sorted = ranges.filter { !it.isEmpty() }.sortedBy { it.first }
+    val merged = mutableListOf<IntRange>()
+    for (range in sorted) {
+        val last = merged.lastOrNull()
+        // `last.last + 1` would overflow at Int.MAX_VALUE, so compare the
+        // other way around.
+        if (last != null && range.first - 1 <= last.last) {
+            merged[merged.size - 1] = last.first..maxOf(last.last, range.last)
+        } else {
+            merged.add(range)
+        }
+    }
+    return merged
 }
 
 /**
