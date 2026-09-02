@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -18,6 +19,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -29,14 +32,22 @@ import com.offgridpdf.android.files.saveResult
 import com.offgridpdf.android.files.suggestedBaseName
 import com.offgridpdf.android.pdf.CropMargins
 import com.offgridpdf.android.pdf.PAPER_SIZES
+import com.offgridpdf.android.pdf.PREVIEW_SCALE
 import com.offgridpdf.android.pdf.PaperSize
 import com.offgridpdf.android.pdf.PdfLoadResult
+import com.offgridpdf.android.pdf.PdfRect
 import com.offgridpdf.android.pdf.cropPdf
 import com.offgridpdf.android.pdf.loadPdfFromUri
+import com.offgridpdf.android.pdf.renderPageForPreview
 import com.offgridpdf.android.pdf.resizePdf
+import com.offgridpdf.android.pdf.resolvePageIndices
 import com.offgridpdf.android.ui.common.NullableUriSaver
+import com.offgridpdf.android.ui.common.PageOverlay
+import com.offgridpdf.android.ui.common.PageOverlayStyle
+import com.offgridpdf.android.ui.common.PagePreview
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -70,6 +81,21 @@ fun CropResizeScreen() {
     var customHeightText by rememberSaveable { mutableStateOf("841.89") }
     var stretch by rememberSaveable { mutableStateOf(false) }
 
+    // Crop preview. Unlike Redact and Signature this screen holds no open
+    // PDDocument: it only needs one page's pixels and that page's size, so
+    // the document is opened, rendered and closed in one go and nothing has
+    // to be kept alive or cleaned up afterwards.
+    var previewImage by remember { mutableStateOf<ImageBitmap?>(null) }
+    var previewBitmapWidth by remember { mutableStateOf(0) }
+    var previewBitmapHeight by remember { mutableStateOf(0) }
+    // The CropBox, which is both what the bitmap shows and what cropPdf
+    // trims -- see RenderedPagePreview's note on the two boxes.
+    var previewWidthPts by remember { mutableStateOf(0f) }
+    var previewHeightPts by remember { mutableStateOf(0f) }
+    var previewPageNumber by remember { mutableStateOf(1) }
+    var previewMessage by remember { mutableStateOf<String?>(null) }
+    var previewLoading by remember { mutableStateOf(false) }
+
     var running by remember { mutableStateOf(false) }
     var resultMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
@@ -79,6 +105,8 @@ fun CropResizeScreen() {
         pickedUri = uri
         password = ""
         resultMessage = null
+        previewImage = null
+        previewMessage = null
     }
 
     val saveLauncher = rememberCreateDocumentLauncher("application/pdf") { uri ->
@@ -89,6 +117,53 @@ fun CropResizeScreen() {
             }
         }
         pendingBytes = null
+    }
+
+    // Opens the document, renders the first page the crop would touch, and
+    // closes it again. Deliberately on demand rather than on file pick: this
+    // tool works perfectly well without a preview, and rendering a page is
+    // the most expensive thing it can do.
+    fun loadPreview() {
+        val uri = pickedUri ?: return
+        previewLoading = true
+        previewMessage = null
+        scope.launch {
+            when (val result = loadPdfFromUri(context, uri, password.ifBlank { null })) {
+                is PdfLoadResult.Success -> {
+                    try {
+                        // The first page the range actually covers, so the
+                        // preview shows a page that will really be cropped.
+                        val index = firstTargetPageIndex(pagesText, result.document.numberOfPages)
+                        val rendered = withContext(Dispatchers.Default) {
+                            renderPageForPreview(result.document, index)
+                        }
+                        previewImage = rendered.bitmap.asImageBitmap()
+                        previewBitmapWidth = rendered.bitmapWidth
+                        previewBitmapHeight = rendered.bitmapHeight
+                        previewWidthPts = rendered.renderedWidthPts
+                        previewHeightPts = rendered.renderedHeightPts
+                        previewPageNumber = index + 1
+                    } catch (e: Exception) {
+                        previewImage = null
+                        previewMessage = userMessageFor(e)
+                    } catch (e: OutOfMemoryError) {
+                        previewImage = null
+                        previewMessage = TOO_LARGE_MESSAGE
+                    } finally {
+                        result.document.close()
+                    }
+                }
+                PdfLoadResult.PasswordRequired -> {
+                    previewMessage = if (password.isBlank()) {
+                        "This PDF needs a password."
+                    } else {
+                        "Wrong password -- try again."
+                    }
+                }
+                is PdfLoadResult.Failure -> previewMessage = result.message
+            }
+            previewLoading = false
+        }
     }
 
     val accent = LocalOffGridPalette.current.organize
@@ -252,6 +327,60 @@ fun CropResizeScreen() {
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
                 )
+
+                val image = previewImage
+                if (image == null) {
+                    OutlinedButton(
+                        onClick = { loadPreview() },
+                        enabled = pickedUri != null && !previewLoading,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(if (previewLoading) "Rendering page..." else "Preview the crop")
+                    }
+                } else {
+                    val kept = keptRegionOf(
+                        topText,
+                        bottomText,
+                        leftText,
+                        rightText,
+                        previewWidthPts,
+                        previewHeightPts,
+                    )
+                    Text(
+                        if (kept != null) {
+                            "Page $previewPageNumber. The outline is what the crop keeps: " +
+                                "${kept.width.roundToInt()} x ${kept.height.roundToInt()} pt " +
+                                "of ${previewWidthPts.roundToInt()} x ${previewHeightPts.roundToInt()} pt."
+                        } else {
+                            "Page $previewPageNumber. These margins leave nothing of the page."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = LocalOffGridPalette.current.inkTertiary,
+                    )
+                    PagePreview(
+                        image = image,
+                        bitmapWidth = previewBitmapWidth,
+                        bitmapHeight = previewBitmapHeight,
+                        pageHeightPts = previewHeightPts,
+                        contentDescription = "Page $previewPageNumber, with the crop boundary marked",
+                        scale = PREVIEW_SCALE,
+                        // Outlined: a crop only moves the visible window, so
+                        // the content outside it still exists in the file.
+                        // Covering it would tell the wrong story about what
+                        // this tool does.
+                        overlays = kept?.let {
+                            listOf(PageOverlay(it, PageOverlayStyle.Outlined(accent)))
+                        }.orEmpty(),
+                    )
+                    OutlinedButton(
+                        onClick = { loadPreview() },
+                        enabled = !previewLoading,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(if (previewLoading) "Rendering page..." else "Refresh preview")
+                    }
+                }
+                previewMessage?.let { Text(it) }
             } else {
                 Text("Target page size")
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -294,4 +423,61 @@ fun CropResizeScreen() {
             )
         },
     )
+}
+
+/**
+ * The first page a crop with this range would touch, as a 0-based index.
+ *
+ * A preview of page 1 is misleading when the range starts at page 12, so the
+ * preview follows the range. A range that does not parse falls back to the
+ * first page rather than refusing to preview: the range field is validated
+ * at apply time, and someone half-way through typing one still deserves to
+ * see a page.
+ *
+ * Uses [resolvePageIndices] rather than `PdfCropResize.kt`'s own private
+ * resolver. The two differ only in a `.distinct()` on the result, which
+ * cannot change the first element, so both name the same first page for
+ * every input -- checked rather than assumed, since a preview of a page the
+ * crop will not touch would be worse than no preview.
+ */
+private fun firstTargetPageIndex(pagesText: String, pageCount: Int): Int {
+    val range = pagesText.ifBlank { "all" }
+    return runCatching { resolvePageIndices(range, pageCount).firstOrNull() }
+        .getOrNull()
+        ?: 0
+}
+
+/**
+ * What the crop keeps, in PDF points, or null when these margins leave
+ * nothing of the page.
+ *
+ * Works in CropBox space, the same space `cropPdf` trims and the same space
+ * the rendered preview shows. Returns null rather than throwing for the same
+ * reason the signature tool's equivalent does: a field mid-edit is normal,
+ * and the honest response is to draw no outline until the numbers mean
+ * something. `cropPdf` still validates properly at apply time, per page,
+ * with its own message.
+ */
+internal fun keptRegionOf(
+    topText: String,
+    bottomText: String,
+    leftText: String,
+    rightText: String,
+    pageWidthPts: Float,
+    pageHeightPts: Float,
+): PdfRect? {
+    val top = topText.toFloatOrNull() ?: return null
+    val bottom = bottomText.toFloatOrNull() ?: return null
+    val left = leftText.toFloatOrNull() ?: return null
+    val right = rightText.toFloatOrNull() ?: return null
+    if (listOf(top, bottom, left, right).any { it < 0f }) return null
+
+    val width = pageWidthPts - left - right
+    val height = pageHeightPts - top - bottom
+    if (width <= 0f || height <= 0f) return null
+
+    // Bottom-left origin: the left margin is the new x, and the *bottom*
+    // margin is the new y. Using the top margin here would flip the crop
+    // vertically on any page with uneven top/bottom trims.
+    return PdfRect(x = left, y = bottom, width = width, height = height)
 }
