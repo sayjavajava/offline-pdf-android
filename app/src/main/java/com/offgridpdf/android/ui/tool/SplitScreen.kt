@@ -1,5 +1,7 @@
 package com.offgridpdf.android.ui.tool
 
+import com.offgridpdf.android.chain.PendingFile
+
 import android.net.Uri
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -35,7 +37,7 @@ fun SplitScreen() {
     val scope = rememberCoroutineScope()
     val accent = LocalOffGridPalette.current.organize
 
-    var pickedUri by remember { mutableStateOf<Uri?>(null) }
+    var pickedUri by remember { mutableStateOf(PendingFile.consume()) }
     var password by remember { mutableStateOf("") }
     var pagesText by remember { mutableStateOf("") }
     var separateFiles by remember { mutableStateOf(false) }
@@ -48,6 +50,11 @@ fun SplitScreen() {
     // about which one a given pending value belongs to.
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
     var pendingSuccessMessage by remember { mutableStateOf("") }
+
+    // Only ever a single PDF's bytes — a zip (multiple output files) isn't
+    // something the next tool screen can open, so chaining stays null for
+    // that path (see the "separate files" branch below).
+    var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
 
     val pickLauncher = rememberOpenDocumentLauncher { uri ->
         pickedUri = uri
@@ -99,6 +106,7 @@ fun SplitScreen() {
                     when (val result = loadPdfFromUri(context, uri, password.ifBlank { null })) {
                         is PdfLoadResult.Success -> {
                             try {
+                                lastResultBytes = null
                                 if (separateFiles) {
                                     val pages = splitPdfToPages(result.document, pageRange)
                                     val plural = if (pages.size == 1) "" else "s"
@@ -106,6 +114,7 @@ fun SplitScreen() {
                                     if (pages.size == 1) {
                                         val page = pages[0]
                                         pendingBytes = page.bytes
+                                        lastResultBytes = pendingBytes
                                         val suggestedName = "${baseName}_page-${page.pageNumber.toString().padStart(3, '0')}.pdf"
                                         savePdfLauncher.launch(suggestedName)
                                     } else {
@@ -114,6 +123,7 @@ fun SplitScreen() {
                                     }
                                 } else {
                                     pendingBytes = splitPdfToSingleFile(result.document, pageRange)
+                                    lastResultBytes = pendingBytes
                                     pendingSuccessMessage = "Your PDF has been split successfully."
                                     savePdfLauncher.launch("${baseName}_split.pdf")
                                 }
@@ -140,6 +150,7 @@ fun SplitScreen() {
         },
         runLabel = if (running) "Splitting..." else "Split PDF",
         resultMessage = resultMessage,
+        chainableBytes = lastResultBytes,
         options = {
             OutlinedTextField(
                 value = pagesText,

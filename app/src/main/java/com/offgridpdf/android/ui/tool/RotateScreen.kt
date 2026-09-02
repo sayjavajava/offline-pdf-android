@@ -1,5 +1,7 @@
 package com.offgridpdf.android.ui.tool
 
+import com.offgridpdf.android.chain.PendingFile
+
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 
 import android.net.Uri
@@ -36,13 +38,14 @@ fun RotateScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var pickedUri by remember { mutableStateOf<Uri?>(null) }
+    var pickedUri by remember { mutableStateOf(PendingFile.consume()) }
     var password by remember { mutableStateOf("") }
     var pagesText by remember { mutableStateOf("") }
     var angle by remember { mutableStateOf(90) }
     var running by remember { mutableStateOf(false) }
     var resultMessage by remember { mutableStateOf<String?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
 
     val pickLauncher = rememberOpenDocumentLauncher { uri ->
         pickedUri = uri
@@ -85,6 +88,7 @@ fun RotateScreen() {
                         is PdfLoadResult.Success -> {
                             try {
                                 pendingBytes = rotatePdf(result.document, angle, pageRange)
+                                lastResultBytes = pendingBytes
                                 saveLauncher.launch("${baseName}_rotated$angle.pdf")
                             } catch (e: IllegalArgumentException) {
                                 resultMessage = e.message
@@ -109,6 +113,7 @@ fun RotateScreen() {
         },
         runLabel = if (running) "Rotating..." else "Rotate Pages",
         resultMessage = resultMessage,
+        chainableBytes = lastResultBytes,
         options = {
             Text("Rotation")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

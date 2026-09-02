@@ -19,12 +19,50 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTop"
             android:theme="@style/Theme.OffGridPDF">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!--
+                "Open with OffGridPDF" from a file manager / another app's
+                file picker. android:mimeType only (no <data android:scheme>)
+                so this matches any content://, file://, or http(s):// PDF a
+                launcher hands us the same way — the app never fetches a URL
+                itself, it just reads whatever stream Android already
+                resolved for it, same guarantee as every SAF-picked file.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/pdf" />
+            </intent-filter>
+
+            <!-- "Share" a PDF into OffGridPDF from Gmail, Files, Drive, etc. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/pdf" />
+            </intent-filter>
         </activity>
+
+        <!--
+            Internal-only: mints content:// Uris for tool-chaining's cache
+            file (files/ChainFile.kt) so one tool's result can be handed to
+            another without a system file-picker round trip. Never
+            exported — nothing outside this app ever addresses it.
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
 </manifest>

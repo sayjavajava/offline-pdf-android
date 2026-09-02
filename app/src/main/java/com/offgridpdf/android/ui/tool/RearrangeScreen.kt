@@ -1,5 +1,7 @@
 package com.offgridpdf.android.ui.tool
 
+import com.offgridpdf.android.chain.PendingFile
+
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 
 import android.net.Uri
@@ -29,12 +31,13 @@ fun RearrangeScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var pickedUri by remember { mutableStateOf<Uri?>(null) }
+    var pickedUri by remember { mutableStateOf(PendingFile.consume()) }
     var password by remember { mutableStateOf("") }
     var pagesText by remember { mutableStateOf("") }
     var running by remember { mutableStateOf(false) }
     var resultMessage by remember { mutableStateOf<String?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
 
     val pickLauncher = rememberOpenDocumentLauncher { uri ->
         pickedUri = uri
@@ -79,6 +82,7 @@ fun RearrangeScreen() {
                             is PdfLoadResult.Success -> {
                                 try {
                                     pendingBytes = rearrangePdf(result.document, pagesText)
+                                    lastResultBytes = pendingBytes
                                     saveLauncher.launch("${baseName}_rearranged.pdf")
                                 } catch (e: IllegalArgumentException) {
                                     resultMessage = e.message
@@ -104,6 +108,7 @@ fun RearrangeScreen() {
         },
         runLabel = if (running) "Rearranging..." else "Apply",
         resultMessage = resultMessage,
+        chainableBytes = lastResultBytes,
         options = {
             Text("Keep only the pages you list, in that order. Omit a page to delete it; list a page more than once to duplicate it.")
             OutlinedTextField(

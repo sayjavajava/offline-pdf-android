@@ -1,5 +1,7 @@
 package com.offgridpdf.android.ui.tool
 
+import com.offgridpdf.android.chain.PendingFile
+
 import android.net.Uri
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -67,7 +69,7 @@ fun SignatureScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var pickedUri by remember { mutableStateOf<Uri?>(null) }
+    var pickedUri by remember { mutableStateOf(PendingFile.consume()) }
     var password by remember { mutableStateOf("") }
     var openDocument by remember { mutableStateOf<PDDocument?>(null) }
     var pageCount by remember { mutableStateOf<Int?>(null) }

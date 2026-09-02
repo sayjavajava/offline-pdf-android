@@ -11,8 +11,12 @@ private const val MAX_STORED = 8
  * recent first, deduped. Plain [android.content.SharedPreferences] rather
  * than DataStore — this is a single small string, not worth a new
  * dependency for.
+ *
+ * Also drives the home-screen shortcuts ([ShortcutsManager]) — every
+ * recorded use rebuilds them from the same list, so the two stay in sync
+ * for free rather than needing their own separate tracking.
  */
-class RecentToolsStore(context: Context) {
+class RecentToolsStore(private val context: Context) {
     private val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     fun recentToolIds(): List<String> =
@@ -24,5 +28,6 @@ class RecentToolsStore(context: Context) {
     fun recordUsed(toolId: String) {
         val updated = (listOf(toolId) + recentToolIds().filter { it != toolId }).take(MAX_STORED)
         prefs.edit().putString(KEY_RECENT_IDS, updated.joinToString(",")).apply()
+        ShortcutsManager.update(context, updated)
     }
 }

@@ -1,5 +1,7 @@
 package com.offgridpdf.android.ui.tool
 
+import com.offgridpdf.android.chain.PendingFile
+
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 
 import android.net.Uri
@@ -35,7 +37,7 @@ fun EditMetadataScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var pickedUri by remember { mutableStateOf<Uri?>(null) }
+    var pickedUri by remember { mutableStateOf(PendingFile.consume()) }
     var password by remember { mutableStateOf("") }
     var title by remember { mutableStateOf("") }
     var author by remember { mutableStateOf("") }
@@ -44,6 +46,7 @@ fun EditMetadataScreen() {
     var running by remember { mutableStateOf(false) }
     var resultMessage by remember { mutableStateOf<String?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
 
     val pickLauncher = rememberOpenDocumentLauncher { uri ->
         pickedUri = uri
@@ -87,6 +90,7 @@ fun EditMetadataScreen() {
                                 PdfMetadataEdit(title = title, author = author, subject = subject, keywords = keywords),
                             )
                             result.document.close()
+                            lastResultBytes = pendingBytes
                             saveLauncher.launch("${suggestedBaseName(uri)}_edited.pdf")
                         }
                         PdfLoadResult.PasswordRequired -> {
@@ -106,6 +110,7 @@ fun EditMetadataScreen() {
         },
         runLabel = if (running) "Saving..." else "Save Metadata",
         resultMessage = resultMessage,
+        chainableBytes = lastResultBytes,
         options = {
             OutlinedTextField(
                 value = title,

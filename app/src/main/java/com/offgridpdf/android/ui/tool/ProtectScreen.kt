@@ -1,5 +1,7 @@
 package com.offgridpdf.android.ui.tool
 
+import com.offgridpdf.android.chain.PendingFile
+
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 
 import android.net.Uri
@@ -50,7 +52,7 @@ fun ProtectScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var pickedUri by remember { mutableStateOf<Uri?>(null) }
+    var pickedUri by remember { mutableStateOf(PendingFile.consume()) }
     var inputPassword by remember { mutableStateOf("") }
     var newPassword by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
@@ -62,6 +64,7 @@ fun ProtectScreen() {
     var running by remember { mutableStateOf(false) }
     var resultMessage by remember { mutableStateOf<String?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
 
     val pickLauncher = rememberOpenDocumentLauncher { uri ->
         pickedUri = uri
@@ -115,6 +118,7 @@ fun ProtectScreen() {
                                     } else {
                                         protectPdf(result.document, newPassword)
                                     }
+                                    lastResultBytes = pendingBytes
                                     saveLauncher.launch("${baseName}_protected.pdf")
                                 } catch (e: IllegalArgumentException) {
                                     resultMessage = e.message
@@ -140,6 +144,7 @@ fun ProtectScreen() {
         },
         runLabel = if (running) "Protecting..." else "Protect PDF",
         resultMessage = resultMessage,
+        chainableBytes = lastResultBytes,
         options = {
             Text("Adds a password to a PDF, so it can only be opened by someone who knows it. There is no way to recover a lost password — keep it somewhere safe.")
 

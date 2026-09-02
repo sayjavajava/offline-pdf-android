@@ -1,5 +1,7 @@
 package com.offgridpdf.android.ui.tool
 
+import com.offgridpdf.android.chain.PendingFile
+
 import android.net.Uri
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -60,6 +62,7 @@ import com.offgridpdf.android.pdf.pixelToPdfRect
 import com.offgridpdf.android.pdf.redactPdf
 import com.offgridpdf.android.pdf.resolvePageIndices
 import com.offgridpdf.android.pdf.toPixelRect
+import com.offgridpdf.android.ui.common.ContinueChainAction
 import com.offgridpdf.android.ui.common.FilePickerCard
 import com.offgridpdf.android.ui.common.PrimaryButton
 import com.offgridpdf.android.ui.common.PrivacyLine
@@ -108,7 +111,7 @@ fun RedactScreen() {
     val palette = LocalOffGridPalette.current
     val accent = palette.security
 
-    var pickedUri by remember { mutableStateOf<Uri?>(null) }
+    var pickedUri by remember { mutableStateOf(PendingFile.consume()) }
     var password by remember { mutableStateOf("") }
     var document by remember { mutableStateOf<PDDocument?>(null) }
     var pageCount by remember { mutableStateOf(0) }
@@ -137,6 +140,7 @@ fun RedactScreen() {
     var findMessage by remember { mutableStateOf<String?>(null) }
 
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
 
     // This screen (unlike every other tool screen) keeps a PDDocument
     // open for the whole editing session, not just within one button
@@ -170,6 +174,7 @@ fun RedactScreen() {
         redactions = emptyMap()
         applyRangeText = ""
         resultMessage = null
+        lastResultBytes = null
         loadMessage = null
         previewImage = null
         searchQuery = ""
@@ -562,9 +567,12 @@ fun RedactScreen() {
                         val doc2 = document ?: return@PrimaryButton
                         applying = true
                         resultMessage = null
+                        lastResultBytes = null
                         scope.launch {
                             try {
-                                pendingBytes = redactPdf(doc2, redactions)
+                                val bytes = redactPdf(doc2, redactions)
+                                pendingBytes = bytes
+                                lastResultBytes = bytes
                                 val name = pickedUri?.let { suggestedBaseName(it) } ?: "document"
                                 saveLauncher.launch("${name}_redacted.pdf")
                             } catch (e: IllegalArgumentException) {
@@ -580,6 +588,9 @@ fun RedactScreen() {
                 )
             }
             resultMessage?.let { message -> item { Text(message, style = MaterialTheme.typography.bodySmall, color = palette.inkSecondary) } }
+            if (resultMessage != null) {
+                item { ContinueChainAction(bytes = lastResultBytes, accent = accent) }
+            }
             item { Box(modifier = Modifier.padding(bottom = 18.dp)) }
         }
     }

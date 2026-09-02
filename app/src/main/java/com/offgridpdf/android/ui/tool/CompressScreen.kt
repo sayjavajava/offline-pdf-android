@@ -1,5 +1,7 @@
 package com.offgridpdf.android.ui.tool
 
+import com.offgridpdf.android.chain.PendingFile
+
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 
 import android.net.Uri
@@ -27,11 +29,12 @@ fun CompressScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var pickedUri by remember { mutableStateOf<Uri?>(null) }
+    var pickedUri by remember { mutableStateOf(PendingFile.consume()) }
     var password by remember { mutableStateOf("") }
     var running by remember { mutableStateOf(false) }
     var resultMessage by remember { mutableStateOf<String?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
     var pendingSuccessMessage by remember { mutableStateOf("") }
 
     val pickLauncher = rememberOpenDocumentLauncher { uri ->
@@ -76,6 +79,7 @@ fun CompressScreen() {
                             val compressed = compressPdf(result.document)
                             result.document.close()
                             pendingBytes = compressed
+                            lastResultBytes = pendingBytes
                             pendingSuccessMessage = compressionMessage(originalSize, compressed.size)
                             saveLauncher.launch("${baseName}_compressed.pdf")
                         }
@@ -96,6 +100,7 @@ fun CompressScreen() {
         },
         runLabel = if (running) "Compressing..." else "Compress PDF",
         resultMessage = resultMessage,
+        chainableBytes = lastResultBytes,
     )
 }
 

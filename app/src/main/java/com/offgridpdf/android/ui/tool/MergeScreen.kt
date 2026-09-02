@@ -1,5 +1,7 @@
 package com.offgridpdf.android.ui.tool
 
+import com.offgridpdf.android.chain.PendingFile
+
 import android.net.Uri
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -46,7 +48,7 @@ fun MergeScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var files by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    var files by remember { mutableStateOf(PendingFile.consume()?.let { listOf(it) } ?: emptyList()) }
     var running by remember { mutableStateOf(false) }
     var resultMessage by remember { mutableStateOf<String?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }

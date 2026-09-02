@@ -15,17 +15,24 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.offgridpdf.android.R
+import com.offgridpdf.android.chain.PendingFile
+import com.offgridpdf.android.chain.PendingNavigation
+import com.offgridpdf.android.chain.ROUTE_DASHBOARD
+import com.offgridpdf.android.files.writeBytesToCacheUri
 import com.offgridpdf.android.ui.navigation.LocalNavController
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import com.offgridpdf.android.ui.theme.PlexMono
+import kotlinx.coroutines.launch
 
 /**
  * Shared chrome for every tool screen (see the UI redesign mockups): a
@@ -145,5 +152,49 @@ fun PrivacyLine(text: String = "Processed entirely on your device — nothing is
 @Composable
 fun RunningIndicator(accent: Color, modifier: Modifier = Modifier) {
     CircularProgressIndicator(color = accent, modifier = modifier.size(22.dp), strokeWidth = 2.5.dp)
+}
+
+/**
+ * Tool chaining's outgoing half: shown once a run has produced [bytes],
+ * alongside (not instead of) the normal Save flow. Writes the result to
+ * the app's private cache (`files/ChainFile.kt`) and hands it to whichever
+ * tool the user picks next via [PendingFile]/[PendingNavigation] — the
+ * same mechanism a Share/View intent or a shortcut launch uses to seed a
+ * tool screen, so nothing here needs its own bespoke plumbing.
+ */
+@Composable
+fun ContinueChainAction(bytes: ByteArray?, accent: Color, modifier: Modifier = Modifier) {
+    if (bytes == null) return
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .border(BorderStroke(1.dp, accent), RoundedCornerShape(10.dp))
+            .clickable {
+                scope.launch {
+                    val uri = writeBytesToCacheUri(context, bytes, "chained-result.pdf")
+                    PendingFile.set(uri)
+                    PendingNavigation.set(ROUTE_DASHBOARD)
+                }
+            }
+            .padding(vertical = 13.dp, horizontal = 14.dp),
+    ) {
+        Text(
+            "Continue with another tool",
+            style = MaterialTheme.typography.labelLarge,
+            color = accent,
+            modifier = Modifier.weight(1f),
+        )
+        Icon(
+            painter = painterResource(R.drawable.ic_chevron_right),
+            contentDescription = null,
+            tint = accent,
+            modifier = Modifier.size(14.dp),
+        )
+    }
 }
 

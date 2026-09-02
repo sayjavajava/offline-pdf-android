@@ -2,6 +2,7 @@ package com.offgridpdf.android.ui.navigation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavType
@@ -9,6 +10,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.offgridpdf.android.chain.PendingNavigation
+import com.offgridpdf.android.chain.ROUTE_DASHBOARD
 import com.offgridpdf.android.ui.dashboard.DashboardScreen
 import com.offgridpdf.android.ui.dashboard.RecentToolsStore
 import com.offgridpdf.android.ui.tool.CompareScreen
@@ -33,13 +36,28 @@ import com.offgridpdf.android.ui.tool.ToolPlaceholderScreen
 import com.offgridpdf.android.ui.tool.UnlockScreen
 import com.offgridpdf.android.ui.tool.WatermarkScreen
 
-private const val ROUTE_DASHBOARD = "dashboard"
 private const val ROUTE_TOOL = "tool/{toolId}"
 private const val ARG_TOOL_ID = "toolId"
 
 @Composable
 fun OffGridNavHost() {
     val navController = rememberNavController()
+
+    // Consumes a shortcut launch (jump straight to a tool) or an incoming
+    // VIEW/SEND intent (jump to the dashboard so its pending-file banner
+    // shows) set by MainActivity before this NavHost existed to navigate
+    // through directly. Keyed on the value itself so it fires once per new
+    // target, not on every recomposition.
+    val pendingTarget = PendingNavigation.target
+    LaunchedEffect(pendingTarget) {
+        if (pendingTarget != null) {
+            PendingNavigation.consume()
+            navController.navigate(pendingTarget) {
+                popUpTo(ROUTE_DASHBOARD) { inclusive = pendingTarget == ROUTE_DASHBOARD }
+                launchSingleTop = true
+            }
+        }
+    }
 
     CompositionLocalProvider(LocalNavController provides navController) {
         NavHost(navController = navController, startDestination = ROUTE_DASHBOARD) {

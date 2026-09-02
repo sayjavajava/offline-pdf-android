@@ -1,5 +1,7 @@
 package com.offgridpdf.android.ui.tool
 
+import com.offgridpdf.android.chain.PendingFile
+
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 
 import android.net.Uri
@@ -48,7 +50,7 @@ fun WatermarkScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var pickedUri by remember { mutableStateOf<Uri?>(null) }
+    var pickedUri by remember { mutableStateOf(PendingFile.consume()) }
     var password by remember { mutableStateOf("") }
     var text by remember { mutableStateOf("CONFIDENTIAL") }
     var fontSizeText by remember { mutableStateOf("50") }
@@ -59,6 +61,7 @@ fun WatermarkScreen() {
     var running by remember { mutableStateOf(false) }
     var resultMessage by remember { mutableStateOf<String?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
 
     val pickLauncher = rememberOpenDocumentLauncher { uri ->
         pickedUri = uri
@@ -107,6 +110,7 @@ fun WatermarkScreen() {
                             is PdfLoadResult.Success -> {
                                 try {
                                     pendingBytes = addWatermark(result.document, text, options)
+                                    lastResultBytes = pendingBytes
                                     saveLauncher.launch("${baseName}_watermarked.pdf")
                                 } catch (e: IllegalArgumentException) {
                                     resultMessage = e.message
@@ -132,6 +136,7 @@ fun WatermarkScreen() {
         },
         runLabel = if (running) "Adding Watermark..." else "Add Watermark",
         resultMessage = resultMessage,
+        chainableBytes = lastResultBytes,
         options = {
             OutlinedTextField(
                 value = text,
