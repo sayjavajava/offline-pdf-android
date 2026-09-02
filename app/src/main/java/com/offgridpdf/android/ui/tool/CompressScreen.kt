@@ -12,38 +12,59 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import com.offgridpdf.android.files.batchResultMessage
 import com.offgridpdf.android.files.readBytesFromUri
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
-import com.offgridpdf.android.files.rememberOpenDocumentLauncher
+import com.offgridpdf.android.files.rememberOpenMultipleDocumentsLauncher
+import com.offgridpdf.android.files.runOnEachPdf
 import com.offgridpdf.android.files.suggestedBaseName
 import com.offgridpdf.android.files.writeBytesToUri
-import com.offgridpdf.android.pdf.PdfLoadResult
 import com.offgridpdf.android.pdf.compressPdf
-import com.offgridpdf.android.pdf.loadPdfFromUri
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-/** Web reference: `CompressTool.tsx` + `compressPdf` (`qpdf-engine.ts`). No options beyond the file and password `ToolScaffold` already provides. */
+/**
+ * Web reference: `CompressTool.tsx` + `compressPdf` (`qpdf-engine.ts`). No
+ * options beyond the file and password `ToolScaffold` already provides.
+ *
+ * Batch mode (`files/BatchRun.kt`): picking more than one file compresses
+ * each with the same settings (there are none to vary here beyond the
+ * shared password) and saves one zip; a single file keeps its own
+ * size-reduction message exactly as it always has — that number doesn't
+ * mean much averaged across several different files, so batch mode reports
+ * a plain count instead.
+ */
 @Composable
 fun CompressScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var pickedUri by remember { mutableStateOf(PendingFile.consume()) }
+    var pickedFiles by remember { mutableStateOf(PendingFile.consume()?.let { listOf(it) } ?: emptyList<Uri>()) }
     var password by remember { mutableStateOf("") }
     var running by remember { mutableStateOf(false) }
     var resultMessage by remember { mutableStateOf<String?>(null) }
-    var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
     var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
     var pendingSuccessMessage by remember { mutableStateOf("") }
 
-    val pickLauncher = rememberOpenDocumentLauncher { uri ->
-        pickedUri = uri
+    val pickLauncher = rememberOpenMultipleDocumentsLauncher { uris ->
+        pickedFiles = uris
         password = ""
         resultMessage = null
     }
 
-    val saveLauncher = rememberCreateDocumentLauncher("application/pdf") { uri ->
+    val savePdfLauncher = rememberCreateDocumentLauncher("application/pdf") { uri ->
+        val bytes = pendingBytes
+        if (uri != null && bytes != null) {
+            scope.launch {
+                writeBytesToUri(context, uri, bytes)
+                resultMessage = pendingSuccessMessage
+            }
+        }
+        pendingBytes = null
+    }
+
+    val saveZipLauncher = rememberCreateDocumentLauncher("application/zip") { uri ->
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
@@ -55,52 +76,67 @@ fun CompressScreen() {
     }
 
     val accent = LocalOffGridPalette.current.edit
+    val fileName = when {
+        pickedFiles.isEmpty() -> null
+        pickedFiles.size == 1 -> pickedFiles[0].lastPathSegment
+        else -> "${pickedFiles.size} files selected"
+    }
+
     ToolScaffold(
         title = "Compress PDF",
         accent = accent,
-        pickedFileName = pickedUri?.lastPathSegment,
+        pickedFileName = fileName,
         onPickFile = { pickLauncher.launch(arrayOf("application/pdf")) },
         password = password,
         onPasswordChange = { password = it },
-        runEnabled = pickedUri != null,
+        runEnabled = pickedFiles.isNotEmpty(),
         running = running,
         onRun = {
-            // ToolScaffold only invokes onRun while runEnabled (pickedUri
-            // != null) is true.
-            pickedUri?.let { uri ->
-                running = true
-                resultMessage = null
-                val baseName = suggestedBaseName(uri)
+            running = true
+            resultMessage = null
+            lastResultBytes = null
+            val files = pickedFiles
 
-                scope.launch {
-                    when (val result = loadPdfFromUri(context, uri, password.ifBlank { null })) {
-                        is PdfLoadResult.Success -> {
-                            val originalSize = readBytesFromUri(context, uri).size
-                            val compressed = compressPdf(result.document)
-                            result.document.close()
-                            pendingBytes = compressed
-                            lastResultBytes = pendingBytes
-                            pendingSuccessMessage = compressionMessage(originalSize, compressed.size)
-                            saveLauncher.launch("${baseName}_compressed.pdf")
-                        }
-                        PdfLoadResult.PasswordRequired -> {
-                            resultMessage = if (password.isBlank()) {
-                                "This PDF needs a password."
-                            } else {
-                                "Wrong password — try again."
-                            }
-                        }
-                        is PdfLoadResult.Failure -> {
-                            resultMessage = result.message
-                        }
+            scope.launch {
+                val singleOriginalSize = if (files.size == 1) readBytesFromUri(context, files[0]).size else null
+                val result = runOnEachPdf(
+                    context = context,
+                    files = files,
+                    password = password,
+                    zipEntrySuffix = "_compressed",
+                    operate = { document -> compressPdf(document) },
+                )
+                when {
+                    result.singleBytes != null -> {
+                        pendingBytes = result.singleBytes
+                        lastResultBytes = result.singleBytes
+                        pendingSuccessMessage = compressionMessage(singleOriginalSize ?: 0, result.singleBytes.size)
+                        savePdfLauncher.launch("${suggestedBaseName(files[0])}_compressed.pdf")
                     }
-                    running = false
+                    result.zipBytes != null -> {
+                        pendingBytes = result.zipBytes
+                        pendingSuccessMessage = batchResultMessage("Compressed", result)
+                        saveZipLauncher.launch("compressed_pdfs.zip")
+                    }
+                    else -> {
+                        resultMessage = result.failures.firstOrNull() ?: "Could not compress this PDF."
+                    }
                 }
+                running = false
             }
         },
-        runLabel = if (running) "Compressing..." else "Compress PDF",
+        runLabel = when {
+            running -> "Compressing..."
+            pickedFiles.size > 1 -> "Compress ${pickedFiles.size} Files"
+            else -> "Compress PDF"
+        },
         resultMessage = resultMessage,
         chainableBytes = lastResultBytes,
+        batchNote = if (pickedFiles.size > 1) {
+            "Compress will run with the same settings on all ${pickedFiles.size} files, saved as one zip."
+        } else {
+            null
+        },
     )
 }
 

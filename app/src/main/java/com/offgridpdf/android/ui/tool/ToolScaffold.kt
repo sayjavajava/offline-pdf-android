@@ -54,6 +54,12 @@ import com.offgridpdf.android.ui.theme.LocalOffGridPalette
  * phone (always narrower), but keeps text fields and buttons from
  * stretching edge to edge in the wide detail pane `OffGridNavHost.kt`
  * gives this screen on a tablet/expanded-width window.
+ *
+ * [batchNote]: batch mode's one piece of UI (Compress/Watermark/Rotate/
+ * Page Numbers — `files/BatchRun.kt`) — set it once more than one file is
+ * picked, to say plainly that every setting below applies to all of them
+ * before the user configures anything. Absent for a single file, exactly
+ * like every tool screen looked before batch mode existed.
  */
 private val MAX_CONTENT_WIDTH = 560.dp
 
@@ -72,6 +78,7 @@ fun ToolScaffold(
     runLabel: String = "Run",
     resultMessage: String?,
     chainableBytes: ByteArray? = null,
+    batchNote: String? = null,
     options: @Composable () -> Unit = {},
 ) {
     val palette = LocalOffGridPalette.current
@@ -92,6 +99,10 @@ fun ToolScaffold(
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             FilePickerCard(fileName = pickedFileName, onClick = onPickFile)
+
+            batchNote?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = palette.inkSecondary)
+            }
 
             OutlinedTextField(
                 value = password,

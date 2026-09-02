@@ -24,15 +24,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.offgridpdf.android.files.batchResultMessage
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
-import com.offgridpdf.android.files.rememberOpenDocumentLauncher
+import com.offgridpdf.android.files.rememberOpenMultipleDocumentsLauncher
+import com.offgridpdf.android.files.runOnEachPdf
 import com.offgridpdf.android.files.suggestedBaseName
 import com.offgridpdf.android.files.writeBytesToUri
-import com.offgridpdf.android.pdf.PdfLoadResult
 import com.offgridpdf.android.pdf.WatermarkColor
 import com.offgridpdf.android.pdf.WatermarkOptions
 import com.offgridpdf.android.pdf.addWatermark
-import com.offgridpdf.android.pdf.loadPdfFromUri
 import kotlinx.coroutines.launch
 
 private data class ColorPreset(val label: String, val color: WatermarkColor)
@@ -44,13 +44,21 @@ private val COLOR_PRESETS = listOf(
     ColorPreset("Gray", WatermarkColor(0.5f, 0.5f, 0.5f)),
 )
 
-/** Web reference: `AddWatermarkTool.tsx` + `addWatermark`/`WatermarkOptions` (`pdf-ops.ts`). */
+/**
+ * Web reference: `AddWatermarkTool.tsx` + `addWatermark`/`WatermarkOptions`
+ * (`pdf-ops.ts`).
+ *
+ * Batch mode (`files/BatchRun.kt`): the same text/font/opacity/rotation/
+ * color/tile settings apply to every picked file — there's nothing
+ * per-document about a watermark — so more than one file just zips the
+ * results.
+ */
 @Composable
 fun WatermarkScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var pickedUri by remember { mutableStateOf(PendingFile.consume()) }
+    var pickedFiles by remember { mutableStateOf(PendingFile.consume()?.let { listOf(it) } ?: emptyList<Uri>()) }
     var password by remember { mutableStateOf("") }
     var text by remember { mutableStateOf("CONFIDENTIAL") }
     var fontSizeText by remember { mutableStateOf("50") }
@@ -61,82 +69,106 @@ fun WatermarkScreen() {
     var running by remember { mutableStateOf(false) }
     var resultMessage by remember { mutableStateOf<String?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var pendingSuccessMessage by remember { mutableStateOf("") }
     var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
 
-    val pickLauncher = rememberOpenDocumentLauncher { uri ->
-        pickedUri = uri
+    val pickLauncher = rememberOpenMultipleDocumentsLauncher { uris ->
+        pickedFiles = uris
         password = ""
         resultMessage = null
     }
 
-    val saveLauncher = rememberCreateDocumentLauncher("application/pdf") { uri ->
+    val savePdfLauncher = rememberCreateDocumentLauncher("application/pdf") { uri ->
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
                 writeBytesToUri(context, uri, bytes)
-                resultMessage = "Watermark added to your PDF."
+                resultMessage = pendingSuccessMessage
+            }
+        }
+        pendingBytes = null
+    }
+
+    val saveZipLauncher = rememberCreateDocumentLauncher("application/zip") { uri ->
+        val bytes = pendingBytes
+        if (uri != null && bytes != null) {
+            scope.launch {
+                writeBytesToUri(context, uri, bytes)
+                resultMessage = pendingSuccessMessage
             }
         }
         pendingBytes = null
     }
 
     val accent = LocalOffGridPalette.current.edit
+    val fileName = when {
+        pickedFiles.isEmpty() -> null
+        pickedFiles.size == 1 -> pickedFiles[0].lastPathSegment
+        else -> "${pickedFiles.size} files selected"
+    }
+
     ToolScaffold(
         title = "Add Watermark",
         accent = accent,
-        pickedFileName = pickedUri?.lastPathSegment,
+        pickedFileName = fileName,
         onPickFile = { pickLauncher.launch(arrayOf("application/pdf")) },
         password = password,
         onPasswordChange = { password = it },
-        runEnabled = pickedUri != null,
+        runEnabled = pickedFiles.isNotEmpty(),
         running = running,
         onRun = {
-            // ToolScaffold only invokes onRun while runEnabled (pickedUri
-            // != null) is true.
-            pickedUri?.let { uri ->
-                val fontSize = fontSizeText.toFloatOrNull()
-                val opacity = opacityText.toFloatOrNull()
-                val rotation = rotationText.toFloatOrNull()
-                if (fontSize == null || opacity == null || rotation == null) {
-                    resultMessage = "Font size, opacity, and rotation must all be numbers."
-                } else {
-                    running = true
-                    resultMessage = null
-                    val baseName = suggestedBaseName(uri)
-                    val options = WatermarkOptions(fontSize, color, opacity, rotation, tile)
+            val fontSize = fontSizeText.toFloatOrNull()
+            val opacity = opacityText.toFloatOrNull()
+            val rotation = rotationText.toFloatOrNull()
+            if (fontSize == null || opacity == null || rotation == null) {
+                resultMessage = "Font size, opacity, and rotation must all be numbers."
+            } else {
+                running = true
+                resultMessage = null
+                lastResultBytes = null
+                val files = pickedFiles
+                val options = WatermarkOptions(fontSize, color, opacity, rotation, tile)
 
-                    scope.launch {
-                        when (val result = loadPdfFromUri(context, uri, password.ifBlank { null })) {
-                            is PdfLoadResult.Success -> {
-                                try {
-                                    pendingBytes = addWatermark(result.document, text, options)
-                                    lastResultBytes = pendingBytes
-                                    saveLauncher.launch("${baseName}_watermarked.pdf")
-                                } catch (e: IllegalArgumentException) {
-                                    resultMessage = e.message
-                                } finally {
-                                    result.document.close()
-                                }
-                            }
-                            PdfLoadResult.PasswordRequired -> {
-                                resultMessage = if (password.isBlank()) {
-                                    "This PDF needs a password."
-                                } else {
-                                    "Wrong password — try again."
-                                }
-                            }
-                            is PdfLoadResult.Failure -> {
-                                resultMessage = result.message
-                            }
+                scope.launch {
+                    val result = runOnEachPdf(
+                        context = context,
+                        files = files,
+                        password = password,
+                        zipEntrySuffix = "_watermarked",
+                        operate = { document -> addWatermark(document, text, options) },
+                    )
+                    when {
+                        result.singleBytes != null -> {
+                            pendingBytes = result.singleBytes
+                            lastResultBytes = result.singleBytes
+                            pendingSuccessMessage = "Watermark added to your PDF."
+                            savePdfLauncher.launch("${suggestedBaseName(files[0])}_watermarked.pdf")
                         }
-                        running = false
+                        result.zipBytes != null -> {
+                            pendingBytes = result.zipBytes
+                            pendingSuccessMessage = batchResultMessage("Watermarked", result)
+                            saveZipLauncher.launch("watermarked_pdfs.zip")
+                        }
+                        else -> {
+                            resultMessage = result.failures.firstOrNull() ?: "Could not add a watermark to this PDF."
+                        }
                     }
+                    running = false
                 }
             }
         },
-        runLabel = if (running) "Adding Watermark..." else "Add Watermark",
+        runLabel = when {
+            running -> "Adding Watermark..."
+            pickedFiles.size > 1 -> "Watermark ${pickedFiles.size} Files"
+            else -> "Add Watermark"
+        },
         resultMessage = resultMessage,
         chainableBytes = lastResultBytes,
+        batchNote = if (pickedFiles.size > 1) {
+            "Watermark will run with the same settings on all ${pickedFiles.size} files, saved as one zip."
+        } else {
+            null
+        },
         options = {
             OutlinedTextField(
                 value = text,
