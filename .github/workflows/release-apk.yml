@@ -1,0 +1,79 @@
+name: Signed release APK
+
+# Manual only. This is how a build gets handed to a tester: it produces one
+# signed, non-debuggable APK that installs over the previous one, instead of
+# the debug APK from ci.yml, which is signed with a throwaway key the runner
+# regenerates every time and so forces an uninstall on every update.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: android-actions/setup-android@v3
+
+      # The keystore lives in a secret as base64 and is written to a file the
+      # runner throws away with itself. It is never committed, and the four
+      # values below are the only things that need protecting -- losing them
+      # means no further updates can be shipped to anyone who installed this.
+      - name: Restore the signing keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.OFFGRID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::OFFGRID_KEYSTORE_BASE64 is not set. See README.md, 'Building a signed release APK', for how to create the keystore and add the four secrets."
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+
+      - name: Build the signed release APK
+        env:
+          OFFGRID_KEYSTORE_PATH: ${{ runner.temp }}/release.jks
+          OFFGRID_KEYSTORE_PASSWORD: ${{ secrets.OFFGRID_KEYSTORE_PASSWORD }}
+          OFFGRID_KEY_ALIAS: ${{ secrets.OFFGRID_KEY_ALIAS }}
+          OFFGRID_KEY_PASSWORD: ${{ secrets.OFFGRID_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease --stacktrace
+
+      # Belt and braces. A release APK that turned out to be unsigned would
+      # simply refuse to install on a tester's phone, and finding that out
+      # from them rather than from CI wastes everyone's time.
+      - name: Verify the APK is really signed, and not debuggable
+        run: |
+          APK=app/build/outputs/apk/release/app-release.apk
+          BUILD_TOOLS=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n 1)
+          "$BUILD_TOOLS/apksigner" verify --verbose "$APK"
+          if "$BUILD_TOOLS/aapt2" dump badging "$APK" | grep -qi "application-debuggable"; then
+            echo "::error::The release APK is debuggable. It must not be."
+            exit 1
+          fi
+          echo "✓ Signed, and not debuggable."
+
+      # Same offline guarantee ci.yml enforces for debug, checked again on the
+      # artifact that actually reaches a person's phone.
+      - name: Offline guarantee — no INTERNET permission in the release APK
+        run: |
+          APK=app/build/outputs/apk/release/app-release.apk
+          BUILD_TOOLS=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -n 1)
+          if "$BUILD_TOOLS/aapt2" dump badging "$APK" | grep -q "android.permission.INTERNET"; then
+            echo "::error::INTERNET permission found in the release APK."
+            exit 1
+          fi
+          echo "✓ No INTERNET permission."
+
+      - name: Upload the signed APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: offgridpdf-release-apk
+          path: app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error

@@ -20,9 +20,66 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Release signing, supplied from outside the repository: a keystore path
+    // plus three secrets, read from environment variables (what CI sets) or
+    // Gradle properties in ~/.gradle/gradle.properties (what a local build
+    // uses). Nothing secret is committed, and nothing here is required to
+    // build the app -- see the null case below.
+    val releaseStorePath = System.getenv("OFFGRID_KEYSTORE_PATH")
+        ?: providers.gradleProperty("offgrid.keystore.path").orNull
+    val releaseStorePassword = System.getenv("OFFGRID_KEYSTORE_PASSWORD")
+        ?: providers.gradleProperty("offgrid.keystore.password").orNull
+    val releaseKeyAlias = System.getenv("OFFGRID_KEY_ALIAS")
+        ?: providers.gradleProperty("offgrid.key.alias").orNull
+    val releaseKeyPassword = System.getenv("OFFGRID_KEY_PASSWORD")
+        ?: providers.gradleProperty("offgrid.key.password").orNull
+
+    val releaseSigningReady = releaseStorePath != null &&
+        releaseStorePassword != null &&
+        releaseKeyAlias != null &&
+        releaseKeyPassword != null &&
+        file(releaseStorePath).exists()
+
+    signingConfigs {
+        // Created only when all four values are present. Registering it
+        // unconditionally would fail the build for every contributor and for
+        // CI's ordinary PR checks, none of which have the keystore -- and
+        // this project's normal build has to keep working without it.
+        if (releaseSigningReady) {
+            create("release") {
+                storeFile = file(releaseStorePath!!)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+
+                // v1 off: it is the old JAR-signing scheme, and minSdk 26 is
+                // well above the API 24 where v2 became available, so nothing
+                // that can install this app needs it. v3 on: it is what makes
+                // signing-key *rotation* possible later. Without it, the key
+                // generated today is the only key this app can ever be signed
+                // with -- lose it and every installed copy is stranded, with
+                // an uninstall the only way forward.
+                enableV1Signing = false
+                enableV2Signing = true
+                enableV3Signing = true
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
+
+            // Without credentials the release APK comes out unsigned and
+            // cannot be installed. That is deliberate: an unsigned artifact
+            // that fails at install time is safer than one silently signed
+            // with the debug key, which would look installable and then
+            // block every future update with a signature mismatch.
+            signingConfig = if (releaseSigningReady) {
+                signingConfigs.getByName("release")
+            } else {
+                null
+            }
         }
     }
 
