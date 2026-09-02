@@ -24,18 +24,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.offgridpdf.android.files.batchResultMessage
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
-import com.offgridpdf.android.files.rememberOpenDocumentLauncher
+import com.offgridpdf.android.files.rememberOpenMultipleDocumentsLauncher
+import com.offgridpdf.android.files.runOnEachPdf
 import com.offgridpdf.android.files.suggestedBaseName
 import com.offgridpdf.android.files.writeBytesToUri
 import com.offgridpdf.android.pdf.PageNumberColor
 import com.offgridpdf.android.pdf.PageNumberFormat
 import com.offgridpdf.android.pdf.PageNumberOptions
 import com.offgridpdf.android.pdf.PageNumberPosition
-import com.offgridpdf.android.pdf.PdfLoadResult
 import com.offgridpdf.android.pdf.addPageNumbers
 import com.offgridpdf.android.pdf.formatPageNumber
-import com.offgridpdf.android.pdf.loadPdfFromUri
 import kotlinx.coroutines.launch
 
 private data class FormatOption(val label: String, val format: PageNumberFormat)
@@ -66,13 +66,19 @@ private val COLOR_PRESETS = listOf(
     PageNumberColorPreset("Gray", PageNumberColor(0.5f, 0.5f, 0.5f)),
 )
 
-/** Web reference: `PageNumbersTool.tsx` + `addPageNumbers`/`formatPageNumber` (`pdf-ops.ts`). */
+/**
+ * Web reference: `PageNumbersTool.tsx` + `addPageNumbers`/`formatPageNumber`
+ * (`pdf-ops.ts`).
+ *
+ * Batch mode (`files/BatchRun.kt`): the same format/position/style settings
+ * apply to every picked file, so more than one file just zips the results.
+ */
 @Composable
 fun PageNumbersScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var pickedUri by remember { mutableStateOf(PendingFile.consume()) }
+    var pickedFiles by remember { mutableStateOf(PendingFile.consume()?.let { listOf(it) } ?: emptyList<Uri>()) }
     var password by remember { mutableStateOf("") }
     var format by remember { mutableStateOf(PageNumberFormat.N) }
     var startText by remember { mutableStateOf("1") }
@@ -86,6 +92,7 @@ fun PageNumbersScreen() {
     var running by remember { mutableStateOf(false) }
     var resultMessage by remember { mutableStateOf<String?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var pendingSuccessMessage by remember { mutableStateOf("") }
     var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
 
     // Live preview of the first stamp, matching the web tool's own hint.
@@ -97,91 +104,114 @@ fun PageNumbersScreen() {
         }
     }
 
-    val pickLauncher = rememberOpenDocumentLauncher { uri ->
-        pickedUri = uri
+    val pickLauncher = rememberOpenMultipleDocumentsLauncher { uris ->
+        pickedFiles = uris
         password = ""
         resultMessage = null
     }
 
-    val saveLauncher = rememberCreateDocumentLauncher("application/pdf") { uri ->
+    val savePdfLauncher = rememberCreateDocumentLauncher("application/pdf") { uri ->
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
                 writeBytesToUri(context, uri, bytes)
-                resultMessage = "Page numbers added to your PDF."
+                resultMessage = pendingSuccessMessage
+            }
+        }
+        pendingBytes = null
+    }
+
+    val saveZipLauncher = rememberCreateDocumentLauncher("application/zip") { uri ->
+        val bytes = pendingBytes
+        if (uri != null && bytes != null) {
+            scope.launch {
+                writeBytesToUri(context, uri, bytes)
+                resultMessage = pendingSuccessMessage
             }
         }
         pendingBytes = null
     }
 
     val accent = LocalOffGridPalette.current.edit
+    val fileName = when {
+        pickedFiles.isEmpty() -> null
+        pickedFiles.size == 1 -> pickedFiles[0].lastPathSegment
+        else -> "${pickedFiles.size} files selected"
+    }
+
     ToolScaffold(
         title = "Add Page Numbers",
         accent = accent,
-        pickedFileName = pickedUri?.lastPathSegment,
+        pickedFileName = fileName,
         onPickFile = { pickLauncher.launch(arrayOf("application/pdf")) },
         password = password,
         onPasswordChange = { password = it },
-        runEnabled = pickedUri != null,
+        runEnabled = pickedFiles.isNotEmpty(),
         running = running,
         onRun = {
-            // ToolScaffold only invokes onRun while runEnabled (pickedUri
-            // != null) is true.
-            pickedUri?.let { uri ->
-                val start = startText.toIntOrNull()
-                val digits = digitsText.toIntOrNull()
-                val fontSize = fontSizeText.toFloatOrNull()
-                val margin = marginText.toFloatOrNull()
-                if (start == null || digits == null || fontSize == null || margin == null) {
-                    resultMessage = "Start, digits, font size, and margin must all be numbers."
-                } else {
-                    running = true
-                    resultMessage = null
-                    val baseName = suggestedBaseName(uri)
-                    val options = PageNumberOptions(
-                        format = format,
-                        start = start,
-                        prefix = prefix,
-                        digits = digits,
-                        position = position,
-                        fontSize = fontSize,
-                        margin = margin,
-                        color = color,
-                        pages = pagesText.ifBlank { "all" },
-                    )
+            val start = startText.toIntOrNull()
+            val digits = digitsText.toIntOrNull()
+            val fontSize = fontSizeText.toFloatOrNull()
+            val margin = marginText.toFloatOrNull()
+            if (start == null || digits == null || fontSize == null || margin == null) {
+                resultMessage = "Start, digits, font size, and margin must all be numbers."
+            } else {
+                running = true
+                resultMessage = null
+                lastResultBytes = null
+                val files = pickedFiles
+                val options = PageNumberOptions(
+                    format = format,
+                    start = start,
+                    prefix = prefix,
+                    digits = digits,
+                    position = position,
+                    fontSize = fontSize,
+                    margin = margin,
+                    color = color,
+                    pages = pagesText.ifBlank { "all" },
+                )
 
-                    scope.launch {
-                        when (val result = loadPdfFromUri(context, uri, password.ifBlank { null })) {
-                            is PdfLoadResult.Success -> {
-                                try {
-                                    pendingBytes = addPageNumbers(result.document, options)
-                                    lastResultBytes = pendingBytes
-                                    saveLauncher.launch("${baseName}_numbered.pdf")
-                                } catch (e: IllegalArgumentException) {
-                                    resultMessage = e.message
-                                } finally {
-                                    result.document.close()
-                                }
-                            }
-                            PdfLoadResult.PasswordRequired -> {
-                                resultMessage = if (password.isBlank()) {
-                                    "This PDF needs a password."
-                                } else {
-                                    "Wrong password — try again."
-                                }
-                            }
-                            is PdfLoadResult.Failure -> {
-                                resultMessage = result.message
-                            }
+                scope.launch {
+                    val result = runOnEachPdf(
+                        context = context,
+                        files = files,
+                        password = password,
+                        zipEntrySuffix = "_numbered",
+                        operate = { document -> addPageNumbers(document, options) },
+                    )
+                    when {
+                        result.singleBytes != null -> {
+                            pendingBytes = result.singleBytes
+                            lastResultBytes = result.singleBytes
+                            pendingSuccessMessage = "Page numbers added to your PDF."
+                            savePdfLauncher.launch("${suggestedBaseName(files[0])}_numbered.pdf")
                         }
-                        running = false
+                        result.zipBytes != null -> {
+                            pendingBytes = result.zipBytes
+                            pendingSuccessMessage = batchResultMessage("Numbered", result)
+                            saveZipLauncher.launch("numbered_pdfs.zip")
+                        }
+                        else -> {
+                            resultMessage = result.failures.firstOrNull() ?: "Could not add page numbers to this PDF."
+                        }
                     }
+                    running = false
                 }
             }
         },
-        runLabel = if (running) "Adding Page Numbers..." else "Add Page Numbers",
+        runLabel = when {
+            running -> "Adding Page Numbers..."
+            pickedFiles.size > 1 -> "Number ${pickedFiles.size} Files"
+            else -> "Add Page Numbers"
+        },
         resultMessage = resultMessage,
         chainableBytes = lastResultBytes,
+        batchNote = if (pickedFiles.size > 1) {
+            "Page numbers will run with the same settings on all ${pickedFiles.size} files, saved as one zip."
+        } else {
+            null
+        },
         options = {
             Text("Format")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
