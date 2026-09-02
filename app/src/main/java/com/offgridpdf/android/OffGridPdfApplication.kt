@@ -2,6 +2,7 @@ package com.offgridpdf.android
 
 import android.app.Application
 import com.offgridpdf.android.files.clearChainCache
+import com.offgridpdf.android.ui.settings.SecureScreenState
 import com.offgridpdf.android.ui.theme.ThemeState
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import kotlinx.coroutines.CoroutineScope
@@ -22,7 +23,7 @@ import kotlinx.coroutines.launch
  * now because CI has only ever run JVM-stubbed unit tests, never a real
  * Android runtime (see Spike A, `ANDROID_IMPLEMENTATION_PLAN.md`).
  *
- * Also where [ThemeState] loads the user's saved theme choice — once, here,
+ * Also where [ThemeState] and [SecureScreenState] load their saved choices — once, here,
  * before `MainActivity` composes anything, so `OffGridPdfTheme` never
  * renders a first frame in the wrong palette — and where the tool-chaining
  * cache is emptied (`files/ChainFile.kt`), so a document handed between
@@ -40,6 +41,7 @@ class OffGridPdfApplication : Application() {
         super.onCreate()
         PDFBoxResourceLoader.init(applicationContext)
         ThemeState.initialize(applicationContext)
+        SecureScreenState.initialize(applicationContext)
 
         // Off the main thread: this is disk I/O, and onCreate blocks the
         // first frame. Nothing waits on it — a chain started in this

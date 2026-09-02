@@ -18,6 +18,7 @@ import com.offgridpdf.android.ui.dashboard.ACTION_OPEN_TOOL
 import com.offgridpdf.android.ui.dashboard.EXTRA_TOOL_ID
 import com.offgridpdf.android.ui.dashboard.pdfTools
 import com.offgridpdf.android.ui.navigation.OffGridNavHost
+import com.offgridpdf.android.ui.settings.SecureScreenEffect
 import com.offgridpdf.android.ui.theme.OffGridPdfTheme
 
 /**
@@ -34,6 +35,9 @@ class MainActivity : ComponentActivity() {
         handleIncomingIntent(intent)
         setContent {
             OffGridPdfTheme {
+                // Applies FLAG_SECURE to this window whenever the setting says
+                // so — one window, so this covers every screen.
+                SecureScreenEffect()
                 Surface(modifier = Modifier.fillMaxSize()) {
                     OffGridNavHost()
                 }
