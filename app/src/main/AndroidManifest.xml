@@ -16,10 +16,29 @@
         android:theme="@style/Theme.OffGridPDF"
         android:supportsRtl="true">
 
+        <!--
+            configChanges: Compose already handles these itself — it reads
+            them through LocalConfiguration, so the two things in this app
+            that depend on configuration (the tablet two-pane split in
+            OffGridNavHost, keyed on screenWidthDp, and isSystemInDarkTheme
+            in Theme.kt) recompose correctly without the Activity being torn
+            down and rebuilt.
+
+            Without this, every rotation destroyed and recreated the Activity,
+            which threw away the picked file, everything typed into a tool's
+            options, and any operation still running. Handling the change
+            keeps all of it, including work in flight — something saved
+            instance state could not do, since the coroutine doing the work
+            dies with the old Activity either way.
+
+            locale is deliberately absent: a locale change should recreate, so
+            resources re-resolve properly.
+        -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|uiMode|density|fontScale|layoutDirection"
             android:theme="@style/Theme.OffGridPDF">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

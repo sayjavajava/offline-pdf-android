@@ -1,9 +1,5 @@
 package com.offgridpdf.android.ui.tool
 
-import com.offgridpdf.android.chain.PendingFile
-
-import com.offgridpdf.android.ui.theme.LocalOffGridPalette
-
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -19,20 +15,24 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.offgridpdf.android.chain.PendingFile
 import com.offgridpdf.android.files.batchResultMessage
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenMultipleDocumentsLauncher
 import com.offgridpdf.android.files.runOnEachPdf
-import com.offgridpdf.android.files.suggestedBaseName
 import com.offgridpdf.android.files.saveResult
+import com.offgridpdf.android.files.suggestedBaseName
 import com.offgridpdf.android.pdf.WatermarkColor
 import com.offgridpdf.android.pdf.WatermarkOptions
 import com.offgridpdf.android.pdf.addWatermark
+import com.offgridpdf.android.ui.common.UriListSaver
+import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import kotlinx.coroutines.launch
 
 private data class ColorPreset(val label: String, val color: WatermarkColor)
@@ -58,17 +58,25 @@ fun WatermarkScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var pickedFiles by remember { mutableStateOf(PendingFile.consume()?.let { listOf(it) } ?: emptyList<Uri>()) }
+    var pickedFiles by rememberSaveable(stateSaver = UriListSaver) { mutableStateOf(PendingFile.consume()?.let { listOf(it) } ?: emptyList<Uri>()) }
+    // Plain `remember`, deliberately: a document password is never written
+    // to saved instance state (see `ui/common/Savers.kt`).
     var password by remember { mutableStateOf("") }
-    var text by remember { mutableStateOf("CONFIDENTIAL") }
-    var fontSizeText by remember { mutableStateOf("50") }
-    var opacityText by remember { mutableStateOf("0.5") }
-    var rotationText by remember { mutableStateOf("45") }
-    var color by remember { mutableStateOf(COLOR_PRESETS[0].color) }
-    var tile by remember { mutableStateOf(false) }
+    var text by rememberSaveable { mutableStateOf("CONFIDENTIAL") }
+    var fontSizeText by rememberSaveable { mutableStateOf("50") }
+    var opacityText by rememberSaveable { mutableStateOf("0.5") }
+    var rotationText by rememberSaveable { mutableStateOf("45") }
+    // The chosen preset's index, not the colour itself: an Int is something a
+    // Bundle can hold, a colour data class is not, and every colour the UI can
+    // pick comes from COLOR_PRESETS anyway.
+    var colorIndex by rememberSaveable { mutableStateOf(0) }
+    val color = COLOR_PRESETS[colorIndex].color
+    var tile by rememberSaveable { mutableStateOf(false) }
     var running by remember { mutableStateOf(false) }
-    var resultMessage by remember { mutableStateOf<String?>(null) }
+    var resultMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
+    // Paired with pendingBytes, which a Bundle cannot hold — so neither is
+    // saved (see `ui/common/Savers.kt`).
     var pendingSuccessMessage by remember { mutableStateOf("") }
     var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
 
@@ -190,11 +198,11 @@ fun WatermarkScreen() {
             )
             Text("Colour")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                for (preset in COLOR_PRESETS) {
-                    if (preset.color == color) {
-                        Button(onClick = { color = preset.color }) { Text(preset.label) }
+                COLOR_PRESETS.forEachIndexed { index, preset ->
+                    if (index == colorIndex) {
+                        Button(onClick = { colorIndex = index }) { Text(preset.label) }
                     } else {
-                        OutlinedButton(onClick = { color = preset.color }) { Text(preset.label) }
+                        OutlinedButton(onClick = { colorIndex = index }) { Text(preset.label) }
                     }
                 }
             }

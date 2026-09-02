@@ -30,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -66,6 +67,7 @@ import com.offgridpdf.android.pdf.resolvePageIndices
 import com.offgridpdf.android.pdf.toPixelRect
 import com.offgridpdf.android.ui.common.ContinueChainAction
 import com.offgridpdf.android.ui.common.FilePickerCard
+import com.offgridpdf.android.ui.common.NullableUriSaver
 import com.offgridpdf.android.ui.common.PrimaryButton
 import com.offgridpdf.android.ui.common.PrivacyLine
 import com.offgridpdf.android.ui.common.ScreenTopBar
@@ -117,9 +119,17 @@ fun RedactScreen() {
     val palette = LocalOffGridPalette.current
     val accent = palette.security
 
-    var pickedUri by remember { mutableStateOf(PendingFile.consume()) }
+    var pickedUri by rememberSaveable(stateSaver = NullableUriSaver) { mutableStateOf(PendingFile.consume()) }
+    // Plain `remember`, deliberately: a document password is never written
+    // to saved instance state (see `ui/common/Savers.kt`).
     var password by remember { mutableStateOf("") }
     var document by remember { mutableStateOf<PDDocument?>(null) }
+    // Only `pickedUri` and `resultMessage` are saveable on this screen. Every
+    // other value below describes the currently open document, its preview or a
+    // search over it: `document` and `previewImage` cannot be saved, the whole
+    // editing UI is gated on `document != null`, and `loadDocument()` resets
+    // them anyway — so restoring them would leave stale numbers behind a screen
+    // that is back on its Load step.
     var pageCount by remember { mutableStateOf(0) }
     var pageIndex by remember { mutableStateOf(0) }
     var loading by remember { mutableStateOf(false) }
@@ -137,7 +147,7 @@ fun RedactScreen() {
 
     var applyRangeText by remember { mutableStateOf("") }
     var applying by remember { mutableStateOf(false) }
-    var resultMessage by remember { mutableStateOf<String?>(null) }
+    var resultMessage by rememberSaveable { mutableStateOf<String?>(null) }
 
     var searchQuery by remember { mutableStateOf("") }
     var caseSensitive by remember { mutableStateOf(false) }

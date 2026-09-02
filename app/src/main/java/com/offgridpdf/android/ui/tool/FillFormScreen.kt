@@ -21,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -36,6 +37,7 @@ import com.offgridpdf.android.pdf.PdfLoadResult
 import com.offgridpdf.android.pdf.fillFormFields
 import com.offgridpdf.android.pdf.loadPdfFromUri
 import com.offgridpdf.android.pdf.readFormFields
+import com.offgridpdf.android.ui.common.NullableUriSaver
 import com.offgridpdf.android.ui.common.ScreenTopBar
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
@@ -59,16 +61,24 @@ fun FillFormScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var pickedUri by remember { mutableStateOf(PendingFile.consume()) }
+    var pickedUri by rememberSaveable(stateSaver = NullableUriSaver) { mutableStateOf(PendingFile.consume()) }
+    // Plain `remember`, deliberately: a document password is never written
+    // to saved instance state (see `ui/common/Savers.kt`).
     var password by remember { mutableStateOf("") }
     var loadingFields by remember { mutableStateOf(false) }
     var filling by remember { mutableStateOf(false) }
     var openDocument by remember { mutableStateOf<PDDocument?>(null) }
     var fields by remember { mutableStateOf<List<FormFieldInfo>?>(null) }
+    // The field list, the open document and the values the user has typed into
+    // them all belong together, and the first two cannot be saved. Restoring
+    // only the values would put typed form data — often the most personal
+    // thing in this app — into saved instance state to no purpose, since the
+    // screen comes back on its "choose a PDF" step and reloading the document
+    // overwrites them anyway.
     var unsupportedFields by remember { mutableStateOf<List<String>>(emptyList()) }
     var values by remember { mutableStateOf<Map<String, Any>>(emptyMap()) }
-    var flatten by remember { mutableStateOf(true) }
-    var resultMessage by remember { mutableStateOf<String?>(null) }
+    var flatten by rememberSaveable { mutableStateOf(true) }
+    var resultMessage by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
 
     fun reset() {
