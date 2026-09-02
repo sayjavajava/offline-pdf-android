@@ -12,15 +12,20 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,6 +35,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
@@ -41,15 +48,23 @@ import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenDocumentLauncher
 import com.offgridpdf.android.files.saveResult
 import com.offgridpdf.android.files.suggestedBaseName
+import com.offgridpdf.android.pdf.PREVIEW_SCALE
 import com.offgridpdf.android.pdf.PdfLoadResult
+import com.offgridpdf.android.pdf.PdfRect
 import com.offgridpdf.android.pdf.SignaturePlacement
 import com.offgridpdf.android.pdf.addSignature
 import com.offgridpdf.android.pdf.loadPdfFromUri
+import com.offgridpdf.android.pdf.renderPageForPreview
 import com.offgridpdf.android.ui.common.NullableUriSaver
+import com.offgridpdf.android.ui.common.PageOverlay
+import com.offgridpdf.android.ui.common.PageOverlayStyle
+import com.offgridpdf.android.ui.common.PagePreview
 import com.offgridpdf.android.ui.common.ScreenTopBar
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import com.tom_roush.pdfbox.pdmodel.PDDocument
+import kotlin.math.roundToInt
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -60,19 +75,27 @@ private enum class SignatureMode { TYPE, DRAW, UPLOAD }
  * Web reference: `SignatureTool.tsx` + `addSignature`/`placeSignatureImage`
  * (`pdf-ops.ts`/`pdf-signature.ts`).
  *
- * Placement is numeric x/y/width/height fields in PDF points against the
- * page's own known size, rather than a drag-to-position rect on a
- * rendered preview — this project has no page-rendering yet
- * (`ANDROID_IMPLEMENTATION_PLAN.md`'s Spike A), and the plan is explicit
- * that this tool should ship with that simpler placement UI rather than
- * be blocked on rendering, revisiting the live preview once Spike A
- * lands.
+ * Placement is a rect dragged onto a rendered preview of the page, with
+ * the x/y/width/height fields kept alongside it and bound both ways:
+ * dragging rewrites them, typing moves the rect. This tool originally
+ * shipped with the numeric fields alone, deliberately, because the
+ * project had no page rendering at the time (`ANDROID_IMPLEMENTATION_PLAN.md`'s
+ * Spike A) and the plan said not to block the tool on it. Spike A has
+ * since landed and Redact's preview machinery is now shared
+ * (`ui/common/PagePreview.kt`), so the live preview it promised is here.
+ *
+ * The fields stay rather than being replaced: a signature often has to
+ * land at an exact offset a finger cannot hit, and that was the one thing
+ * the old UI was genuinely good at.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SignatureScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    // Signature is an EditEnhance tool (see PdfTool.kt), so it takes that
+    // category's accent -- same convention as every other tool screen.
+    val accent = LocalOffGridPalette.current.edit
 
     var pickedUri by rememberSaveable(stateSaver = NullableUriSaver) { mutableStateOf(PendingFile.consume()) }
     // Plain `remember`, deliberately: a document password is never written
@@ -84,6 +107,15 @@ fun SignatureScreen() {
     // claim a document is ready when none is.
     var pageCount by remember { mutableStateOf<Int?>(null) }
     var loadError by remember { mutableStateOf<String?>(null) }
+
+    // The rendered page behind the placement rect. Same cluster as
+    // openDocument above, so likewise not saveable.
+    var previewImage by remember { mutableStateOf<ImageBitmap?>(null) }
+    var previewBitmapWidth by remember { mutableStateOf(0) }
+    var previewBitmapHeight by remember { mutableStateOf(0) }
+    var previewPageHeightPts by remember { mutableStateOf(0f) }
+    var previewMessage by remember { mutableStateOf<String?>(null) }
+    var renderingPreview by remember { mutableStateOf(false) }
 
     var mode by rememberSaveable { mutableStateOf(SignatureMode.TYPE) }
     var typedName by rememberSaveable { mutableStateOf("") }
@@ -147,12 +179,73 @@ fun SignatureScreen() {
         }
     }
 
+    // This screen keeps a PDDocument open for the whole placement session
+    // rather than only inside one button press, so it needs explicit
+    // cleanup -- otherwise navigating away mid-placement leaks it. Same
+    // reasoning as RedactScreen's.
+    DisposableEffect(Unit) {
+        onDispose { openDocument?.close() }
+    }
+
+    // Re-renders whenever the loaded document or the chosen page changes.
+    // Keyed on pageText rather than driven from the field's onValueChange so
+    // that loading a document and typing a page number both land here, and
+    // so that only the newest render survives: typing "12" passes through
+    // "1", and LaunchedEffect cancels the page-1 render when the key changes
+    // rather than letting it finish last and win.
+    LaunchedEffect(openDocument, pageText) {
+        val doc = openDocument
+        val page = pageText.toIntOrNull()
+        if (doc == null || page == null || page < 1 || page > doc.numberOfPages) {
+            previewImage = null
+            previewMessage = null
+            return@LaunchedEffect
+        }
+        renderingPreview = true
+        try {
+            val rendered = withContext(Dispatchers.Default) {
+                renderPageForPreview(doc, page - 1)
+            }
+            previewImage = rendered.bitmap.asImageBitmap()
+            previewBitmapWidth = rendered.bitmapWidth
+            previewBitmapHeight = rendered.bitmapHeight
+            previewPageHeightPts = rendered.pageHeightPts
+            previewMessage = null
+        } catch (e: CancellationException) {
+            // A page turn cancels this render; that is the mechanism working,
+            // not a failure to report. Rethrow so the coroutine unwinds
+            // normally instead of falling into the error branch below.
+            throw e
+        } catch (e: Exception) {
+            previewImage = null
+            previewMessage = userMessageFor(e)
+        } catch (e: OutOfMemoryError) {
+            previewImage = null
+            previewMessage = TOO_LARGE_MESSAGE
+        } finally {
+            // finally, not after the catches: a page turn cancels this
+            // coroutine mid-render, and without this the spinner from the
+            // abandoned render would never clear.
+            renderingPreview = false
+        }
+    }
+
     Scaffold(
         topBar = { ScreenTopBar(title = "Add Signature") },
         containerColor = LocalOffGridPalette.current.paper,
     ) { innerPadding ->
+        // Scrollable: this screen was already tall (file, password, three
+        // signature modes, five placement fields, the action button) and a
+        // full page preview puts the button well below the fold. Dragging
+        // *on* the preview places the signature rather than scrolling, since
+        // the preview consumes the gesture -- same trade RedactScreen's
+        // preview already makes; scroll from anywhere else on the screen.
         Column(
-            modifier = Modifier.fillMaxSize().padding(innerPadding).padding(16.dp),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
@@ -246,7 +339,61 @@ fun SignatureScreen() {
                 Text("Signature ready.")
             }
 
-            Text("Placement (points, bottom-left origin)")
+            Text("Placement")
+
+            val placementRect = placementRectOf(xText, yText, widthText, heightText)
+            val image = previewImage
+            if (image != null) {
+                Text(
+                    "Drag on the page to place your signature, or type exact " +
+                        "coordinates below.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = LocalOffGridPalette.current.inkTertiary,
+                )
+                PagePreview(
+                    image = image,
+                    bitmapWidth = previewBitmapWidth,
+                    bitmapHeight = previewBitmapHeight,
+                    pageHeightPts = previewPageHeightPts,
+                    contentDescription = if (placementRect != null) {
+                        "Page $pageText, with the signature's placement marked"
+                    } else {
+                        "Page $pageText"
+                    },
+                    scale = PREVIEW_SCALE,
+                    // Outlined, not filled: the whole point is to see what the
+                    // signature will sit on top of.
+                    overlays = placementRect?.let {
+                        listOf(PageOverlay(it, PageOverlayStyle.Outlined(accent)))
+                    }.orEmpty(),
+                    onRectDragged = { rect ->
+                        // Whole points. A finger on a preview rendered at
+                        // PREVIEW_SCALE cannot resolve better than about a
+                        // point anyway, and round numbers are what someone
+                        // then nudges by hand in the fields below.
+                        xText = rect.x.roundToInt().toString()
+                        yText = rect.y.roundToInt().toString()
+                        widthText = rect.width.roundToInt().toString()
+                        heightText = rect.height.roundToInt().toString()
+                    },
+                    dragIndicatorColor = accent,
+                    minDraggedSizePts = MIN_PLACEMENT_PT,
+                )
+            }
+            if (renderingPreview) {
+                Text(
+                    "Rendering page...",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = LocalOffGridPalette.current.inkTertiary,
+                )
+            }
+            previewMessage?.let { Text(it) }
+
+            Text(
+                "Coordinates are in points from the page's bottom-left corner.",
+                style = MaterialTheme.typography.bodySmall,
+                color = LocalOffGridPalette.current.inkTertiary,
+            )
             OutlinedTextField(
                 value = pageText,
                 onValueChange = { pageText = it },
@@ -341,4 +488,38 @@ fun SignatureScreen() {
             resultMessage?.let { Text(it) }
         }
     }
+}
+
+/**
+ * Ignore an accidental tap on the preview. Points, so it is a real size on
+ * the page rather than a number of screen pixels that would mean something
+ * different on every device.
+ */
+private const val MIN_PLACEMENT_PT = 8f
+
+/**
+ * The placement fields as a rect to draw, or null when they do not yet
+ * describe one.
+ *
+ * A half-typed field ("3" mid-way to "36", or an empty box) is normal while
+ * someone is editing, so this returns null rather than treating it as an
+ * error -- the outline simply disappears until the numbers make sense again.
+ * A non-positive width or height is rejected for the same reason it is at
+ * apply time: it is not a rect.
+ *
+ * `internal` rather than private so it can be unit-tested directly: it is
+ * the only real logic on this screen that does not need a composition.
+ */
+internal fun placementRectOf(
+    xText: String,
+    yText: String,
+    widthText: String,
+    heightText: String,
+): PdfRect? {
+    val x = xText.toFloatOrNull() ?: return null
+    val y = yText.toFloatOrNull() ?: return null
+    val width = widthText.toFloatOrNull() ?: return null
+    val height = heightText.toFloatOrNull() ?: return null
+    if (width <= 0f || height <= 0f) return null
+    return PdfRect(x, y, width, height)
 }
