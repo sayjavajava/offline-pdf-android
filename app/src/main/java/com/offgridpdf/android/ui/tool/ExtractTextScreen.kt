@@ -1,9 +1,5 @@
 package com.offgridpdf.android.ui.tool
 
-import com.offgridpdf.android.chain.PendingFile
-
-import com.offgridpdf.android.ui.theme.LocalOffGridPalette
-
 import android.net.Uri
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,15 +14,21 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import com.offgridpdf.android.chain.PendingFile
+import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenDocumentLauncher
+import com.offgridpdf.android.files.saveResult
 import com.offgridpdf.android.files.suggestedBaseName
-import com.offgridpdf.android.files.writeBytesToUri
 import com.offgridpdf.android.pdf.ExtractedPageText
 import com.offgridpdf.android.pdf.PdfLoadResult
 import com.offgridpdf.android.pdf.extractText
 import com.offgridpdf.android.pdf.loadPdfFromUri
+import com.offgridpdf.android.ui.common.userMessageFor
+import com.offgridpdf.android.ui.theme.LocalOffGridPalette
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** Web reference: `ExtractTextTool.tsx` + `extractPdfText` (`pdf-render.ts`). */
 @Composable
@@ -53,8 +55,7 @@ fun ExtractTextScreen() {
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                writeBytesToUri(context, uri, bytes)
-                resultMessage = pendingSuccessMessage
+                resultMessage = saveResult(context, uri, bytes, pendingSuccessMessage)
             }
         }
         pendingBytes = null
@@ -81,7 +82,9 @@ fun ExtractTextScreen() {
                     when (val result = loadPdfFromUri(context, uri, password.ifBlank { null })) {
                         is PdfLoadResult.Success -> {
                             try {
-                                val pages = extractText(result.document, pageRange)
+                                val pages = withContext(Dispatchers.Default) {
+                                    extractText(result.document, pageRange)
+                                }
                                 // A scanned document is pictures of words with no
                                 // text layer, so this comes back empty. Saying so
                                 // beats handing over a blank file that looks like
@@ -97,8 +100,10 @@ fun ExtractTextScreen() {
                                         if (emptyPages > 0) " $emptyPages had no text layer." else ""
                                     saveLauncher.launch("${baseName}_text.txt")
                                 }
-                            } catch (e: IllegalArgumentException) {
-                                resultMessage = e.message
+                            } catch (e: Exception) {
+                                resultMessage = userMessageFor(e)
+                            } catch (e: OutOfMemoryError) {
+                                resultMessage = TOO_LARGE_MESSAGE
                             } finally {
                                 result.document.close()
                             }

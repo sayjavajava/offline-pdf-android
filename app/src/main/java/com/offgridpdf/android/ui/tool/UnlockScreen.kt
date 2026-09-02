@@ -1,9 +1,5 @@
 package com.offgridpdf.android.ui.tool
 
-import com.offgridpdf.android.chain.PendingFile
-
-import com.offgridpdf.android.ui.theme.LocalOffGridPalette
-
 import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -12,14 +8,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import com.offgridpdf.android.chain.PendingFile
+import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenDocumentLauncher
+import com.offgridpdf.android.files.saveResult
 import com.offgridpdf.android.files.suggestedBaseName
-import com.offgridpdf.android.files.writeBytesToUri
 import com.offgridpdf.android.pdf.PdfLoadResult
 import com.offgridpdf.android.pdf.loadPdfFromUri
 import com.offgridpdf.android.pdf.removePdfPassword
+import com.offgridpdf.android.ui.common.userMessageFor
+import com.offgridpdf.android.ui.theme.LocalOffGridPalette
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** Web reference: `UnlockTool.tsx` + `removePdfPassword` (`pdf-ops.ts`). No options beyond the file and password `ToolScaffold` already provides. */
 @Composable
@@ -44,8 +46,7 @@ fun UnlockScreen() {
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                writeBytesToUri(context, uri, bytes)
-                resultMessage = "The PDF protection has been removed."
+                resultMessage = saveResult(context, uri, bytes, "The PDF protection has been removed.")
             }
         }
         pendingBytes = null
@@ -72,10 +73,19 @@ fun UnlockScreen() {
                 scope.launch {
                     when (val result = loadPdfFromUri(context, uri, password.ifBlank { null })) {
                         is PdfLoadResult.Success -> {
-                            pendingBytes = removePdfPassword(result.document)
-                            lastResultBytes = pendingBytes
-                            result.document.close()
-                            saveLauncher.launch("${baseName}_unprotected.pdf")
+                            try {
+                                pendingBytes = withContext(Dispatchers.Default) {
+                                    removePdfPassword(result.document)
+                                }
+                                lastResultBytes = pendingBytes
+                                saveLauncher.launch("${baseName}_unprotected.pdf")
+                            } catch (e: Exception) {
+                                resultMessage = userMessageFor(e)
+                            } catch (e: OutOfMemoryError) {
+                                resultMessage = TOO_LARGE_MESSAGE
+                            } finally {
+                                result.document.close()
+                            }
                         }
                         PdfLoadResult.PasswordRequired -> {
                             resultMessage = if (password.isBlank()) {

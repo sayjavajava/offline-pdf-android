@@ -1,9 +1,5 @@
 package com.offgridpdf.android.ui.tool
 
-import com.offgridpdf.android.chain.PendingFile
-
-import com.offgridpdf.android.ui.theme.LocalOffGridPalette
-
 import android.net.Uri
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
@@ -18,17 +14,23 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
+import com.offgridpdf.android.chain.PendingFile
+import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
 import com.offgridpdf.android.files.ZipEntryData
 import com.offgridpdf.android.files.createZip
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenDocumentLauncher
+import com.offgridpdf.android.files.saveResult
 import com.offgridpdf.android.files.suggestedBaseName
-import com.offgridpdf.android.files.writeBytesToUri
 import com.offgridpdf.android.pdf.PdfLoadResult
 import com.offgridpdf.android.pdf.RenderedPage
 import com.offgridpdf.android.pdf.loadPdfFromUri
 import com.offgridpdf.android.pdf.renderPdfPagesToPng
+import com.offgridpdf.android.ui.common.userMessageFor
+import com.offgridpdf.android.ui.theme.LocalOffGridPalette
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Web reference: `PdfToImagesTool.tsx` + `renderPdfPages` (`pdf-render.ts`).
@@ -68,8 +70,7 @@ fun PdfToImagesScreen() {
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                writeBytesToUri(context, uri, bytes)
-                resultMessage = pendingSuccessMessage
+                resultMessage = saveResult(context, uri, bytes, pendingSuccessMessage)
             }
         }
         pendingBytes = null
@@ -79,8 +80,7 @@ fun PdfToImagesScreen() {
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                writeBytesToUri(context, uri, bytes)
-                resultMessage = pendingSuccessMessage
+                resultMessage = saveResult(context, uri, bytes, pendingSuccessMessage)
             }
         }
         pendingBytes = null
@@ -115,7 +115,9 @@ fun PdfToImagesScreen() {
                     when (val result = loadPdfFromUri(context, uri, password.ifBlank { null })) {
                         is PdfLoadResult.Success -> {
                             try {
-                                val rendered = renderPdfPagesToPng(result.document, pageRange, scale)
+                                val rendered = withContext(Dispatchers.Default) {
+                                    renderPdfPagesToPng(result.document, pageRange, scale)
+                                }
                                 val plural = if (rendered.size == 1) "" else "s"
                                 pendingSuccessMessage = "Exported ${rendered.size} page$plural."
                                 if (rendered.size == 1) {
@@ -123,13 +125,15 @@ fun PdfToImagesScreen() {
                                     pendingBytes = page.bytes
                                     savePngLauncher.launch("${baseName}_page${page.pageNumber}.png")
                                 } else {
-                                    pendingBytes = createZip(zipEntriesFor(rendered))
+                                    pendingBytes = withContext(Dispatchers.Default) {
+                                        createZip(zipEntriesFor(rendered))
+                                    }
                                     saveZipLauncher.launch("${baseName}_pages.zip")
                                 }
-                            } catch (e: IllegalArgumentException) {
-                                resultMessage = e.message
                             } catch (e: Exception) {
-                                resultMessage = e.message ?: "Could not export this PDF as images."
+                                resultMessage = userMessageFor(e)
+                            } catch (e: OutOfMemoryError) {
+                                resultMessage = TOO_LARGE_MESSAGE
                             } finally {
                                 result.document.close()
                             }

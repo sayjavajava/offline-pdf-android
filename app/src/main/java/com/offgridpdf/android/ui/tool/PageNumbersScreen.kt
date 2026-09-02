@@ -29,7 +29,7 @@ import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenMultipleDocumentsLauncher
 import com.offgridpdf.android.files.runOnEachPdf
 import com.offgridpdf.android.files.suggestedBaseName
-import com.offgridpdf.android.files.writeBytesToUri
+import com.offgridpdf.android.files.saveResult
 import com.offgridpdf.android.pdf.PageNumberColor
 import com.offgridpdf.android.pdf.PageNumberFormat
 import com.offgridpdf.android.pdf.PageNumberOptions
@@ -114,8 +114,7 @@ fun PageNumbersScreen() {
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                writeBytesToUri(context, uri, bytes)
-                resultMessage = pendingSuccessMessage
+                resultMessage = saveResult(context, uri, bytes, pendingSuccessMessage)
             }
         }
         pendingBytes = null
@@ -125,8 +124,7 @@ fun PageNumbersScreen() {
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                writeBytesToUri(context, uri, bytes)
-                resultMessage = pendingSuccessMessage
+                resultMessage = saveResult(context, uri, bytes, pendingSuccessMessage)
             }
         }
         pendingBytes = null

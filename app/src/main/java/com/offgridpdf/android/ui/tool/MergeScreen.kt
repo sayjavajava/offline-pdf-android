@@ -1,7 +1,5 @@
 package com.offgridpdf.android.ui.tool
 
-import com.offgridpdf.android.chain.PendingFile
-
 import android.net.Uri
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,8 +9,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
-import com.offgridpdf.android.ui.common.ScreenTopBar
-import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -23,14 +19,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.offgridpdf.android.chain.PendingFile
+import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenMultipleDocumentsLauncher
-import com.offgridpdf.android.files.writeBytesToUri
+import com.offgridpdf.android.files.saveResult
 import com.offgridpdf.android.pdf.PdfLoadResult
 import com.offgridpdf.android.pdf.loadPdfFromUri
 import com.offgridpdf.android.pdf.mergePdf
+import com.offgridpdf.android.ui.common.ScreenTopBar
+import com.offgridpdf.android.ui.common.userMessageFor
+import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import com.tom_roush.pdfbox.pdmodel.PDDocument
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Web reference: `MergeTool.tsx` + `mergePdf` (`pdf-ops.ts`).
@@ -62,8 +65,7 @@ fun MergeScreen() {
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                writeBytesToUri(context, uri, bytes)
-                resultMessage = "Your PDFs have been merged successfully."
+                resultMessage = saveResult(context, uri, bytes, "Your PDFs have been merged successfully.")
             }
         }
         pendingBytes = null
@@ -117,10 +119,12 @@ fun MergeScreen() {
                                 resultMessage = failureMessage
                             } else {
                                 try {
-                                    pendingBytes = mergePdf(opened)
+                                    pendingBytes = withContext(Dispatchers.Default) { mergePdf(opened) }
                                     saveLauncher.launch("merged.pdf")
-                                } catch (e: IllegalArgumentException) {
-                                    resultMessage = e.message
+                                } catch (e: Exception) {
+                                    resultMessage = userMessageFor(e)
+                                } catch (e: OutOfMemoryError) {
+                                    resultMessage = TOO_LARGE_MESSAGE
                                 }
                             }
                             opened.forEach { it.close() }

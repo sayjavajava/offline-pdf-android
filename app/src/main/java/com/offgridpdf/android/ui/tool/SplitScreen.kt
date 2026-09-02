@@ -1,7 +1,5 @@
 package com.offgridpdf.android.ui.tool
 
-import com.offgridpdf.android.chain.PendingFile
-
 import android.net.Uri
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,19 +14,24 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import com.offgridpdf.android.chain.PendingFile
+import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
 import com.offgridpdf.android.files.ZipEntryData
 import com.offgridpdf.android.files.createZip
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenDocumentLauncher
+import com.offgridpdf.android.files.saveResult
 import com.offgridpdf.android.files.suggestedBaseName
-import com.offgridpdf.android.files.writeBytesToUri
 import com.offgridpdf.android.pdf.PdfLoadResult
 import com.offgridpdf.android.pdf.SplitPage
 import com.offgridpdf.android.pdf.loadPdfFromUri
 import com.offgridpdf.android.pdf.splitPdfToPages
 import com.offgridpdf.android.pdf.splitPdfToSingleFile
+import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** Web reference: `SplitTool.tsx` + `splitPdf`/`splitPdfToZip` (`pdf-ops.ts`). */
 @Composable
@@ -66,8 +69,7 @@ fun SplitScreen() {
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                writeBytesToUri(context, uri, bytes)
-                resultMessage = pendingSuccessMessage
+                resultMessage = saveResult(context, uri, bytes, pendingSuccessMessage)
             }
         }
         pendingBytes = null
@@ -77,8 +79,7 @@ fun SplitScreen() {
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                writeBytesToUri(context, uri, bytes)
-                resultMessage = pendingSuccessMessage
+                resultMessage = saveResult(context, uri, bytes, pendingSuccessMessage)
             }
         }
         pendingBytes = null
@@ -108,7 +109,9 @@ fun SplitScreen() {
                             try {
                                 lastResultBytes = null
                                 if (separateFiles) {
-                                    val pages = splitPdfToPages(result.document, pageRange)
+                                    val pages = withContext(Dispatchers.Default) {
+                                        splitPdfToPages(result.document, pageRange)
+                                    }
                                     val plural = if (pages.size == 1) "" else "s"
                                     pendingSuccessMessage = "Split into ${pages.size} file$plural."
                                     if (pages.size == 1) {
@@ -118,17 +121,23 @@ fun SplitScreen() {
                                         val suggestedName = "${baseName}_page-${page.pageNumber.toString().padStart(3, '0')}.pdf"
                                         savePdfLauncher.launch(suggestedName)
                                     } else {
-                                        pendingBytes = createZip(zipEntriesFor(pages))
+                                        pendingBytes = withContext(Dispatchers.Default) {
+                                            createZip(zipEntriesFor(pages))
+                                        }
                                         saveZipLauncher.launch("${baseName}_split.zip")
                                     }
                                 } else {
-                                    pendingBytes = splitPdfToSingleFile(result.document, pageRange)
+                                    pendingBytes = withContext(Dispatchers.Default) {
+                                        splitPdfToSingleFile(result.document, pageRange)
+                                    }
                                     lastResultBytes = pendingBytes
                                     pendingSuccessMessage = "Your PDF has been split successfully."
                                     savePdfLauncher.launch("${baseName}_split.pdf")
                                 }
-                            } catch (e: IllegalArgumentException) {
-                                resultMessage = e.message
+                            } catch (e: Exception) {
+                                resultMessage = userMessageFor(e)
+                            } catch (e: OutOfMemoryError) {
+                                resultMessage = TOO_LARGE_MESSAGE
                             } finally {
                                 result.document.close()
                             }

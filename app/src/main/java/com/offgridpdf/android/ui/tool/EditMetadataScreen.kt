@@ -1,9 +1,5 @@
 package com.offgridpdf.android.ui.tool
 
-import com.offgridpdf.android.chain.PendingFile
-
-import com.offgridpdf.android.ui.theme.LocalOffGridPalette
-
 import android.net.Uri
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.OutlinedTextField
@@ -16,15 +12,21 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import com.offgridpdf.android.chain.PendingFile
+import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenDocumentLauncher
+import com.offgridpdf.android.files.saveResult
 import com.offgridpdf.android.files.suggestedBaseName
-import com.offgridpdf.android.files.writeBytesToUri
 import com.offgridpdf.android.pdf.PdfLoadResult
 import com.offgridpdf.android.pdf.PdfMetadataEdit
 import com.offgridpdf.android.pdf.editPdfMetadata
 import com.offgridpdf.android.pdf.loadPdfFromUri
+import com.offgridpdf.android.ui.common.userMessageFor
+import com.offgridpdf.android.ui.theme.LocalOffGridPalette
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Web reference: `EditTool.tsx` + `editPdfMetadata` (`pdf-ops.ts`). Exposes
@@ -58,8 +60,7 @@ fun EditMetadataScreen() {
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                writeBytesToUri(context, uri, bytes)
-                resultMessage = "The PDF metadata has been updated."
+                resultMessage = saveResult(context, uri, bytes, "The PDF metadata has been updated.")
             }
         }
         pendingBytes = null
@@ -85,13 +86,22 @@ fun EditMetadataScreen() {
                 scope.launch {
                     when (val result = loadPdfFromUri(context, uri, password.ifBlank { null })) {
                         is PdfLoadResult.Success -> {
-                            pendingBytes = editPdfMetadata(
-                                result.document,
-                                PdfMetadataEdit(title = title, author = author, subject = subject, keywords = keywords),
-                            )
-                            result.document.close()
-                            lastResultBytes = pendingBytes
-                            saveLauncher.launch("${suggestedBaseName(uri)}_edited.pdf")
+                            try {
+                                pendingBytes = withContext(Dispatchers.Default) {
+                                    editPdfMetadata(
+                                        result.document,
+                                        PdfMetadataEdit(title = title, author = author, subject = subject, keywords = keywords),
+                                    )
+                                }
+                                lastResultBytes = pendingBytes
+                                saveLauncher.launch("${suggestedBaseName(uri)}_edited.pdf")
+                            } catch (e: Exception) {
+                                resultMessage = userMessageFor(e)
+                            } catch (e: OutOfMemoryError) {
+                                resultMessage = TOO_LARGE_MESSAGE
+                            } finally {
+                                result.document.close()
+                            }
                         }
                         PdfLoadResult.PasswordRequired -> {
                             resultMessage = if (password.isBlank()) {
