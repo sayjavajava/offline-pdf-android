@@ -1,9 +1,5 @@
 package com.offgridpdf.android.ui.tool
 
-import com.offgridpdf.android.chain.PendingFile
-
-import com.offgridpdf.android.ui.theme.LocalOffGridPalette
-
 import android.net.Uri
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.OutlinedTextField
@@ -16,14 +12,20 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import com.offgridpdf.android.chain.PendingFile
+import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenDocumentLauncher
+import com.offgridpdf.android.files.saveResult
 import com.offgridpdf.android.files.suggestedBaseName
-import com.offgridpdf.android.files.writeBytesToUri
 import com.offgridpdf.android.pdf.PdfLoadResult
 import com.offgridpdf.android.pdf.loadPdfFromUri
 import com.offgridpdf.android.pdf.rearrangePdf
+import com.offgridpdf.android.ui.common.userMessageFor
+import com.offgridpdf.android.ui.theme.LocalOffGridPalette
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** Web reference: `RearrangeTool.tsx` + `rearrangePdf` (`pdf-ops.ts`). */
 @Composable
@@ -49,8 +51,7 @@ fun RearrangeScreen() {
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                writeBytesToUri(context, uri, bytes)
-                resultMessage = "Pages rearranged successfully."
+                resultMessage = saveResult(context, uri, bytes, "Pages rearranged successfully.")
             }
         }
         pendingBytes = null
@@ -81,11 +82,15 @@ fun RearrangeScreen() {
                         when (val result = loadPdfFromUri(context, uri, password.ifBlank { null })) {
                             is PdfLoadResult.Success -> {
                                 try {
-                                    pendingBytes = rearrangePdf(result.document, pagesText)
+                                    pendingBytes = withContext(Dispatchers.Default) {
+                                        rearrangePdf(result.document, pagesText)
+                                    }
                                     lastResultBytes = pendingBytes
                                     saveLauncher.launch("${baseName}_rearranged.pdf")
-                                } catch (e: IllegalArgumentException) {
-                                    resultMessage = e.message
+                                } catch (e: Exception) {
+                                    resultMessage = userMessageFor(e)
+                                } catch (e: OutOfMemoryError) {
+                                    resultMessage = TOO_LARGE_MESSAGE
                                 } finally {
                                     result.document.close()
                                 }

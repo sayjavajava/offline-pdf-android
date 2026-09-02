@@ -1,7 +1,5 @@
 package com.offgridpdf.android.ui.tool
 
-import com.offgridpdf.android.chain.PendingFile
-
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -17,8 +15,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
-import com.offgridpdf.android.ui.common.ScreenTopBar
-import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,17 +25,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.offgridpdf.android.chain.PendingFile
+import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenDocumentLauncher
+import com.offgridpdf.android.files.saveResult
 import com.offgridpdf.android.files.suggestedBaseName
-import com.offgridpdf.android.files.writeBytesToUri
 import com.offgridpdf.android.pdf.FormFieldInfo
 import com.offgridpdf.android.pdf.PdfLoadResult
 import com.offgridpdf.android.pdf.fillFormFields
 import com.offgridpdf.android.pdf.loadPdfFromUri
 import com.offgridpdf.android.pdf.readFormFields
+import com.offgridpdf.android.ui.common.ScreenTopBar
+import com.offgridpdf.android.ui.common.userMessageFor
+import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import com.tom_roush.pdfbox.pdmodel.PDDocument
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Web reference: `FillFormTool.tsx` + `readFormFields`/`applyFormFieldValues`
@@ -87,8 +90,7 @@ fun FillFormScreen() {
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                writeBytesToUri(context, uri, bytes)
-                resultMessage = "The form has been filled."
+                resultMessage = saveResult(context, uri, bytes, "The form has been filled.")
             }
         }
         pendingBytes = null
@@ -131,7 +133,9 @@ fun FillFormScreen() {
                             scope.launch {
                                 when (val result = loadPdfFromUri(context, uri, password.ifBlank { null })) {
                                     is PdfLoadResult.Success -> {
-                                        val loaded = readFormFields(result.document)
+                                        val loaded = withContext(Dispatchers.Default) {
+                                            readFormFields(result.document)
+                                        }
                                         openDocument = result.document
                                         fields = loaded.fields
                                         unsupportedFields = loaded.unsupportedFields
@@ -249,10 +253,14 @@ fun FillFormScreen() {
                         val filledValues = values
                         scope.launch {
                             try {
-                                pendingBytes = fillFormFields(document, filledValues, flatten)
+                                pendingBytes = withContext(Dispatchers.Default) {
+                                    fillFormFields(document, filledValues, flatten)
+                                }
                                 saveLauncher.launch("${baseName}_filled.pdf")
-                            } catch (e: IllegalArgumentException) {
-                                resultMessage = e.message
+                            } catch (e: Exception) {
+                                resultMessage = userMessageFor(e)
+                            } catch (e: OutOfMemoryError) {
+                                resultMessage = TOO_LARGE_MESSAGE
                             } finally {
                                 document.close()
                                 openDocument = null

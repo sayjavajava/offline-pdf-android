@@ -18,7 +18,7 @@ import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenMultipleDocumentsLauncher
 import com.offgridpdf.android.files.runOnEachPdf
 import com.offgridpdf.android.files.suggestedBaseName
-import com.offgridpdf.android.files.writeBytesToUri
+import com.offgridpdf.android.files.saveResult
 import com.offgridpdf.android.pdf.compressPdf
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -57,8 +57,7 @@ fun CompressScreen() {
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                writeBytesToUri(context, uri, bytes)
-                resultMessage = pendingSuccessMessage
+                resultMessage = saveResult(context, uri, bytes, pendingSuccessMessage)
             }
         }
         pendingBytes = null
@@ -68,8 +67,7 @@ fun CompressScreen() {
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                writeBytesToUri(context, uri, bytes)
-                resultMessage = pendingSuccessMessage
+                resultMessage = saveResult(context, uri, bytes, pendingSuccessMessage)
             }
         }
         pendingBytes = null
@@ -98,7 +96,14 @@ fun CompressScreen() {
             val files = pickedFiles
 
             scope.launch {
-                val singleOriginalSize = if (files.size == 1) readBytesFromUri(context, files[0]).size else null
+                // Only for the "X KB → Y KB" message. A failure to read it is
+                // not a reason to fail the run, so it degrades to no size
+                // comparison rather than throwing out of this coroutine.
+                val singleOriginalSize = if (files.size == 1) {
+                    runCatching { readBytesFromUri(context, files[0]).size }.getOrNull()
+                } else {
+                    null
+                }
                 val result = runOnEachPdf(
                     context = context,
                     files = files,
@@ -110,7 +115,11 @@ fun CompressScreen() {
                     result.singleBytes != null -> {
                         pendingBytes = result.singleBytes
                         lastResultBytes = result.singleBytes
-                        pendingSuccessMessage = compressionMessage(singleOriginalSize ?: 0, result.singleBytes.size)
+                        pendingSuccessMessage = if (singleOriginalSize != null) {
+                            compressionMessage(singleOriginalSize, result.singleBytes.size)
+                        } else {
+                            "Compressed to ${formatSize(result.singleBytes.size)}."
+                        }
                         savePdfLauncher.launch("${suggestedBaseName(files[0])}_compressed.pdf")
                     }
                     result.zipBytes != null -> {

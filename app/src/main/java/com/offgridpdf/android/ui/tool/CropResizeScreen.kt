@@ -1,9 +1,5 @@
 package com.offgridpdf.android.ui.tool
 
-import com.offgridpdf.android.chain.PendingFile
-
-import com.offgridpdf.android.ui.theme.LocalOffGridPalette
-
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -24,10 +20,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.offgridpdf.android.chain.PendingFile
+import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenDocumentLauncher
+import com.offgridpdf.android.files.saveResult
 import com.offgridpdf.android.files.suggestedBaseName
-import com.offgridpdf.android.files.writeBytesToUri
 import com.offgridpdf.android.pdf.CropMargins
 import com.offgridpdf.android.pdf.PAPER_SIZES
 import com.offgridpdf.android.pdf.PaperSize
@@ -35,7 +33,11 @@ import com.offgridpdf.android.pdf.PdfLoadResult
 import com.offgridpdf.android.pdf.cropPdf
 import com.offgridpdf.android.pdf.loadPdfFromUri
 import com.offgridpdf.android.pdf.resizePdf
+import com.offgridpdf.android.ui.common.userMessageFor
+import com.offgridpdf.android.ui.theme.LocalOffGridPalette
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private enum class Mode { CROP, RESIZE }
 
@@ -79,8 +81,7 @@ fun CropResizeScreen() {
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                writeBytesToUri(context, uri, bytes)
-                resultMessage = if (mode == Mode.CROP) "Pages cropped." else "Pages resized."
+                resultMessage = saveResult(context, uri, bytes, if (mode == Mode.CROP) "Pages cropped." else "Pages resized.")
             }
         }
         pendingBytes = null
@@ -120,11 +121,15 @@ fun CropResizeScreen() {
                         when (val result = loadPdfFromUri(context, uri, password.ifBlank { null })) {
                             is PdfLoadResult.Success -> {
                                 try {
-                                    pendingBytes = cropPdf(result.document, margins, pageRange)
+                                    pendingBytes = withContext(Dispatchers.Default) {
+                                        cropPdf(result.document, margins, pageRange)
+                                    }
                                     lastResultBytes = pendingBytes
                                     saveLauncher.launch("${baseName}_cropped.pdf")
-                                } catch (e: IllegalArgumentException) {
-                                    resultMessage = e.message
+                                } catch (e: Exception) {
+                                    resultMessage = userMessageFor(e)
+                                } catch (e: OutOfMemoryError) {
+                                    resultMessage = TOO_LARGE_MESSAGE
                                 } finally {
                                     result.document.close()
                                 }
@@ -160,11 +165,15 @@ fun CropResizeScreen() {
                         when (val result = loadPdfFromUri(context, uri, password.ifBlank { null })) {
                             is PdfLoadResult.Success -> {
                                 try {
-                                    pendingBytes = resizePdf(result.document, target, pageRange, stretch)
+                                    pendingBytes = withContext(Dispatchers.Default) {
+                                        resizePdf(result.document, target, pageRange, stretch)
+                                    }
                                     lastResultBytes = pendingBytes
                                     saveLauncher.launch("${baseName}_resized.pdf")
-                                } catch (e: IllegalArgumentException) {
-                                    resultMessage = e.message
+                                } catch (e: Exception) {
+                                    resultMessage = userMessageFor(e)
+                                } catch (e: OutOfMemoryError) {
+                                    resultMessage = TOO_LARGE_MESSAGE
                                 } finally {
                                     result.document.close()
                                 }

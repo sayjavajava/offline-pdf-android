@@ -10,8 +10,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
-import com.offgridpdf.android.ui.common.ScreenTopBar
-import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -22,13 +20,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
 import com.offgridpdf.android.files.readBytesFromUri
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenDocumentLauncher
+import com.offgridpdf.android.files.saveResult
 import com.offgridpdf.android.files.suggestedBaseName
-import com.offgridpdf.android.files.writeBytesToUri
 import com.offgridpdf.android.pdf.convertDocxToPdf
+import com.offgridpdf.android.ui.common.ScreenTopBar
+import com.offgridpdf.android.ui.common.userMessageFor
+import com.offgridpdf.android.ui.theme.LocalOffGridPalette
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Web reference: `ConvertTool.tsx` (the DOCX half — image conversion is
@@ -63,8 +67,7 @@ fun DocxToPdfScreen() {
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                writeBytesToUri(context, uri, bytes)
-                resultMessage = pendingSuccessMessage
+                resultMessage = saveResult(context, uri, bytes, pendingSuccessMessage)
             }
         }
         pendingBytes = null
@@ -108,7 +111,9 @@ fun DocxToPdfScreen() {
                         scope.launch {
                             try {
                                 val docxBytes = readBytesFromUri(context, uri)
-                                val result = convertDocxToPdf(docxBytes, Xml.newPullParser())
+                                val result = withContext(Dispatchers.Default) {
+                                    convertDocxToPdf(docxBytes, Xml.newPullParser())
+                                }
                                 pendingBytes = result.bytes
                                 pendingSuccessMessage = if (result.warnings.isEmpty()) {
                                     "Converted to PDF."
@@ -116,8 +121,10 @@ fun DocxToPdfScreen() {
                                     "Converted to PDF. " + result.warnings.joinToString(" ")
                                 }
                                 saveLauncher.launch("${baseName}.pdf")
-                            } catch (e: IllegalArgumentException) {
-                                resultMessage = e.message
+                            } catch (e: Exception) {
+                                resultMessage = userMessageFor(e)
+                            } catch (e: OutOfMemoryError) {
+                                resultMessage = TOO_LARGE_MESSAGE
                             }
                             running = false
                         }

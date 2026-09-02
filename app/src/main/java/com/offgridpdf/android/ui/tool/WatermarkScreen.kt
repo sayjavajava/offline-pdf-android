@@ -29,7 +29,7 @@ import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenMultipleDocumentsLauncher
 import com.offgridpdf.android.files.runOnEachPdf
 import com.offgridpdf.android.files.suggestedBaseName
-import com.offgridpdf.android.files.writeBytesToUri
+import com.offgridpdf.android.files.saveResult
 import com.offgridpdf.android.pdf.WatermarkColor
 import com.offgridpdf.android.pdf.WatermarkOptions
 import com.offgridpdf.android.pdf.addWatermark
@@ -82,8 +82,7 @@ fun WatermarkScreen() {
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                writeBytesToUri(context, uri, bytes)
-                resultMessage = pendingSuccessMessage
+                resultMessage = saveResult(context, uri, bytes, pendingSuccessMessage)
             }
         }
         pendingBytes = null
@@ -93,8 +92,7 @@ fun WatermarkScreen() {
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                writeBytesToUri(context, uri, bytes)
-                resultMessage = pendingSuccessMessage
+                resultMessage = saveResult(context, uri, bytes, pendingSuccessMessage)
             }
         }
         pendingBytes = null

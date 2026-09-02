@@ -1,7 +1,5 @@
 package com.offgridpdf.android.ui.tool
 
-import com.offgridpdf.android.chain.PendingFile
-
 import android.net.Uri
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -48,10 +46,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.offgridpdf.android.chain.PendingFile
+import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenDocumentLauncher
+import com.offgridpdf.android.files.saveResult
 import com.offgridpdf.android.files.suggestedBaseName
-import com.offgridpdf.android.files.writeBytesToUri
 import com.offgridpdf.android.pdf.ApplyToRangeResult
 import com.offgridpdf.android.pdf.FindMatchResult
 import com.offgridpdf.android.pdf.PdfLoadResult
@@ -69,12 +69,16 @@ import com.offgridpdf.android.ui.common.FilePickerCard
 import com.offgridpdf.android.ui.common.PrimaryButton
 import com.offgridpdf.android.ui.common.PrivacyLine
 import com.offgridpdf.android.ui.common.ScreenTopBar
+import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import com.offgridpdf.android.ui.theme.PlexMono
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.rendering.PDFRenderer
 import kotlin.math.abs
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /** Pixels per PDF point for the on-screen preview render. Independent of the export scale in `PdfRedact.kt` — boxes are converted to point-space immediately on drawing, so this only affects preview legibility. Web reference: `PREVIEW_SCALE` (`RedactTool.tsx`). */
 private const val PREVIEW_SCALE = 1.5f
@@ -144,6 +148,10 @@ fun RedactScreen() {
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
     var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
 
+    // The in-flight page render, so a newer page turn can cancel an older
+    // one (see goToPage).
+    var renderJob by remember { mutableStateOf<Job?>(null) }
+
     // This screen (unlike every other tool screen) keeps a PDDocument
     // open for the whole editing session, not just within one button
     // press, so it needs its own explicit cleanup on leaving composition
@@ -157,10 +165,16 @@ fun RedactScreen() {
     val totalBoxes = redactions.values.sumOf { it.size }
     val pagesWithBoxes = redactions.values.count { it.isNotEmpty() }
 
-    fun renderCurrentPage(doc: PDDocument, index: Int) {
+    // Suspending, and rasterizing on Dispatchers.Default: a full-page render
+    // is the single most expensive thing this screen does, and it used to run
+    // on the main thread on every page turn — a visible freeze on a dense
+    // page, and an ANR on a really heavy one.
+    suspend fun renderCurrentPage(doc: PDDocument, index: Int) {
         val mediaBox = doc.getPage(index).mediaBox
+        val bitmap = withContext(Dispatchers.Default) {
+            PDFRenderer(doc).renderImageWithDPI(index, PREVIEW_SCALE * 72f)
+        }
         previewHeightPts = mediaBox.height
-        val bitmap = PDFRenderer(doc).renderImageWithDPI(index, PREVIEW_SCALE * 72f)
         previewBitmapWidth = bitmap.width
         previewBitmapHeight = bitmap.height
         previewImage = bitmap.asImageBitmap()
@@ -188,8 +202,7 @@ fun RedactScreen() {
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                writeBytesToUri(context, uri, bytes)
-                resultMessage = "Redacted $totalBoxes box${if (totalBoxes == 1) "" else "es"} across $pagesWithBoxes page${if (pagesWithBoxes == 1) "" else "s"}."
+                resultMessage = saveResult(context, uri, bytes, "Redacted $totalBoxes box${if (totalBoxes == 1) "" else "es"} across $pagesWithBoxes page${if (pagesWithBoxes == 1) "" else "s"}.")
             }
         }
         pendingBytes = null
@@ -213,7 +226,9 @@ fun RedactScreen() {
                     try {
                         renderCurrentPage(result.document, 0)
                     } catch (e: Exception) {
-                        loadMessage = "Loaded, but could not render page 1: ${e.message}"
+                        loadMessage = "Loaded, but could not render page 1: ${userMessageFor(e)}"
+                    } catch (e: OutOfMemoryError) {
+                        loadMessage = "Loaded, but could not render page 1: $TOO_LARGE_MESSAGE"
                     }
                 }
                 PdfLoadResult.PasswordRequired -> {
@@ -233,10 +248,18 @@ fun RedactScreen() {
         pageIndex = newIndex
         dragStart = null
         dragCurrent = null
-        try {
-            renderCurrentPage(doc, newIndex)
-        } catch (e: Exception) {
-            loadMessage = "Could not render page ${newIndex + 1}: ${e.message}"
+        // Now that rendering is asynchronous, tapping through pages quickly
+        // could otherwise leave a slower earlier render finishing last and
+        // showing the wrong page. Only the newest request survives.
+        renderJob?.cancel()
+        renderJob = scope.launch {
+            try {
+                renderCurrentPage(doc, newIndex)
+            } catch (e: Exception) {
+                loadMessage = "Could not render page ${newIndex + 1}: ${userMessageFor(e)}"
+            } catch (e: OutOfMemoryError) {
+                loadMessage = "Could not render page ${newIndex + 1}: $TOO_LARGE_MESSAGE"
+            }
         }
     }
 
@@ -342,11 +365,13 @@ fun RedactScreen() {
                             findMessage = null
                             scope.launch {
                                 try {
-                                    findResult = findTextMatches(doc, searchQuery, caseSensitive)
-                                } catch (e: IllegalArgumentException) {
-                                    findMessage = e.message
+                                    findResult = withContext(Dispatchers.Default) {
+                                        findTextMatches(doc, searchQuery, caseSensitive)
+                                    }
                                 } catch (e: Exception) {
-                                    findMessage = e.message ?: "Could not search this PDF."
+                                    findMessage = userMessageFor(e)
+                                } catch (e: OutOfMemoryError) {
+                                    findMessage = TOO_LARGE_MESSAGE
                                 }
                                 searching = false
                             }
@@ -530,8 +555,10 @@ fun RedactScreen() {
                                 } else {
                                     try {
                                         resolvePageIndices(applyRangeText, pageCount).map { it + 1 }
-                                    } catch (e: IllegalArgumentException) {
-                                        resultMessage = e.message
+                                    } catch (e: Exception) {
+                                        resultMessage = userMessageFor(e)
+                                    } catch (e: OutOfMemoryError) {
+                                        resultMessage = TOO_LARGE_MESSAGE
                                         emptyList()
                                     }
                                 }
@@ -578,15 +605,17 @@ fun RedactScreen() {
                         lastResultBytes = null
                         scope.launch {
                             try {
-                                val bytes = redactPdf(doc2, redactions)
+                                val bytes = withContext(Dispatchers.Default) {
+                                    redactPdf(doc2, redactions)
+                                }
                                 pendingBytes = bytes
                                 lastResultBytes = bytes
                                 val name = pickedUri?.let { suggestedBaseName(it) } ?: "document"
                                 saveLauncher.launch("${name}_redacted.pdf")
-                            } catch (e: IllegalArgumentException) {
-                                resultMessage = e.message
                             } catch (e: Exception) {
-                                resultMessage = e.message ?: "Could not redact this PDF."
+                                resultMessage = userMessageFor(e)
+                            } catch (e: OutOfMemoryError) {
+                                resultMessage = TOO_LARGE_MESSAGE
                             }
                             applying = false
                         }

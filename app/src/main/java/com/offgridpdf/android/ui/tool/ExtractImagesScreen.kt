@@ -1,9 +1,5 @@
 package com.offgridpdf.android.ui.tool
 
-import com.offgridpdf.android.chain.PendingFile
-
-import com.offgridpdf.android.ui.theme.LocalOffGridPalette
-
 import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -12,16 +8,20 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import com.offgridpdf.android.chain.PendingFile
 import com.offgridpdf.android.files.ZipEntryData
 import com.offgridpdf.android.files.createZip
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenDocumentLauncher
+import com.offgridpdf.android.files.saveResult
 import com.offgridpdf.android.files.suggestedBaseName
-import com.offgridpdf.android.files.writeBytesToUri
 import com.offgridpdf.android.pdf.PdfLoadResult
 import com.offgridpdf.android.pdf.extractImages
 import com.offgridpdf.android.pdf.loadPdfFromUri
+import com.offgridpdf.android.ui.theme.LocalOffGridPalette
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Web reference: `ExtractImagesTool.tsx` + `extractImagesFromDocument`
@@ -55,8 +55,7 @@ fun ExtractImagesScreen() {
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                writeBytesToUri(context, uri, bytes)
-                resultMessage = pendingSuccessMessage
+                resultMessage = saveResult(context, uri, bytes, pendingSuccessMessage)
             }
         }
         pendingBytes = null
@@ -66,8 +65,7 @@ fun ExtractImagesScreen() {
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                writeBytesToUri(context, uri, bytes)
-                resultMessage = pendingSuccessMessage
+                resultMessage = saveResult(context, uri, bytes, pendingSuccessMessage)
             }
         }
         pendingBytes = null
@@ -77,8 +75,7 @@ fun ExtractImagesScreen() {
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                writeBytesToUri(context, uri, bytes)
-                resultMessage = pendingSuccessMessage
+                resultMessage = saveResult(context, uri, bytes, pendingSuccessMessage)
             }
         }
         pendingBytes = null
@@ -104,7 +101,9 @@ fun ExtractImagesScreen() {
                     when (val result = loadPdfFromUri(context, uri, password.ifBlank { null })) {
                         is PdfLoadResult.Success -> {
                             try {
-                                val extracted = extractImages(result.document)
+                                val extracted = withContext(Dispatchers.Default) {
+                                    extractImages(result.document)
+                                }
                                 when {
                                     extracted.images.isEmpty() -> {
                                         resultMessage = if (extracted.skipped.isNotEmpty()) {
@@ -125,11 +124,17 @@ fun ExtractImagesScreen() {
                                         }
                                     }
                                     else -> {
-                                        pendingBytes = createZip(extracted.images.map { ZipEntryData(it.name, it.bytes) })
+                                        pendingBytes = withContext(Dispatchers.Default) {
+                                            createZip(extracted.images.map { ZipEntryData(it.name, it.bytes) })
+                                        }
                                         pendingSuccessMessage = successMessage(extracted.images.size, extracted.skipped.size)
                                         saveZipLauncher.launch("${baseName}_images.zip")
                                     }
                                 }
+                            } catch (e: Exception) {
+                                resultMessage = userMessageFor(e)
+                            } catch (e: OutOfMemoryError) {
+                                resultMessage = TOO_LARGE_MESSAGE
                             } finally {
                                 result.document.close()
                             }

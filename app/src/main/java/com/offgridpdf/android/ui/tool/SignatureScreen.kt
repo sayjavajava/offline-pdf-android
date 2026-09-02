@@ -1,7 +1,5 @@
 package com.offgridpdf.android.ui.tool
 
-import com.offgridpdf.android.chain.PendingFile
-
 import android.net.Uri
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -21,8 +19,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import com.offgridpdf.android.ui.common.ScreenTopBar
-import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -37,17 +33,24 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.offgridpdf.android.chain.PendingFile
+import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
 import com.offgridpdf.android.files.readBytesFromUri
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenDocumentLauncher
+import com.offgridpdf.android.files.saveResult
 import com.offgridpdf.android.files.suggestedBaseName
-import com.offgridpdf.android.files.writeBytesToUri
 import com.offgridpdf.android.pdf.PdfLoadResult
 import com.offgridpdf.android.pdf.SignaturePlacement
 import com.offgridpdf.android.pdf.addSignature
 import com.offgridpdf.android.pdf.loadPdfFromUri
+import com.offgridpdf.android.ui.common.ScreenTopBar
+import com.offgridpdf.android.ui.common.userMessageFor
+import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import com.tom_roush.pdfbox.pdmodel.PDDocument
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 private enum class SignatureMode { TYPE, DRAW, UPLOAD }
 
@@ -113,8 +116,7 @@ fun SignatureScreen() {
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                writeBytesToUri(context, uri, bytes)
-                resultMessage = "Signature added."
+                resultMessage = saveResult(context, uri, bytes, "Signature added.")
             }
         }
         pendingBytes = null
@@ -302,15 +304,19 @@ fun SignatureScreen() {
                     val baseName = suggestedBaseName(uri)
                     scope.launch {
                         try {
-                            pendingBytes = addSignature(
-                                document,
-                                bytes,
-                                "signature.png",
-                                SignaturePlacement(page, x, y, width, height),
-                            )
+                            pendingBytes = withContext(Dispatchers.Default) {
+                                addSignature(
+                                    document,
+                                    bytes,
+                                    "signature.png",
+                                    SignaturePlacement(page, x, y, width, height),
+                                )
+                            }
                             saveLauncher.launch("${baseName}_signed.pdf")
-                        } catch (e: IllegalArgumentException) {
-                            resultMessage = e.message
+                        } catch (e: Exception) {
+                            resultMessage = userMessageFor(e)
+                        } catch (e: OutOfMemoryError) {
+                            resultMessage = TOO_LARGE_MESSAGE
                         }
                         running = false
                     }

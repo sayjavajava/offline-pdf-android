@@ -4,7 +4,10 @@ import android.content.Context
 import android.net.Uri
 import com.offgridpdf.android.pdf.PdfLoadResult
 import com.offgridpdf.android.pdf.loadPdfFromUri
+import com.offgridpdf.android.ui.common.userMessageFor
 import com.tom_roush.pdfbox.pdmodel.PDDocument
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * The outcome of [runOnEachPdf] — exactly one of [singleBytes] or [zipBytes]
@@ -31,6 +34,10 @@ data class BatchRunResult(
  * `SplitScreen.kt`'s `zipEntriesFor` already established), and collects
  * per-file failures for the caller to report rather than raising them.
  *
+ * Runs on `Dispatchers.Default` (see `PdfTask.kt` for why every tool's PDF
+ * work needs to): [operate] is CPU-bound, and a caller's
+ * `rememberCoroutineScope()` would otherwise run it on the main thread.
+ *
  * [operate] and its `IllegalArgumentException`s are the one piece deliberately
  * left to each screen — Compress/Watermark/Rotate/Page Numbers's own
  * operations (`compressPdf`, `addWatermark`, `rotatePdf`, `addPageNumbers`)
@@ -43,16 +50,18 @@ suspend fun runOnEachPdf(
     password: String,
     zipEntrySuffix: String,
     operate: (PDDocument) -> ByteArray,
-): BatchRunResult {
+): BatchRunResult = withContext(Dispatchers.Default) {
     if (files.size <= 1) {
         val uri = files.firstOrNull()
-            ?: return BatchRunResult(null, null, 0, emptyList())
-        return when (val result = loadPdfFromUri(context, uri, password.ifBlank { null })) {
+            ?: return@withContext BatchRunResult(null, null, 0, emptyList())
+        return@withContext when (val result = loadPdfFromUri(context, uri, password.ifBlank { null })) {
             is PdfLoadResult.Success -> {
                 try {
                     BatchRunResult(operate(result.document), null, 1, emptyList())
-                } catch (e: IllegalArgumentException) {
-                    BatchRunResult(null, null, 0, listOf(e.message ?: "Could not process this PDF."))
+                } catch (e: Exception) {
+                    BatchRunResult(null, null, 0, listOf(userMessageFor(e)))
+                } catch (e: OutOfMemoryError) {
+                    BatchRunResult(null, null, 0, listOf(TOO_LARGE_MESSAGE))
                 } finally {
                     result.document.close()
                 }
@@ -80,8 +89,10 @@ suspend fun runOnEachPdf(
                     seen[baseName] = occurrence
                     val disambiguator = if (occurrence > 1) "-$occurrence" else ""
                     entries += ZipEntryData("$baseName$disambiguator$zipEntrySuffix.pdf", bytes)
-                } catch (e: IllegalArgumentException) {
-                    failures += "$baseName: ${e.message}"
+                } catch (e: Exception) {
+                    failures += "$baseName: ${userMessageFor(e)}"
+                } catch (e: OutOfMemoryError) {
+                    failures += "$baseName: $TOO_LARGE_MESSAGE"
                 } finally {
                     result.document.close()
                 }
@@ -92,7 +103,7 @@ suspend fun runOnEachPdf(
     }
 
     val zipBytes = if (entries.isNotEmpty()) createZip(entries) else null
-    return BatchRunResult(null, zipBytes, entries.size, failures)
+    BatchRunResult(null, zipBytes, entries.size, failures)
 }
 
 /**

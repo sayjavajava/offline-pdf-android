@@ -1,9 +1,5 @@
 package com.offgridpdf.android.ui.tool
 
-import com.offgridpdf.android.chain.PendingFile
-
-import com.offgridpdf.android.ui.theme.LocalOffGridPalette
-
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -24,10 +20,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.offgridpdf.android.chain.PendingFile
+import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenDocumentLauncher
+import com.offgridpdf.android.files.saveResult
 import com.offgridpdf.android.files.suggestedBaseName
-import com.offgridpdf.android.files.writeBytesToUri
 import com.offgridpdf.android.pdf.ModifyPermission
 import com.offgridpdf.android.pdf.PdfLoadResult
 import com.offgridpdf.android.pdf.PdfPermissions
@@ -35,7 +33,11 @@ import com.offgridpdf.android.pdf.PrintPermission
 import com.offgridpdf.android.pdf.loadPdfFromUri
 import com.offgridpdf.android.pdf.protectPdf
 import com.offgridpdf.android.pdf.protectPdfWithPermissions
+import com.offgridpdf.android.ui.common.userMessageFor
+import com.offgridpdf.android.ui.theme.LocalOffGridPalette
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Web reference: `ProtectTool.tsx` + `protectPdf`/`protectPdfWithPermissions`
@@ -76,8 +78,7 @@ fun ProtectScreen() {
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                writeBytesToUri(context, uri, bytes)
-                resultMessage = "Your PDF is now password protected."
+                resultMessage = saveResult(context, uri, bytes, "Your PDF is now password protected.")
             }
         }
         pendingBytes = null
@@ -108,20 +109,24 @@ fun ProtectScreen() {
                         when (val result = loadPdfFromUri(context, uri, inputPassword.ifBlank { null })) {
                             is PdfLoadResult.Success -> {
                                 try {
-                                    pendingBytes = if (restrict) {
-                                        protectPdfWithPermissions(
-                                            result.document,
-                                            newPassword,
-                                            permissionsPassword,
-                                            PdfPermissions(print, extract, modify),
-                                        )
-                                    } else {
-                                        protectPdf(result.document, newPassword)
+                                    pendingBytes = withContext(Dispatchers.Default) {
+                                        if (restrict) {
+                                            protectPdfWithPermissions(
+                                                result.document,
+                                                newPassword,
+                                                permissionsPassword,
+                                                PdfPermissions(print, extract, modify),
+                                            )
+                                        } else {
+                                            protectPdf(result.document, newPassword)
+                                        }
                                     }
                                     lastResultBytes = pendingBytes
                                     saveLauncher.launch("${baseName}_protected.pdf")
-                                } catch (e: IllegalArgumentException) {
-                                    resultMessage = e.message
+                                } catch (e: Exception) {
+                                    resultMessage = userMessageFor(e)
+                                } catch (e: OutOfMemoryError) {
+                                    resultMessage = TOO_LARGE_MESSAGE
                                 } finally {
                                     result.document.close()
                                 }

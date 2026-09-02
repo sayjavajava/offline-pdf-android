@@ -1,7 +1,5 @@
 package com.offgridpdf.android.ui.tool
 
-import com.offgridpdf.android.chain.PendingFile
-
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -15,8 +13,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import com.offgridpdf.android.ui.common.ScreenTopBar
-import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -28,9 +24,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.offgridpdf.android.chain.PendingFile
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenDocumentLauncher
-import com.offgridpdf.android.files.writeBytesToUri
+import com.offgridpdf.android.files.saveResult
 import com.offgridpdf.android.pdf.CompareResult
 import com.offgridpdf.android.pdf.PageComparison
 import com.offgridpdf.android.pdf.PdfLoadResult
@@ -38,7 +35,11 @@ import com.offgridpdf.android.pdf.buildCompareReport
 import com.offgridpdf.android.pdf.comparePdfs
 import com.offgridpdf.android.pdf.describeComparison
 import com.offgridpdf.android.pdf.loadPdfFromUri
+import com.offgridpdf.android.ui.common.ScreenTopBar
+import com.offgridpdf.android.ui.theme.LocalOffGridPalette
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Web reference: `CompareTool.tsx` + `comparePdfs` (`pdf-compare.ts`).
@@ -76,7 +77,7 @@ fun CompareScreen() {
     val saveReportLauncher = rememberCreateDocumentLauncher("text/plain") { uri ->
         val bytes = pendingReportBytes
         if (uri != null && bytes != null) {
-            scope.launch { writeBytesToUri(context, uri, bytes) }
+            scope.launch { resultMessage = saveResult(context, uri, bytes, "Report saved.") }
         }
         pendingReportBytes = null
     }
@@ -142,7 +143,9 @@ fun CompareScreen() {
                                     when (val loadedB = loadPdfFromUri(context, b, passwordB.ifBlank { null })) {
                                         is PdfLoadResult.Success -> {
                                             try {
-                                                val compared = comparePdfs(loadedA.document, loadedB.document)
+                                                val compared = withContext(Dispatchers.Default) {
+                                                    comparePdfs(loadedA.document, loadedB.document)
+                                                }
                                                 result = compared
                                                 val diffCount = compared.pages.count { page ->
                                                     page !is PageComparison.Both || page.textDiffers == true || page.visuallyDiffers
