@@ -10,8 +10,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Checkbox
@@ -263,8 +265,14 @@ fun RedactScreen() {
         },
         containerColor = palette.paper,
     ) { innerPadding ->
+        // Width capped and centered — a no-op on a phone, but keeps the
+        // page preview and controls from stretching edge to edge in the
+        // wide detail pane OffGridNavHost.kt gives this screen on a
+        // tablet/expanded-width window (see ToolScaffold.kt's own copy of
+        // this treatment).
+        Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.TopCenter) {
         LazyColumn(
-            modifier = Modifier.padding(innerPadding).padding(horizontal = 22.dp),
+            modifier = Modifier.fillMaxWidth().widthIn(max = 560.dp).padding(horizontal = 22.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item {
@@ -592,6 +600,7 @@ fun RedactScreen() {
                 item { ContinueChainAction(bytes = lastResultBytes, accent = accent) }
             }
             item { Box(modifier = Modifier.padding(bottom = 18.dp)) }
+        }
         }
     }
 }

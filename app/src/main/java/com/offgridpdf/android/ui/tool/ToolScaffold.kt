@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -15,6 +16,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -47,7 +49,14 @@ import com.offgridpdf.android.ui.theme.LocalOffGridPalette
  * rather than cleared afterward. When non-null and [resultMessage] is set,
  * shows "Continue with another tool" (`ui/common/OffGridComponents.kt`)
  * alongside the normal save flow, not instead of it.
+ *
+ * Content is capped at [MAX_CONTENT_WIDTH] and centered — a no-op on a
+ * phone (always narrower), but keeps text fields and buttons from
+ * stretching edge to edge in the wide detail pane `OffGridNavHost.kt`
+ * gives this screen on a tablet/expanded-width window.
  */
+private val MAX_CONTENT_WIDTH = 560.dp
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ToolScaffold(
@@ -67,13 +76,18 @@ fun ToolScaffold(
 ) {
     val palette = LocalOffGridPalette.current
 
-    Column(modifier = Modifier.fillMaxSize().background(palette.paper)) {
+    Column(
+        modifier = Modifier.fillMaxSize().background(palette.paper),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
         ScreenTopBar(title = title)
 
         Column(
             modifier = Modifier
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
+                .fillMaxWidth()
+                .widthIn(max = MAX_CONTENT_WIDTH)
                 .padding(horizontal = 22.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
@@ -102,7 +116,10 @@ fun ToolScaffold(
         }
 
         Column(
-            modifier = Modifier.padding(horizontal = 22.dp, vertical = 18.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = MAX_CONTENT_WIDTH)
+                .padding(horizontal = 22.dp, vertical = 18.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             if (running) {
