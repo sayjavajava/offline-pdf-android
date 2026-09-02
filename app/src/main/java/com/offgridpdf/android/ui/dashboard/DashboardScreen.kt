@@ -52,7 +52,11 @@ import com.offgridpdf.android.ui.theme.PlexMono
  * one it replaces.
  */
 @Composable
-fun DashboardScreen(recentToolsStore: RecentToolsStore, onToolSelected: (String) -> Unit) {
+fun DashboardScreen(
+    recentToolsStore: RecentToolsStore,
+    onToolSelected: (String) -> Unit,
+    onSettingsClick: () -> Unit = {},
+) {
     val palette = LocalOffGridPalette.current
     var query by remember { mutableStateOf("") }
     val pendingUri = PendingFile.uri
@@ -78,7 +82,7 @@ fun DashboardScreen(recentToolsStore: RecentToolsStore, onToolSelected: (String)
         contentPadding = PaddingValues(horizontal = 22.dp, vertical = 28.dp),
     ) {
         item {
-            Masthead()
+            Masthead(onSettingsClick = onSettingsClick)
             Spacer(Modifier.height(20.dp))
             SearchField(query = query, onQueryChange = { query = it })
         }
@@ -143,28 +147,46 @@ fun DashboardScreen(recentToolsStore: RecentToolsStore, onToolSelected: (String)
 }
 
 @Composable
-private fun Masthead() {
+private fun Masthead(onSettingsClick: () -> Unit) {
     val palette = LocalOffGridPalette.current
-    Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Icon(
-            painter = painterResource(R.drawable.ic_brand_mark),
-            contentDescription = null,
-            tint = palette.organize,
-            modifier = Modifier.size(30.dp),
-        )
-        Column {
-            Text(
-                "OffGridPDF",
-                style = MaterialTheme.typography.headlineMedium,
-                color = palette.ink,
+    Row(
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            verticalAlignment = Alignment.Top,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.weight(1f),
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_brand_mark),
+                contentDescription = null,
+                tint = palette.organize,
+                modifier = Modifier.size(30.dp),
             )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                "Every tool runs on this device. Nothing you open ever leaves it.",
-                style = MaterialTheme.typography.bodySmall,
-                color = palette.inkTertiary,
-            )
+            Column {
+                Text(
+                    "OffGridPDF",
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = palette.ink,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Every tool runs on this device. Nothing you open ever leaves it.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = palette.inkTertiary,
+                )
+            }
         }
+        Icon(
+            painter = painterResource(R.drawable.ic_settings),
+            contentDescription = "Settings",
+            tint = palette.inkSecondary,
+            modifier = Modifier
+                .size(20.dp)
+                .clickable(onClick = onSettingsClick),
+        )
     }
 }
 
