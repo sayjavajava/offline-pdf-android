@@ -1,6 +1,7 @@
 package com.offgridpdf.android.pdf
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -66,6 +67,27 @@ class PdfRenderBudgetTest {
         val message = error.message!!
         assertTrue("should name the page: $message", message.contains("Page 7"))
         assertTrue("should suggest the one knob the user controls: $message", message.contains("smaller scale"))
+    }
+
+    @Test
+    fun `custom advice replaces the default, for a screen with no scale to lower`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            requireRenderableAtScale(
+                letterWidth,
+                letterHeight,
+                8f,
+                pageNumber = 3,
+                budgetBytes = 64L * 1024 * 1024,
+                advice = "This page cannot be previewed on this device.",
+            )
+        }
+        val message = error.message!!
+        assertTrue("should still name the page: $message", message.contains("Page 3"))
+        assertTrue("should carry the caller's advice: $message", message.contains("cannot be previewed"))
+        assertFalse(
+            "should not tell a preview's user to change a scale they cannot reach: $message",
+            message.contains("smaller scale"),
+        )
     }
 
     @Test

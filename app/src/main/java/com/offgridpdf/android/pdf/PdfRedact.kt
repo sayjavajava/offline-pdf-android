@@ -14,55 +14,12 @@ import java.io.ByteArrayOutputStream
 import kotlin.math.abs
 
 /**
- * A redaction box in PDF point-space: origin at the page's bottom-left,
- * y increasing upward — the same convention `PDRectangle`/content-stream
- * drawing already uses throughout this codebase. Web reference:
- * `RedactionRect` (`pdf-redact.ts`).
+ * A redaction box in PDF point-space. Redaction's own name for a
+ * [PdfRect] — same geometry, and the conversions to and from the pixel
+ * space of a rendered preview live with it in `PdfGeometry.kt`. Web
+ * reference: `RedactionRect` (`pdf-redact.ts`).
  */
-data class RedactionRect(val x: Float, val y: Float, val width: Float, val height: Float)
-
-/** A point in pixel-space (top-left origin) — where a user actually touched the rendered page preview. */
-data class PixelPoint(val x: Float, val y: Float)
-
-/** A rect in pixel-space (top-left origin), the convention `android.graphics.Canvas` uses. */
-data class PixelRect(val x: Float, val y: Float, val width: Float, val height: Float)
-
-/**
- * Converts a PDF-point-space rect (bottom-left origin) to pixel-space
- * (top-left origin) for a raster of a page [pageHeightPts] tall,
- * rendered at [scale] pixels per point. Web reference: `toPixelRect`
- * (`pdf-redact.ts`) — same formula, pulled out as its own pure function
- * for exactly the same reason the web version does: the coordinate math
- * is the one part of this feature most likely to have an off-by-a-flip
- * bug, so it gets a direct unit test against known coordinates rather
- * than relying on eyeballing a rendered page.
- */
-fun toPixelRect(rect: RedactionRect, pageHeightPts: Float, scale: Float): PixelRect {
-    return PixelRect(
-        x = rect.x * scale,
-        y = (pageHeightPts - rect.y - rect.height) * scale,
-        width = rect.width * scale,
-        height = rect.height * scale,
-    )
-}
-
-/**
- * The inverse of [toPixelRect]: converts two pixel-space corner points
- * (as dragged on the rendered preview) into a PDF-point-space
- * [RedactionRect]. Web reference: `pixelToPdfRect` (`RedactTool.tsx`).
- */
-fun pixelToPdfRect(a: PixelPoint, b: PixelPoint, pageHeightPts: Float, scale: Float): RedactionRect {
-    val x1 = minOf(a.x, b.x)
-    val x2 = maxOf(a.x, b.x)
-    val y1 = minOf(a.y, b.y)
-    val y2 = maxOf(a.y, b.y)
-    return RedactionRect(
-        x = x1 / scale,
-        y = pageHeightPts - y2 / scale,
-        width = (x2 - x1) / scale,
-        height = (y2 - y1) / scale,
-    )
-}
+typealias RedactionRect = PdfRect
 
 private fun assertValidRect(rect: RedactionRect, pageNumber: Int) {
     val values = listOf(rect.x, rect.y, rect.width, rect.height)

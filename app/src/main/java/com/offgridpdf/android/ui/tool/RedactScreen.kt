@@ -1,13 +1,8 @@
 package com.offgridpdf.android.ui.tool
 
-import android.net.Uri
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -34,18 +29,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.offgridpdf.android.chain.PendingFile
 import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
@@ -55,19 +42,21 @@ import com.offgridpdf.android.files.saveResult
 import com.offgridpdf.android.files.suggestedBaseName
 import com.offgridpdf.android.pdf.ApplyToRangeResult
 import com.offgridpdf.android.pdf.FindMatchResult
+import com.offgridpdf.android.pdf.PREVIEW_SCALE
 import com.offgridpdf.android.pdf.PdfLoadResult
-import com.offgridpdf.android.pdf.PixelPoint
 import com.offgridpdf.android.pdf.RedactionRect
 import com.offgridpdf.android.pdf.applyBoxesToRange
 import com.offgridpdf.android.pdf.findTextMatches
 import com.offgridpdf.android.pdf.loadPdfFromUri
-import com.offgridpdf.android.pdf.pixelToPdfRect
 import com.offgridpdf.android.pdf.redactPdf
+import com.offgridpdf.android.pdf.renderPageForPreview
 import com.offgridpdf.android.pdf.resolvePageIndices
-import com.offgridpdf.android.pdf.toPixelRect
 import com.offgridpdf.android.ui.common.ContinueChainAction
 import com.offgridpdf.android.ui.common.FilePickerCard
 import com.offgridpdf.android.ui.common.NullableUriSaver
+import com.offgridpdf.android.ui.common.PageOverlay
+import com.offgridpdf.android.ui.common.PageOverlayStyle
+import com.offgridpdf.android.ui.common.PagePreview
 import com.offgridpdf.android.ui.common.PrimaryButton
 import com.offgridpdf.android.ui.common.PrivacyLine
 import com.offgridpdf.android.ui.common.ScreenTopBar
@@ -75,15 +64,10 @@ import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import com.offgridpdf.android.ui.theme.PlexMono
 import com.tom_roush.pdfbox.pdmodel.PDDocument
-import com.tom_roush.pdfbox.rendering.PDFRenderer
-import kotlin.math.abs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
-/** Pixels per PDF point for the on-screen preview render. Independent of the export scale in `PdfRedact.kt` — boxes are converted to point-space immediately on drawing, so this only affects preview legibility. Web reference: `PREVIEW_SCALE` (`RedactTool.tsx`). */
-private const val PREVIEW_SCALE = 1.5f
 
 /** Ignore accidental clicks/taps, same as `RedactTool.tsx`'s own `finishDrag` threshold. */
 private const val MIN_BOX_PT = 4f / PREVIEW_SCALE
@@ -139,11 +123,8 @@ fun RedactScreen() {
     var previewBitmapHeight by remember { mutableStateOf(0) }
     var previewImage by remember { mutableStateOf<ImageBitmap?>(null) }
     var previewHeightPts by remember { mutableStateOf(0f) }
-    var displaySize by remember { mutableStateOf<IntSize?>(null) }
 
     var redactions by remember { mutableStateOf<Map<Int, List<RedactionRect>>>(emptyMap()) }
-    var dragStart by remember { mutableStateOf<Offset?>(null) }
-    var dragCurrent by remember { mutableStateOf<Offset?>(null) }
 
     var applyRangeText by remember { mutableStateOf("") }
     var applying by remember { mutableStateOf(false) }
@@ -180,14 +161,13 @@ fun RedactScreen() {
     // on the main thread on every page turn — a visible freeze on a dense
     // page, and an ANR on a really heavy one.
     suspend fun renderCurrentPage(doc: PDDocument, index: Int) {
-        val mediaBox = doc.getPage(index).mediaBox
-        val bitmap = withContext(Dispatchers.Default) {
-            PDFRenderer(doc).renderImageWithDPI(index, PREVIEW_SCALE * 72f)
+        val rendered = withContext(Dispatchers.Default) {
+            renderPageForPreview(doc, index)
         }
-        previewHeightPts = mediaBox.height
-        previewBitmapWidth = bitmap.width
-        previewBitmapHeight = bitmap.height
-        previewImage = bitmap.asImageBitmap()
+        previewHeightPts = rendered.pageHeightPts
+        previewBitmapWidth = rendered.bitmapWidth
+        previewBitmapHeight = rendered.bitmapHeight
+        previewImage = rendered.bitmap.asImageBitmap()
     }
 
     val pickLauncher = rememberOpenDocumentLauncher { uri ->
@@ -256,8 +236,6 @@ fun RedactScreen() {
         val doc = document ?: return
         if (newIndex < 0 || newIndex >= pageCount) return
         pageIndex = newIndex
-        dragStart = null
-        dragCurrent = null
         // Now that rendering is asynchronous, tapping through pages quickly
         // could otherwise leave a slower earlier render finishing last and
         // showing the wrong page. Only the newest request survives.
@@ -460,72 +438,25 @@ fun RedactScreen() {
                     }
                 }
                 item {
-                    val aspect = if (previewBitmapHeight > 0) previewBitmapWidth.toFloat() / previewBitmapHeight else 1f
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(aspect)
-                            .onSizeChanged { displaySize = it }
-                            .pointerInput(pageIndex, image) {
-                                detectDragGestures(
-                                    onDragStart = { offset -> dragStart = offset; dragCurrent = offset },
-                                    onDrag = { change, _ -> dragCurrent = change.position },
-                                    onDragEnd = {
-                                        val start = dragStart
-                                        val current = dragCurrent
-                                        val size = displaySize
-                                        if (start != null && current != null && size != null && size.width > 0 && size.height > 0) {
-                                            val ratioX = previewBitmapWidth.toFloat() / size.width
-                                            val ratioY = previewBitmapHeight.toFloat() / size.height
-                                            val a = PixelPoint(start.x * ratioX, start.y * ratioY)
-                                            val b = PixelPoint(current.x * ratioX, current.y * ratioY)
-                                            val rect = pixelToPdfRect(a, b, previewHeightPts, PREVIEW_SCALE)
-                                            if (rect.width >= MIN_BOX_PT && rect.height >= MIN_BOX_PT) {
-                                                redactions = redactions + (pageNumber to (redactions[pageNumber].orEmpty() + rect))
-                                            }
-                                        }
-                                        dragStart = null
-                                        dragCurrent = null
-                                    },
-                                )
-                            },
-                    ) {
-                        Image(
-                            bitmap = image,
-                            contentDescription = "Page $pageNumber",
-                            contentScale = ContentScale.FillBounds,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        val size = displaySize
-                        if (size != null && size.width > 0 && previewBitmapWidth > 0) {
-                            val displayScale = size.width.toFloat() / previewBitmapWidth
-                            Canvas(modifier = Modifier.fillMaxWidth().aspectRatio(aspect)) {
-                                for (rect in currentPageBoxes) {
-                                    val px = toPixelRect(rect, previewHeightPts, PREVIEW_SCALE)
-                                    drawRect(
-                                        color = palette.ink,
-                                        topLeft = Offset(px.x * displayScale, px.y * displayScale),
-                                        size = Size(px.width * displayScale, px.height * displayScale),
-                                    )
-                                }
-                                val start = dragStart
-                                val current = dragCurrent
-                                if (start != null && current != null) {
-                                    val left = minOf(start.x, current.x)
-                                    val top = minOf(start.y, current.y)
-                                    drawRect(
-                                        color = accent,
-                                        topLeft = Offset(left, top),
-                                        size = Size(abs(current.x - start.x), abs(current.y - start.y)),
-                                        style = Stroke(
-                                            width = 3f,
-                                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 10f)),
-                                        ),
-                                    )
-                                }
-                            }
-                        }
-                    }
+                    PagePreview(
+                        image = image,
+                        bitmapWidth = previewBitmapWidth,
+                        bitmapHeight = previewBitmapHeight,
+                        pageHeightPts = previewHeightPts,
+                        contentDescription = "Page $pageNumber",
+                        scale = PREVIEW_SCALE,
+                        overlays = currentPageBoxes.map {
+                            // Filled, not outlined: a redaction box really does
+                            // cover what is under it, and the preview should
+                            // show that rather than imply the content survives.
+                            PageOverlay(it, PageOverlayStyle.Filled(palette.ink))
+                        },
+                        onRectDragged = { rect ->
+                            redactions = redactions + (pageNumber to (redactions[pageNumber].orEmpty() + rect))
+                        },
+                        dragIndicatorColor = accent,
+                        minDraggedSizePts = MIN_BOX_PT,
+                    )
                 }
                 if (currentPageBoxes.isNotEmpty()) {
                     items(currentPageBoxes.size) { i ->

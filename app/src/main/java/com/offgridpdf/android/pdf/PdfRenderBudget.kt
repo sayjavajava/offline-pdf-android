@@ -48,13 +48,17 @@ fun estimateBitmapBytes(widthPts: Float, heightPts: Float, scale: Float): Long {
 
 /**
  * Throws [IllegalArgumentException] if rendering this page at this scale
- * would not fit in [budgetBytes]. The message names the scale, because that
- * is the one knob the user can actually turn — the page's size is fixed by
- * the document.
+ * would not fit in [budgetBytes].
  *
  * Failing here beats failing during `renderImageWithDPI`: an
  * `OutOfMemoryError` mid-render can take other work down with it, and it
  * cannot say what to do differently.
+ *
+ * [advice] closes the message with what the user can actually do about it.
+ * It defaults to suggesting a smaller scale, which is right when the user
+ * typed the scale — but a screen that renders at a fixed scale of its own
+ * (a page preview) has to say something else, since there is no knob there
+ * to turn.
  */
 fun requireRenderableAtScale(
     widthPts: Float,
@@ -62,13 +66,14 @@ fun requireRenderableAtScale(
     scale: Float,
     pageNumber: Int,
     budgetBytes: Long = maxSafeBitmapBytes(),
+    advice: String = "Try a smaller scale.",
 ) {
     val needed = estimateBitmapBytes(widthPts, heightPts, scale)
     if (needed > budgetBytes) {
         throw IllegalArgumentException(
             "Page $pageNumber is too large to render at this scale on this device " +
                 "(${needed / (1024 * 1024)} MB needed, ${budgetBytes / (1024 * 1024)} MB available). " +
-                "Try a smaller scale.",
+                advice,
         )
     }
 }
