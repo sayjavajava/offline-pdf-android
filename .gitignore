@@ -13,3 +13,9 @@ build/
 .externalNativeBuild
 .cxx
 local.properties
+
+# Signing keys. Never commit one: whoever holds it can publish an update
+# that every installed copy of this app accepts as genuine.
+*.jks
+*.keystore
+keystore.properties
