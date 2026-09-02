@@ -116,23 +116,41 @@ fun redactPdf(document: PDDocument, redactions: Map<Int, List<RedactionRect>>): 
                 val widthPts = sourceBox.width
                 val heightPts = sourceBox.height
 
-                val rendered = renderer.renderImageWithDPI(index, EXPORT_SCALE * 72f)
-                val bitmap = rendered.copy(Bitmap.Config.ARGB_8888, true)
-                val canvas = Canvas(bitmap)
-                val paint = Paint().apply {
-                    color = Color.BLACK
-                    style = Paint.Style.FILL
-                }
-                for (rect in rects) {
-                    val px = toPixelRect(rect, heightPts, EXPORT_SCALE)
-                    canvas.drawRect(px.x, px.y, px.x + px.width, px.y + px.height, paint)
-                }
+                // Checked per page rather than all up front as in
+                // PdfToImages: pages here are rebuilt into outDoc as the loop
+                // goes, so there is no point validating page 200 before page
+                // 1's work is already committed.
+                requireRenderableAtScale(widthPts, heightPts, EXPORT_SCALE, pageNumber)
 
-                val newPage = PDPage(PDRectangle(widthPts, heightPts))
-                outDoc.addPage(newPage)
-                val image = LosslessFactory.createFromImage(outDoc, bitmap)
-                PDPageContentStream(outDoc, newPage).use { stream ->
-                    stream.drawImage(image, 0f, 0f, widthPts, heightPts)
+                val rendered = renderer.renderImageWithDPI(index, EXPORT_SCALE * 72f)
+                // Canvas needs a mutable ARGB_8888 target; the render is
+                // neither, so it is copied — and then released immediately,
+                // rather than being held alongside the copy for the rest of
+                // the page's work.
+                val bitmap = rendered.copy(Bitmap.Config.ARGB_8888, true)
+                rendered.recycle()
+
+                try {
+                    val canvas = Canvas(bitmap)
+                    val paint = Paint().apply {
+                        color = Color.BLACK
+                        style = Paint.Style.FILL
+                    }
+                    for (rect in rects) {
+                        val px = toPixelRect(rect, heightPts, EXPORT_SCALE)
+                        canvas.drawRect(px.x, px.y, px.x + px.width, px.y + px.height, paint)
+                    }
+
+                    val newPage = PDPage(PDRectangle(widthPts, heightPts))
+                    outDoc.addPage(newPage)
+                    val image = LosslessFactory.createFromImage(outDoc, bitmap)
+                    PDPageContentStream(outDoc, newPage).use { stream ->
+                        stream.drawImage(image, 0f, 0f, widthPts, heightPts)
+                    }
+                } finally {
+                    // The page's pixels are now inside outDoc; this raster is
+                    // dead weight for every remaining page of the document.
+                    bitmap.recycle()
                 }
             } else {
                 // importPage (not addPage): copies the page's resources

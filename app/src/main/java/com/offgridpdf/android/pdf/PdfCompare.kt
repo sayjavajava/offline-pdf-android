@@ -92,28 +92,43 @@ fun comparePdfs(documentA: PDDocument, documentB: PDDocument): CompareResult {
     val pages = mutableListOf<PageComparison>()
     for (i in 0 until commonPages) {
         val pageNumber = i + 1
+        // Both documents' pages are rasterised at once here, so the budget
+        // covers each individually — a comparison holds two of them.
+        val boxA = documentA.getPage(i).mediaBox
+        val boxB = documentB.getPage(i).mediaBox
+        requireRenderableAtScale(boxA.width, boxA.height, COMPARE_SCALE, pageNumber)
+        requireRenderableAtScale(boxB.width, boxB.height, COMPARE_SCALE, pageNumber)
+
         val bitmapA = rendererA.renderImageWithDPI(i, COMPARE_SCALE * 72f)
         val bitmapB = rendererB.renderImageWithDPI(i, COMPARE_SCALE * 72f)
-        val sameDimensions = bitmapA.width == bitmapB.width && bitmapA.height == bitmapB.height
+        try {
+            val sameDimensions = bitmapA.width == bitmapB.width && bitmapA.height == bitmapB.height
 
-        val textDiffers = if (sameDimensions) {
-            normalizedText(textsA[i].text) != normalizedText(textsB[i].text)
-        } else {
-            null
+            val textDiffers = if (sameDimensions) {
+                normalizedText(textsA[i].text) != normalizedText(textsB[i].text)
+            } else {
+                null
+            }
+
+            val visuallyDiffers: Boolean
+            val ratio: Float?
+            if (sameDimensions) {
+                val r = pixelDiffRatio(bitmapA, bitmapB)
+                ratio = r
+                visuallyDiffers = r > VISUAL_DIFF_THRESHOLD
+            } else {
+                ratio = null
+                visuallyDiffers = true // different page dimensions is itself a real difference
+            }
+
+            pages.add(PageComparison.Both(pageNumber, textDiffers, visuallyDiffers, ratio))
+        } finally {
+            // Only the diff ratio survives this iteration; comparing a long
+            // document should not depend on the GC keeping up with two
+            // full-page rasters per page.
+            bitmapA.recycle()
+            bitmapB.recycle()
         }
-
-        val visuallyDiffers: Boolean
-        val ratio: Float?
-        if (sameDimensions) {
-            val r = pixelDiffRatio(bitmapA, bitmapB)
-            ratio = r
-            visuallyDiffers = r > VISUAL_DIFF_THRESHOLD
-        } else {
-            ratio = null
-            visuallyDiffers = true // different page dimensions is itself a real difference
-        }
-
-        pages.add(PageComparison.Both(pageNumber, textDiffers, visuallyDiffers, ratio))
     }
     for (page in (commonPages + 1)..pageCountA) pages.add(PageComparison.OnlyInA(page))
     for (page in (commonPages + 1)..pageCountB) pages.add(PageComparison.OnlyInB(page))
