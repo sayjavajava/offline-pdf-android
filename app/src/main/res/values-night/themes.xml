@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Dark counterpart of values/themes.xml. Without it the launch theme was
+    hardcoded to Theme.Material.Light, so starting the app in dark mode
+    flashed a white window before Compose drew the dark palette over it.
+
+    This follows the *system* setting only. The in-app override (Settings →
+    Appearance, ui/theme/ThemeMode.kt) can't reach the launch window: the
+    theme is resolved by the framework before any of this app's code runs.
+    So a user who forces Dark while their system is Light still gets one
+    light frame — the flash is fixed for everyone tracking their system
+    setting, which is the default and the common case.
+-->
+<resources>
+    <style name="Theme.OffGridPDF" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/launch_background</item>
+    </style>
+</resources>

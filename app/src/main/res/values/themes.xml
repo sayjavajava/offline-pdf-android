@@ -7,5 +7,14 @@
         XML theme only needs to exist because AndroidManifest.xml requires a
         theme resource before Compose ever runs; it's intentionally minimal.
     -->
-    <style name="Theme.OffGridPDF" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.OffGridPDF" parent="android:Theme.Material.Light.NoActionBar">
+        <!--
+            The window the framework paints between the launcher tapping the
+            icon and Compose's first frame. Left at the platform default it
+            flashed a colour that isn't this app's — white on a dark-mode
+            device, since this file's Light parent was the only variant.
+            values-night/themes.xml is the other half of that fix.
+        -->
+        <item name="android:windowBackground">@color/launch_background</item>
+    </style>
 </resources>

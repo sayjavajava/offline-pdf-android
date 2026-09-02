@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The one colour the platform needs before Compose exists: the window
+    background painted between the launcher tapping the icon and the first
+    composed frame. Kept in step with `paper` in ui/theme/Color.kt — if that
+    changes, change this, or cold start flashes the old colour.
+-->
+<resources>
+    <color name="launch_background">#FFFCF5EC</color>
+</resources>

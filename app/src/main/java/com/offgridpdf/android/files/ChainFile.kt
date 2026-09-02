@@ -16,17 +16,35 @@ import java.io.File
  * `content://` `Uri` through [FileProvider] the next tool screen's
  * `loadPdfFromUri` can open exactly like any SAF-picked file.
  *
- * The cache folder (`cacheDir/chain/`) is cleared on every write — a chain
- * hop only ever needs the most recent result, and this keeps an
- * interrupted chain (app killed mid-flow) from leaving stale files behind
- * indefinitely.
+ * The cache folder ([CHAIN_DIR]) is cleared on every write — a chain hop
+ * only ever needs the most recent result — and again on app start
+ * ([clearChainCache], from `OffGridPdfApplication`). "On the next write"
+ * alone was not enough: chain once and close the app, and that document
+ * stayed on disk until the next chain, which might be never. For an app
+ * whose whole point is that documents don't go anywhere, a decrypted or
+ * redacted PDF sitting in the cache indefinitely is the wrong default.
  */
+private const val CHAIN_DIR = "chain"
+
 suspend fun writeBytesToCacheUri(context: Context, bytes: ByteArray, fileName: String): Uri =
     withContext(Dispatchers.IO) {
-        val dir = File(context.cacheDir, "chain")
+        val dir = File(context.cacheDir, CHAIN_DIR)
         dir.deleteRecursively()
         dir.mkdirs()
         val file = File(dir, fileName)
         file.writeBytes(bytes)
         FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
     }
+
+/**
+ * Deletes anything left in the chain cache. Called once on app start, so a
+ * chain that was never completed — or was completed and then abandoned —
+ * doesn't leave a document on disk for the life of the install.
+ *
+ * Safe to call while nothing is chaining: a missing directory is a no-op.
+ */
+suspend fun clearChainCache(context: Context) {
+    withContext(Dispatchers.IO) {
+        File(context.cacheDir, CHAIN_DIR).deleteRecursively()
+    }
+}
