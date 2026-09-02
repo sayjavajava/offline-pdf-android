@@ -94,6 +94,8 @@ fun OffGridPdfTheme(content: @Composable () -> Unit) {
     }
     val palette = if (darkTheme) DarkOffGridPalette else LightOffGridPalette
 
+    SystemBarAppearanceEffect(darkTheme = darkTheme)
+
     CompositionLocalProvider(LocalOffGridPalette provides palette) {
         MaterialTheme(
             colorScheme = colorSchemeFor(palette, darkTheme),
