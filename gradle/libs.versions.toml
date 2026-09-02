@@ -3,13 +3,13 @@
 # sibling web repo's package-lock.json discipline: dependency bumps are
 # reviewed and CI-verified on their own, never folded into a feature PR).
 [versions]
-agp = "9.2.0"
-kotlin = "2.4.0"
+agp = "9.4.0"
+kotlin = "2.4.10"
 composeBom = "2026.08.00"
-coreKtx = "1.15.0"
+coreKtx = "1.19.0"
 lifecycleRuntimeKtx = "2.9.0"
 activityCompose = "1.10.0"
-navigationCompose = "2.9.7"
+navigationCompose = "2.10.0"
 # 2.0.27.0 is the newest published version of the tom-roush port (checked
 # against Maven Central, not assumed) — there is nothing to bump to, even
 # though upstream Apache PDFBox has moved past the 2.0.27 baseline this
@@ -30,7 +30,7 @@ pdfboxAndroid = "2.0.27.0"
 # (fixed in 1.78). Not a dormant dependency: bcprov sits behind PdfBox's
 # encrypted-PDF path, so it parses bytes that came from a file the user
 # did not necessarily write.
-bouncyCastle = "1.84"
+bouncyCastle = "1.85"
 junit = "4.13.2"
 kotlinxCoroutines = "1.11.0"
 # Spike B (ANDROID_IMPLEMENTATION_PLAN.md, tool-docs repo) only — not yet
@@ -48,9 +48,9 @@ kxml2 = "2.3.0"
 # only -- instrumented (androidTest) dependencies, needed to run real
 # android.graphics.pdf.PdfRenderer/PDFRenderer comparisons on an actual
 # device/emulator, which no plain JUnit test can reach.
-androidxTestCore = "1.6.1"
-androidxTestRunner = "1.6.2"
-androidxTestExtJunit = "1.2.1"
+androidxTestCore = "1.7.0"
+androidxTestRunner = "1.7.0"
+androidxTestExtJunit = "1.3.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
