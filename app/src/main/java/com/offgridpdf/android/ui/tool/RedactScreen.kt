@@ -64,6 +64,7 @@ import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import com.offgridpdf.android.ui.theme.PlexMono
 import com.tom_roush.pdfbox.pdmodel.PDDocument
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -243,6 +244,13 @@ fun RedactScreen() {
         renderJob = scope.launch {
             try {
                 renderCurrentPage(doc, newIndex)
+            } catch (e: CancellationException) {
+                // The cancel() just above is how a fast page turn discards a
+                // stale render, so reaching here is the mechanism working.
+                // CancellationException is an Exception, so without this the
+                // branch below reported every quick page change as a render
+                // failure. Rethrow to unwind normally.
+                throw e
             } catch (e: Exception) {
                 loadMessage = "Could not render page ${newIndex + 1}: ${userMessageFor(e)}"
             } catch (e: OutOfMemoryError) {
