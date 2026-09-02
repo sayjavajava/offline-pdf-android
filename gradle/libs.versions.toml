@@ -10,8 +10,23 @@ coreKtx = "1.15.0"
 lifecycleRuntimeKtx = "2.9.0"
 activityCompose = "1.10.0"
 navigationCompose = "2.9.7"
+# 2.0.27.0 is the newest published version of the tom-roush port (checked
+# against Maven Central, not assumed) — there is nothing to bump to, even
+# though upstream Apache PDFBox has moved past the 2.0.27 baseline this
+# wraps. Worth knowing when weighing anything that feeds it untrusted
+# input: this parser will not receive fixes, so the guards around it
+# matter more than they otherwise would.
 pdfboxAndroid = "2.0.27.0"
-bouncyCastle = "1.72"
+# 1.85, not the newest bcprov (1.85.2): bcpkix and bcutil stop at 1.85 and
+# 1.85.1, and all three are pinned to one version here, so 1.85 is the
+# newest release they share. Verified against Maven Central.
+#
+# Was 1.72 (2022), which is affected by CVE-2023-33201 and CVE-2023-33202
+# (fixed in 1.73) and CVE-2024-29857, CVE-2024-30171 and CVE-2024-30172
+# (fixed in 1.78). Not a dormant dependency: bcprov sits behind PdfBox's
+# encrypted-PDF path, so it parses bytes that came from a file the user
+# did not necessarily write.
+bouncyCastle = "1.85"
 junit = "4.13.2"
 kotlinxCoroutines = "1.11.0"
 # Spike B (ANDROID_IMPLEMENTATION_PLAN.md, tool-docs repo) only — not yet
