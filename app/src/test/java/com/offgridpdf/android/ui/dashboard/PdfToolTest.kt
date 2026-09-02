@@ -155,4 +155,18 @@ class PdfToolTest {
         assertEquals(ToolCategory.ConvertExport, pdfToImages.category)
         assertTrue(pdfToImages.title.isNotBlank())
     }
+
+    @Test
+    fun `every tool id is safe to interpolate into the tool route`() {
+        // MainActivity and both DashboardScreen panes build a nav route as
+        // "tool/$id", which only matches the "tool/{toolId}" pattern when the
+        // id is a single non-empty path segment. An id with a slash in it
+        // would make navController.navigate() throw at runtime — a crash that
+        // no test would otherwise catch, since the route is a plain string.
+        for (tool in pdfTools) {
+            assertTrue("tool id must not be blank", tool.id.isNotBlank())
+            assertTrue("tool id must not contain '/': ${tool.id}", !tool.id.contains("/"))
+            assertEquals("tool id must need no URL encoding: ${tool.id}", tool.id.trim(), tool.id)
+        }
+    }
 }

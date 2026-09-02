@@ -129,6 +129,43 @@ class PdfSplitTest {
         assertTrue(result.errors[0].contains(Regex("and \\d+ more")))
     }
 
+    @Test
+    fun `an enormous out-of-range span returns promptly instead of enumerating it`() {
+        // Regression: this used to add every page number from 1 to
+        // Int.MAX_VALUE to a list purely to build the error message, which
+        // froze the app for a long time and then died with an OOM. A plain
+        // typo, so it must stay cheap. Out-of-range pages are counted as
+        // intervals now, never materialised.
+        val startedAt = System.currentTimeMillis()
+        val result = parsePageRange("1-2147483647", 10)
+        val elapsedMs = System.currentTimeMillis() - startedAt
+
+        assertEquals(emptyList<Int>(), result.indices)
+        assertEquals(1, result.errors.size)
+        assertTrue(result.errors[0].contains("outside this 10-page document"))
+        assertTrue(
+            "parsing an enormous range took ${elapsedMs}ms — it should be near-instant",
+            elapsedMs < 1_000,
+        )
+    }
+
+    @Test
+    fun `counts out-of-range pages without double-counting overlapping segments`() {
+        // "99" is inside "99-104", so six distinct pages are out of range,
+        // not seven — the same de-duplication the old distinct() gave.
+        val result = parsePageRange("99, 99-104", 5)
+        assertEquals(1, result.errors.size)
+        assertEquals("Pages 99, 100, 101, 102, 103, 104 are outside this 5-page document.", result.errors[0])
+    }
+
+    @Test
+    fun `reports a range that starts before page one and ends past the end`() {
+        val result = parsePageRange("0-8", 5)
+        assertEquals(emptyList<Int>(), result.indices)
+        assertEquals(1, result.errors.size)
+        assertEquals("Pages 0, 6, 7, 8 are outside this 5-page document.", result.errors[0])
+    }
+
     // --- splitPdfToSingleFile -------------------------------------------
 
     @Test
