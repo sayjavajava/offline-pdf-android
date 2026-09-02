@@ -15,6 +15,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -29,11 +31,12 @@ import com.offgridpdf.android.ui.theme.ThemeMode
 import com.offgridpdf.android.ui.theme.ThemeState
 
 /**
- * The app's one setting so far: light/dark theme. `System` (the default)
- * follows the device; `Light`/`Dark` override it. Selecting a row applies
- * immediately via [ThemeState] — [MaterialTheme] wraps this whole screen
- * too, so the change is visible here, live, not just on screens visited
- * afterward.
+ * Appearance (light/dark theme) and privacy (blocking screen capture).
+ *
+ * Both apply immediately rather than at the next launch: [ThemeState] is read
+ * by [MaterialTheme], which wraps this screen too, so a theme change is
+ * visible here live; [SecureScreenState] is read by `SecureScreenEffect` at
+ * the content root, which re-applies the window flag as soon as it changes.
  */
 @Composable
 fun SettingsScreen() {
@@ -57,6 +60,23 @@ fun SettingsScreen() {
                     mode = mode,
                     selected = ThemeState.mode == mode,
                     onClick = { ThemeState.update(context, mode) },
+                )
+                HorizontalDivider(color = palette.hairline, thickness = 1.dp)
+            }
+            item {
+                Text(
+                    "PRIVACY",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = palette.inkTertiary,
+                    modifier = Modifier.padding(start = 2.dp, top = 26.dp, bottom = 10.dp),
+                )
+                HorizontalDivider(color = palette.hairline, thickness = 1.dp)
+                ToggleRow(
+                    title = "Block screen capture",
+                    description = "Hide this app from screenshots, screen recordings, and the " +
+                        "recents thumbnail. You won't be able to screenshot your own work either.",
+                    checked = SecureScreenState.enabled,
+                    onCheckedChange = { SecureScreenState.update(context, it) },
                 )
                 HorizontalDivider(color = palette.hairline, thickness = 1.dp)
             }
@@ -93,5 +113,38 @@ private fun ThemeRow(mode: ThemeMode, selected: Boolean, onClick: () -> Unit) {
                 modifier = Modifier.size(18.dp),
             )
         }
+    }
+}
+
+@Composable
+private fun ToggleRow(
+    title: String,
+    description: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    val palette = LocalOffGridPalette.current
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            // The whole row toggles, not just the switch — a switch alone is a
+            // small target, and every other row on this screen is tappable.
+            .clickable { onCheckedChange(!checked) }
+            .padding(vertical = 13.dp, horizontal = 2.dp),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleMedium, color = palette.ink)
+            Text(description, style = MaterialTheme.typography.bodySmall, color = palette.inkSecondary)
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = palette.paper,
+                checkedTrackColor = palette.security,
+            ),
+        )
     }
 }
