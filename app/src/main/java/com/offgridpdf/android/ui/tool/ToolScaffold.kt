@@ -3,10 +3,15 @@ package com.offgridpdf.android.ui.tool
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -84,7 +89,15 @@ fun ToolScaffold(
     val palette = LocalOffGridPalette.current
 
     Column(
-        modifier = Modifier.fillMaxSize().background(palette.paper),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(palette.paper)
+            // Horizontal once, here, for a landscape display cutout. Applied
+            // after background so the paper still reaches the screen edge.
+            // Compose consumes the insets a modifier applies, so ScreenTopBar
+            // and the bottom block below see horizontal already handled and
+            // only add their own top and bottom.
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         ScreenTopBar(title = title)
@@ -130,6 +143,12 @@ fun ToolScaffold(
             modifier = Modifier
                 .fillMaxWidth()
                 .widthIn(max = MAX_CONTENT_WIDTH)
+                // The run button lives here, at the bottom of an edge-to-edge
+                // window, so without this the gesture pill sat on top of it.
+                // safeDrawing rather than navigationBars so it also lifts clear
+                // of the keyboard: every one of these screens has a password
+                // field, and the button was unreachable behind the IME.
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
                 .padding(horizontal = 22.dp, vertical = 18.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {

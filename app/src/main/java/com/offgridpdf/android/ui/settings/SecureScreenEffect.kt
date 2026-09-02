@@ -1,12 +1,11 @@
 package com.offgridpdf.android.ui.settings
 
-import android.app.Activity
 import android.content.Context
-import android.content.ContextWrapper
 import android.view.WindowManager
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.platform.LocalContext
+import com.offgridpdf.android.ui.common.findActivity
 
 /**
  * Keeps the window's `FLAG_SECURE` in step with [SecureScreenState].
@@ -36,16 +35,4 @@ fun SecureScreenEffect() {
         }
         onDispose { }
     }
-}
-
-/**
- * Compose's `LocalContext` is not guaranteed to be the Activity itself — it
- * can be a `ContextWrapper` around it — so unwrap rather than casting. Doing
- * this by hand rather than via `LocalActivity` keeps it working regardless of
- * which activity-compose version the project is on.
- */
-private tailrec fun Context.findActivity(): Activity? = when (this) {
-    is Activity -> this
-    is ContextWrapper -> baseContext.findActivity()
-    else -> null
 }

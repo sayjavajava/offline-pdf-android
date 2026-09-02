@@ -4,9 +4,13 @@ import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -109,6 +113,13 @@ fun FillFormScreen() {
     Scaffold(
         topBar = { ScreenTopBar(title = "Fill PDF Forms") },
         containerColor = LocalOffGridPalette.current.paper,
+        // Bottom and horizontal only. The top inset belongs to ScreenTopBar,
+        // which applies it itself, so asking Scaffold for it as well risks
+        // counting the status bar twice. Bottom is safeDrawing rather than
+        // navigationBars so content also clears the keyboard.
+        contentWindowInsets = WindowInsets.safeDrawing.only(
+            WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal,
+        ),
     ) { innerPadding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(innerPadding).padding(16.dp),

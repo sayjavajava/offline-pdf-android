@@ -3,9 +3,13 @@ package com.offgridpdf.android.ui.tool
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -283,6 +287,13 @@ fun RedactScreen() {
             }
         },
         containerColor = palette.paper,
+        // Bottom and horizontal only. The top inset belongs to ScreenTopBar,
+        // which applies it itself, so asking Scaffold for it as well risks
+        // counting the status bar twice. Bottom is safeDrawing rather than
+        // navigationBars so content also clears the keyboard.
+        contentWindowInsets = WindowInsets.safeDrawing.only(
+            WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal,
+        ),
     ) { innerPadding ->
         // Width capped and centered — a no-op on a phone, but keeps the
         // page preview and controls from stretching edge to edge in the
