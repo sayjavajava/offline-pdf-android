@@ -553,13 +553,16 @@ fun RedactScreen() {
                                 val targets = if (applyRangeText.isBlank() || applyRangeText.trim().equals("all", ignoreCase = true)) {
                                     (1..pageCount).toList()
                                 } else {
+                                    // Every branch has to yield the same list
+                                    // type — this `try` is an expression.
                                     try {
                                         resolvePageIndices(applyRangeText, pageCount).map { it + 1 }
                                     } catch (e: Exception) {
                                         resultMessage = userMessageFor(e)
+                                        emptyList<Int>()
                                     } catch (e: OutOfMemoryError) {
                                         resultMessage = TOO_LARGE_MESSAGE
-                                        emptyList()
+                                        emptyList<Int>()
                                     }
                                 }
                                 if (targets.isNotEmpty()) {
