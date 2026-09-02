@@ -16,12 +16,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.offgridpdf.android.chain.PendingFile
+import com.offgridpdf.android.files.SavedFile
 import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
 import com.offgridpdf.android.files.ZipEntryData
 import com.offgridpdf.android.files.createZip
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenDocumentLauncher
 import com.offgridpdf.android.files.saveResult
+import com.offgridpdf.android.files.savedFileOrNull
 import com.offgridpdf.android.files.suggestedBaseName
 import com.offgridpdf.android.pdf.PdfLoadResult
 import com.offgridpdf.android.pdf.SplitPage
@@ -50,6 +52,9 @@ fun SplitScreen() {
     var separateFiles by rememberSaveable { mutableStateOf(false) }
     var running by remember { mutableStateOf(false) }
     var resultMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    // The file this run produced, once it is really on disk. Not
+    // saveable: it holds the bytes, and a Bundle caps out around 1 MB.
+    var savedFile by remember { mutableStateOf<SavedFile?>(null) }
 
     // Set once the result bytes are ready, consumed by whichever save
     // launcher's onResult fires next. Only one of savePdfLauncher /
@@ -69,13 +74,16 @@ fun SplitScreen() {
         pickedUri = uri
         password = ""
         resultMessage = null
+        savedFile = null
     }
 
     val savePdfLauncher = rememberCreateDocumentLauncher("application/pdf") { uri ->
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                resultMessage = saveResult(context, uri, bytes, pendingSuccessMessage)
+                val outcome = saveResult(context, uri, bytes, pendingSuccessMessage)
+                resultMessage = outcome.message
+                savedFile = outcome.savedFileOrNull
             }
         }
         pendingBytes = null
@@ -85,7 +93,9 @@ fun SplitScreen() {
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                resultMessage = saveResult(context, uri, bytes, pendingSuccessMessage)
+                val outcome = saveResult(context, uri, bytes, pendingSuccessMessage)
+                resultMessage = outcome.message
+                savedFile = outcome.savedFileOrNull
             }
         }
         pendingBytes = null
@@ -106,6 +116,7 @@ fun SplitScreen() {
             pickedUri?.let { uri ->
                 running = true
                 resultMessage = null
+                savedFile = null
                 val pageRange = pagesText.ifBlank { "all" }
                 val baseName = suggestedBaseName(uri)
 
@@ -165,6 +176,7 @@ fun SplitScreen() {
         },
         runLabel = if (running) "Splitting..." else "Split PDF",
         resultMessage = resultMessage,
+        savedFile = savedFile,
         chainableBytes = lastResultBytes,
         options = {
             OutlinedTextField(

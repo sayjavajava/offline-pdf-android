@@ -66,17 +66,33 @@ suspend fun <T> runPdfTask(block: () -> T): PdfTaskResult<T> =
     }
 
 /**
- * Writes [bytes] to [uri] and returns [successMessage], or a user-facing
- * error if the write failed. Every save launcher in the app used to call
- * `writeBytesToUri` bare inside `scope.launch { }`: a revoked SAF
- * permission, a full disk or an ejected card threw an `IOException` that
- * nothing caught, crashing the app at the very last step of a successful
- * operation.
+ * Writes [bytes] to [uri] and reports whether that worked. Every save
+ * launcher in the app used to call `writeBytesToUri` bare inside
+ * `scope.launch { }`: a revoked SAF permission, a full disk or an ejected
+ * card threw an `IOException` that nothing caught, crashing the app at the
+ * very last step of a successful operation.
+ *
+ * Returns [SaveOutcome] rather than a bare message so the screen can tell a
+ * finished job from a failed one. It used to return a String either way,
+ * which meant "Your PDF has been split successfully." and "Could not open
+ * the chosen location for writing." rendered identically, in the same small
+ * grey text, and neither announced itself as the end of the run.
+ *
+ * The display name and MIME type are read back from [uri] rather than
+ * passed in: the user has just named the file in the system dialog, and
+ * that name is the one to show them and to reuse when sharing.
  */
-suspend fun saveResult(context: Context, uri: Uri, bytes: ByteArray, successMessage: String): String =
+suspend fun saveResult(context: Context, uri: Uri, bytes: ByteArray, successMessage: String): SaveOutcome =
     try {
         writeBytesToUri(context, uri, bytes)
-        successMessage
+        SaveOutcome.Saved(
+            message = successMessage,
+            file = SavedFile(
+                bytes = bytes,
+                displayName = queryDisplayName(context, uri),
+                mimeType = context.contentResolver.getType(uri) ?: "application/octet-stream",
+            ),
+        )
     } catch (e: Exception) {
-        userMessageFor(e)
+        SaveOutcome.Failed(userMessageFor(e))
     }

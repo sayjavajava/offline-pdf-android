@@ -27,10 +27,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.offgridpdf.android.chain.PendingFile
+import com.offgridpdf.android.files.SavedFile
 import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenDocumentLauncher
 import com.offgridpdf.android.files.saveResult
+import com.offgridpdf.android.files.savedFileOrNull
 import com.offgridpdf.android.files.suggestedBaseName
 import com.offgridpdf.android.pdf.FormFieldInfo
 import com.offgridpdf.android.pdf.PdfLoadResult
@@ -39,6 +41,7 @@ import com.offgridpdf.android.pdf.loadPdfFromUri
 import com.offgridpdf.android.pdf.readFormFields
 import com.offgridpdf.android.ui.common.NullableUriSaver
 import com.offgridpdf.android.ui.common.ScreenTopBar
+import com.offgridpdf.android.ui.common.ToolCompletion
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import com.tom_roush.pdfbox.pdmodel.PDDocument
@@ -60,6 +63,9 @@ import kotlinx.coroutines.withContext
 fun FillFormScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    // EditEnhance in PdfTool.kt, so that category's accent -- same
+    // convention as every other tool screen.
+    val accent = LocalOffGridPalette.current.edit
 
     var pickedUri by rememberSaveable(stateSaver = NullableUriSaver) { mutableStateOf(PendingFile.consume()) }
     // Plain `remember`, deliberately: a document password is never written
@@ -79,6 +85,9 @@ fun FillFormScreen() {
     var values by remember { mutableStateOf<Map<String, Any>>(emptyMap()) }
     var flatten by rememberSaveable { mutableStateOf(true) }
     var resultMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    // The file this run produced, once it is really on disk. Not
+    // saveable: it holds the bytes, and a Bundle caps out around 1 MB.
+    var savedFile by remember { mutableStateOf<SavedFile?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
 
     fun reset() {
@@ -88,6 +97,7 @@ fun FillFormScreen() {
         unsupportedFields = emptyList()
         values = emptyMap()
         resultMessage = null
+        savedFile = null
     }
 
     val pickLauncher = rememberOpenDocumentLauncher { uri ->
@@ -100,7 +110,9 @@ fun FillFormScreen() {
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                resultMessage = saveResult(context, uri, bytes, "The form has been filled.")
+                val outcome = saveResult(context, uri, bytes, "The form has been filled.")
+                resultMessage = outcome.message
+                savedFile = outcome.savedFileOrNull
             }
         }
         pendingBytes = null
@@ -140,6 +152,7 @@ fun FillFormScreen() {
                         pickedUri?.let { uri ->
                             loadingFields = true
                             resultMessage = null
+                            savedFile = null
                             scope.launch {
                                 when (val result = loadPdfFromUri(context, uri, password.ifBlank { null })) {
                                     is PdfLoadResult.Success -> {
@@ -259,6 +272,7 @@ fun FillFormScreen() {
                         val uri = pickedUri ?: return@Button
                         filling = true
                         resultMessage = null
+                        savedFile = null
                         val baseName = suggestedBaseName(uri)
                         val filledValues = values
                         scope.launch {
@@ -289,7 +303,9 @@ fun FillFormScreen() {
                 CircularProgressIndicator()
             }
 
-            resultMessage?.let { Text(it) }
+            resultMessage?.let { message ->
+                ToolCompletion(message = message, savedFile = savedFile, accent = accent)
+            }
         }
     }
 }

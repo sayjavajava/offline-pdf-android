@@ -22,10 +22,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.offgridpdf.android.chain.PendingFile
+import com.offgridpdf.android.files.SavedFile
 import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenDocumentLauncher
 import com.offgridpdf.android.files.saveResult
+import com.offgridpdf.android.files.savedFileOrNull
 import com.offgridpdf.android.files.suggestedBaseName
 import com.offgridpdf.android.pdf.ModifyPermission
 import com.offgridpdf.android.pdf.PdfLoadResult
@@ -69,6 +71,9 @@ fun ProtectScreen() {
     var extract by rememberSaveable { mutableStateOf(true) }
     var running by remember { mutableStateOf(false) }
     var resultMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    // The file this run produced, once it is really on disk. Not
+    // saveable: it holds the bytes, and a Bundle caps out around 1 MB.
+    var savedFile by remember { mutableStateOf<SavedFile?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
     var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
 
@@ -76,13 +81,16 @@ fun ProtectScreen() {
         pickedUri = uri
         inputPassword = ""
         resultMessage = null
+        savedFile = null
     }
 
     val saveLauncher = rememberCreateDocumentLauncher("application/pdf") { uri ->
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                resultMessage = saveResult(context, uri, bytes, "Your PDF is now password protected.")
+                val outcome = saveResult(context, uri, bytes, "Your PDF is now password protected.")
+                resultMessage = outcome.message
+                savedFile = outcome.savedFileOrNull
             }
         }
         pendingBytes = null
@@ -107,6 +115,7 @@ fun ProtectScreen() {
                 } else {
                     running = true
                     resultMessage = null
+                    savedFile = null
                     val baseName = suggestedBaseName(uri)
 
                     scope.launch {
@@ -153,6 +162,7 @@ fun ProtectScreen() {
         },
         runLabel = if (running) "Protecting..." else "Protect PDF",
         resultMessage = resultMessage,
+        savedFile = savedFile,
         chainableBytes = lastResultBytes,
         options = {
             Text("Adds a password to a PDF, so it can only be opened by someone who knows it. There is no way to recover a lost password — keep it somewhere safe.")

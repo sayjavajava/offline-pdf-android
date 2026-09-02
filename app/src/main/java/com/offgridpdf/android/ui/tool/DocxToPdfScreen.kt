@@ -21,15 +21,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.offgridpdf.android.files.SavedFile
 import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
 import com.offgridpdf.android.files.readBytesFromUri
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenDocumentLauncher
 import com.offgridpdf.android.files.saveResult
+import com.offgridpdf.android.files.savedFileOrNull
 import com.offgridpdf.android.files.suggestedBaseName
 import com.offgridpdf.android.pdf.convertDocxToPdf
 import com.offgridpdf.android.ui.common.NullableUriSaver
 import com.offgridpdf.android.ui.common.ScreenTopBar
+import com.offgridpdf.android.ui.common.ToolCompletion
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import kotlinx.coroutines.Dispatchers
@@ -53,10 +56,16 @@ import kotlinx.coroutines.withContext
 fun DocxToPdfScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    // ConvertExport in PdfTool.kt, so that category's accent -- same
+    // convention as every other tool screen.
+    val accent = LocalOffGridPalette.current.convert
 
     var pickedUri by rememberSaveable(stateSaver = NullableUriSaver) { mutableStateOf<Uri?>(null) }
     var running by remember { mutableStateOf(false) }
     var resultMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    // The file this run produced, once it is really on disk. Not
+    // saveable: it holds the bytes, and a Bundle caps out around 1 MB.
+    var savedFile by remember { mutableStateOf<SavedFile?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
     // Paired with pendingBytes, which a Bundle cannot hold — so neither is
     // saved (see `ui/common/Savers.kt`).
@@ -65,13 +74,16 @@ fun DocxToPdfScreen() {
     val pickLauncher = rememberOpenDocumentLauncher { uri ->
         pickedUri = uri
         resultMessage = null
+        savedFile = null
     }
 
     val saveLauncher = rememberCreateDocumentLauncher("application/pdf") { uri ->
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                resultMessage = saveResult(context, uri, bytes, pendingSuccessMessage)
+                val outcome = saveResult(context, uri, bytes, pendingSuccessMessage)
+                resultMessage = outcome.message
+                savedFile = outcome.savedFileOrNull
             }
         }
         pendingBytes = null
@@ -111,6 +123,7 @@ fun DocxToPdfScreen() {
                     } else {
                         running = true
                         resultMessage = null
+                        savedFile = null
                         val baseName = suggestedBaseName(uri)
                         scope.launch {
                             try {
@@ -144,7 +157,9 @@ fun DocxToPdfScreen() {
                 CircularProgressIndicator()
             }
 
-            resultMessage?.let { Text(it) }
+            resultMessage?.let { message ->
+                ToolCompletion(message = message, savedFile = savedFile, accent = accent)
+            }
         }
     }
 }

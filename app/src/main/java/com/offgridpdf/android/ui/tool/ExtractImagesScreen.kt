@@ -10,12 +10,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.offgridpdf.android.chain.PendingFile
+import com.offgridpdf.android.files.SavedFile
 import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
 import com.offgridpdf.android.files.ZipEntryData
 import com.offgridpdf.android.files.createZip
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenDocumentLauncher
 import com.offgridpdf.android.files.saveResult
+import com.offgridpdf.android.files.savedFileOrNull
 import com.offgridpdf.android.files.suggestedBaseName
 import com.offgridpdf.android.pdf.PdfLoadResult
 import com.offgridpdf.android.pdf.extractImages
@@ -44,6 +46,9 @@ fun ExtractImagesScreen() {
     var password by remember { mutableStateOf("") }
     var running by remember { mutableStateOf(false) }
     var resultMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    // The file this run produced, once it is really on disk. Not
+    // saveable: it holds the bytes, and a Bundle caps out around 1 MB.
+    var savedFile by remember { mutableStateOf<SavedFile?>(null) }
 
     // Only one of these three is ever launched per run, so there's no
     // ambiguity about which save launcher a pending value belongs to
@@ -57,13 +62,16 @@ fun ExtractImagesScreen() {
         pickedUri = uri
         password = ""
         resultMessage = null
+        savedFile = null
     }
 
     val saveJpegLauncher = rememberCreateDocumentLauncher("image/jpeg") { uri ->
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                resultMessage = saveResult(context, uri, bytes, pendingSuccessMessage)
+                val outcome = saveResult(context, uri, bytes, pendingSuccessMessage)
+                resultMessage = outcome.message
+                savedFile = outcome.savedFileOrNull
             }
         }
         pendingBytes = null
@@ -73,7 +81,9 @@ fun ExtractImagesScreen() {
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                resultMessage = saveResult(context, uri, bytes, pendingSuccessMessage)
+                val outcome = saveResult(context, uri, bytes, pendingSuccessMessage)
+                resultMessage = outcome.message
+                savedFile = outcome.savedFileOrNull
             }
         }
         pendingBytes = null
@@ -83,7 +93,9 @@ fun ExtractImagesScreen() {
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                resultMessage = saveResult(context, uri, bytes, pendingSuccessMessage)
+                val outcome = saveResult(context, uri, bytes, pendingSuccessMessage)
+                resultMessage = outcome.message
+                savedFile = outcome.savedFileOrNull
             }
         }
         pendingBytes = null
@@ -103,6 +115,7 @@ fun ExtractImagesScreen() {
             pickedUri?.let { uri ->
                 running = true
                 resultMessage = null
+                savedFile = null
                 val baseName = suggestedBaseName(uri)
 
                 scope.launch {
@@ -164,6 +177,7 @@ fun ExtractImagesScreen() {
         },
         runLabel = if (running) "Extracting..." else "Extract Images",
         resultMessage = resultMessage,
+        savedFile = savedFile,
     )
 }
 
