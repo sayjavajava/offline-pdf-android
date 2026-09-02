@@ -32,11 +32,29 @@ fun renderPdfPagesToPng(document: PDDocument, pages: String, scale: Float): List
         throw IllegalArgumentException("Scale must be between $MIN_SCALE and $MAX_SCALE.")
     }
     val indices = resolvePageIndices(pages, document.numberOfPages)
+
+    // Checked for every page up front, before any rendering: a 200-page
+    // export that is going to fail on page 3 should say so before spending
+    // minutes on pages 1 and 2.
+    for (index in indices) {
+        val box = document.getPage(index).mediaBox
+        requireRenderableAtScale(box.width, box.height, scale, index + 1)
+    }
+
     val renderer = PDFRenderer(document)
     return indices.map { index ->
         val bitmap = renderer.renderImageWithDPI(index, scale * 72f)
         val out = ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+        try {
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+        } finally {
+            // Without this, every page's bitmap stays live until the GC
+            // happens to collect it, so a long export holds N full-page
+            // rasters at once instead of one. The PNG in `out` is all that
+            // needs to outlive this iteration, and it is one to two orders
+            // of magnitude smaller.
+            bitmap.recycle()
+        }
         RenderedPage(pageNumber = index + 1, bytes = out.toByteArray())
     }
 }

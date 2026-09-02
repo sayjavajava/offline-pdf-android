@@ -3,7 +3,12 @@
 /local.properties
 .idea/
 .DS_Store
-/build
+# `build/`, not `/build`: a leading slash anchors to the repo root, so this
+# missed app/build — which is where an Android build actually writes. Nothing
+# caught it because CI builds in a throwaway checkout and never commits; the
+# first real local build was also the first time `git add -A` could sweep
+# 1700 build artefacts into a commit.
+build/
 /captures
 .externalNativeBuild
 .cxx
