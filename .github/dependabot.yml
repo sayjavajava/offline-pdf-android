@@ -1,0 +1,27 @@
+version: 2
+updates:
+  # Security-advisory PRs already run without this file (GitHub's
+  # Dependabot alerts are independent of this config) — this adds
+  # scheduled *version* updates too, so dependencies don't only move when
+  # a CVE forces them to. Mirrors offline-pdf-utility's and quiet-ocr's
+  # dependabot.yml.
+  - package-ecosystem: gradle
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      # One PR for routine patch/minor bumps instead of a dozen separate
+      # ones — a solo-maintainer project doesn't need per-package review
+      # for a patch release. Majors stay ungrouped: those can be breaking
+      # (AGP, Compose BOM, PdfBox-Android) and deserve their own PR and
+      # their own look.
+      minor-and-patch:
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
