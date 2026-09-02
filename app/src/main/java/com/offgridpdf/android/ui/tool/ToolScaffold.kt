@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.offgridpdf.android.ui.common.ContinueChainAction
 import com.offgridpdf.android.ui.common.FilePickerCard
 import com.offgridpdf.android.ui.common.PrimaryButton
 import com.offgridpdf.android.ui.common.PrivacyLine
@@ -40,6 +41,12 @@ import com.offgridpdf.android.ui.theme.LocalOffGridPalette
  * conditionally revealed after a failed load — corrected here in A-3 after
  * checking the real precedent (`SplitTool.tsx`, `MergeTool.tsx`: both show
  * a plain, always-present password field, not a reactive one).
+ *
+ * [chainableBytes]: the tool's own result bytes, once a run has produced
+ * one — pass whatever was last written via the save launcher, kept around
+ * rather than cleared afterward. When non-null and [resultMessage] is set,
+ * shows "Continue with another tool" (`ui/common/OffGridComponents.kt`)
+ * alongside the normal save flow, not instead of it.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,6 +62,7 @@ fun ToolScaffold(
     onRun: () -> Unit,
     runLabel: String = "Run",
     resultMessage: String?,
+    chainableBytes: ByteArray? = null,
     options: @Composable () -> Unit = {},
 ) {
     val palette = LocalOffGridPalette.current
@@ -102,6 +110,9 @@ fun ToolScaffold(
             }
             resultMessage?.let {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = palette.inkSecondary)
+            }
+            if (resultMessage != null) {
+                ContinueChainAction(bytes = chainableBytes, accent = accent)
             }
             PrivacyLine()
             PrimaryButton(

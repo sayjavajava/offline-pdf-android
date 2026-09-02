@@ -1,5 +1,7 @@
 package com.offgridpdf.android.ui.tool
 
+import com.offgridpdf.android.chain.PendingFile
+
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 
 import android.net.Uri
@@ -25,11 +27,12 @@ fun UnlockScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var pickedUri by remember { mutableStateOf<Uri?>(null) }
+    var pickedUri by remember { mutableStateOf(PendingFile.consume()) }
     var password by remember { mutableStateOf("") }
     var running by remember { mutableStateOf(false) }
     var resultMessage by remember { mutableStateOf<String?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
 
     val pickLauncher = rememberOpenDocumentLauncher { uri ->
         pickedUri = uri
@@ -70,6 +73,7 @@ fun UnlockScreen() {
                     when (val result = loadPdfFromUri(context, uri, password.ifBlank { null })) {
                         is PdfLoadResult.Success -> {
                             pendingBytes = removePdfPassword(result.document)
+                            lastResultBytes = pendingBytes
                             result.document.close()
                             saveLauncher.launch("${baseName}_unprotected.pdf")
                         }
@@ -90,5 +94,6 @@ fun UnlockScreen() {
         },
         runLabel = if (running) "Processing..." else "Remove Protection",
         resultMessage = resultMessage,
+        chainableBytes = lastResultBytes,
     )
 }

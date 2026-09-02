@@ -1,5 +1,7 @@
 package com.offgridpdf.android.ui.tool
 
+import com.offgridpdf.android.chain.PendingFile
+
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 
 import android.net.Uri
@@ -70,7 +72,7 @@ fun PageNumbersScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var pickedUri by remember { mutableStateOf<Uri?>(null) }
+    var pickedUri by remember { mutableStateOf(PendingFile.consume()) }
     var password by remember { mutableStateOf("") }
     var format by remember { mutableStateOf(PageNumberFormat.N) }
     var startText by remember { mutableStateOf("1") }
@@ -84,6 +86,7 @@ fun PageNumbersScreen() {
     var running by remember { mutableStateOf(false) }
     var resultMessage by remember { mutableStateOf<String?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
 
     // Live preview of the first stamp, matching the web tool's own hint.
     val preview by remember {
@@ -152,6 +155,7 @@ fun PageNumbersScreen() {
                             is PdfLoadResult.Success -> {
                                 try {
                                     pendingBytes = addPageNumbers(result.document, options)
+                                    lastResultBytes = pendingBytes
                                     saveLauncher.launch("${baseName}_numbered.pdf")
                                 } catch (e: IllegalArgumentException) {
                                     resultMessage = e.message
@@ -177,6 +181,7 @@ fun PageNumbersScreen() {
         },
         runLabel = if (running) "Adding Page Numbers..." else "Add Page Numbers",
         resultMessage = resultMessage,
+        chainableBytes = lastResultBytes,
         options = {
             Text("Format")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -1,5 +1,7 @@
 package com.offgridpdf.android.ui.tool
 
+import com.offgridpdf.android.chain.PendingFile
+
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -49,7 +51,7 @@ fun CompareScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var uriA by remember { mutableStateOf<Uri?>(null) }
+    var uriA by remember { mutableStateOf(PendingFile.consume()) }
     var uriB by remember { mutableStateOf<Uri?>(null) }
     var passwordA by remember { mutableStateOf("") }
     var passwordB by remember { mutableStateOf("") }

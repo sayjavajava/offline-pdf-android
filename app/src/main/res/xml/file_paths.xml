@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Exposes only app-private cache/chain — the folder writeBytesToCacheUri()
+    (files/ChainFile.kt) writes into to hand a just-produced result to the
+    next tool screen without a round trip through the system file picker.
+    Nothing else in the app's storage is shared through this provider.
+-->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <cache-path name="chain" path="chain/" />
+</paths>

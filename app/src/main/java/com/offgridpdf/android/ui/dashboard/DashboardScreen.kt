@@ -38,7 +38,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.offgridpdf.android.R
+import com.offgridpdf.android.chain.PendingFile
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
+import com.offgridpdf.android.ui.theme.PlexMono
 
 /**
  * The reworked dashboard (see the UI redesign mockups): an editorial,
@@ -53,6 +55,7 @@ import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 fun DashboardScreen(recentToolsStore: RecentToolsStore, onToolSelected: (String) -> Unit) {
     val palette = LocalOffGridPalette.current
     var query by remember { mutableStateOf("") }
+    val pendingUri = PendingFile.uri
 
     val recentTools = remember(recentToolsStore) {
         recentToolsStore.recentToolIds().mapNotNull { id -> pdfTools.find { it.id == id } }
@@ -78,6 +81,13 @@ fun DashboardScreen(recentToolsStore: RecentToolsStore, onToolSelected: (String)
             Masthead()
             Spacer(Modifier.height(20.dp))
             SearchField(query = query, onQueryChange = { query = it })
+        }
+
+        if (pendingUri != null) {
+            item {
+                Spacer(Modifier.height(16.dp))
+                PendingFileBanner(fileName = pendingUri.lastPathSegment, onDismiss = { PendingFile.clear() })
+            }
         }
 
         if (normalizedQuery.isBlank() && recentTools.isNotEmpty()) {
@@ -260,6 +270,57 @@ private fun ToolRow(tool: PdfTool, accent: Color, onClick: () -> Unit) {
             contentDescription = null,
             tint = palette.inkTertiary,
             modifier = Modifier.size(14.dp),
+        )
+    }
+}
+
+/**
+ * Shown when [PendingFile] carries a file — either shared/opened into the
+ * app from elsewhere, or handed off by "Continue with another tool"
+ * (`ToolScaffold.kt`, `RedactScreen.kt`). Names it and lets the user pick
+ * any tool row below to run on it; dismissing just drops the pending file,
+ * it doesn't undo whatever produced it.
+ */
+@Composable
+private fun PendingFileBanner(fileName: String?, onDismiss: () -> Unit) {
+    val palette = LocalOffGridPalette.current
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(palette.paperRaised)
+            .border(BorderStroke(1.dp, palette.organize), RoundedCornerShape(10.dp))
+            .padding(start = 14.dp, end = 10.dp, top = 12.dp, bottom = 12.dp),
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_file),
+            contentDescription = null,
+            tint = palette.organize,
+            modifier = Modifier.size(18.dp),
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                "Continue with this file",
+                style = MaterialTheme.typography.titleSmall,
+                color = palette.ink,
+            )
+            Text(
+                fileName ?: "Choose a tool below",
+                style = MaterialTheme.typography.bodySmall.copy(fontFamily = PlexMono),
+                color = palette.inkSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Icon(
+            painter = painterResource(R.drawable.ic_close),
+            contentDescription = "Dismiss",
+            tint = palette.inkTertiary,
+            modifier = Modifier
+                .size(16.dp)
+                .clickable(onClick = onDismiss),
         )
     }
 }

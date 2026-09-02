@@ -1,5 +1,7 @@
 package com.offgridpdf.android.ui.tool
 
+import com.offgridpdf.android.chain.PendingFile
+
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 
 import android.net.Uri
@@ -45,7 +47,7 @@ fun CropResizeScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    var pickedUri by remember { mutableStateOf<Uri?>(null) }
+    var pickedUri by remember { mutableStateOf(PendingFile.consume()) }
     var password by remember { mutableStateOf("") }
     var mode by remember { mutableStateOf(Mode.CROP) }
     var pagesText by remember { mutableStateOf("") }
@@ -65,6 +67,7 @@ fun CropResizeScreen() {
     var running by remember { mutableStateOf(false) }
     var resultMessage by remember { mutableStateOf<String?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
 
     val pickLauncher = rememberOpenDocumentLauncher { uri ->
         pickedUri = uri
@@ -118,6 +121,7 @@ fun CropResizeScreen() {
                             is PdfLoadResult.Success -> {
                                 try {
                                     pendingBytes = cropPdf(result.document, margins, pageRange)
+                                    lastResultBytes = pendingBytes
                                     saveLauncher.launch("${baseName}_cropped.pdf")
                                 } catch (e: IllegalArgumentException) {
                                     resultMessage = e.message
@@ -157,6 +161,7 @@ fun CropResizeScreen() {
                             is PdfLoadResult.Success -> {
                                 try {
                                     pendingBytes = resizePdf(result.document, target, pageRange, stretch)
+                                    lastResultBytes = pendingBytes
                                     saveLauncher.launch("${baseName}_resized.pdf")
                                 } catch (e: IllegalArgumentException) {
                                     resultMessage = e.message
@@ -185,6 +190,7 @@ fun CropResizeScreen() {
             else -> "Resize Pages"
         },
         resultMessage = resultMessage,
+        chainableBytes = lastResultBytes,
         options = {
             Text(
                 "Crop trims margins non-destructively — the underlying content is untouched, only " +
