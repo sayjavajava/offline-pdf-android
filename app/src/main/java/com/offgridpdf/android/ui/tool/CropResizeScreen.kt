@@ -1,5 +1,7 @@
 package com.offgridpdf.android.ui.tool
 
+import com.offgridpdf.android.ui.theme.LocalOffGridPalette
+
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -81,8 +83,10 @@ fun CropResizeScreen() {
         pendingBytes = null
     }
 
+    val accent = LocalOffGridPalette.current.organize
     ToolScaffold(
         title = "Crop / Resize Pages",
+        accent = accent,
         pickedFileName = pickedUri?.lastPathSegment,
         onPickFile = { pickLauncher.launch(arrayOf("application/pdf")) },
         password = password,

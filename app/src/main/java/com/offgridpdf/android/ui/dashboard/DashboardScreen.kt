@@ -1,22 +1,29 @@
 package com.offgridpdf.android.ui.dashboard
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.material3.Card
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.ScrollableTabRow
-import androidx.compose.material3.Tab
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -24,61 +31,235 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.offgridpdf.android.R
+import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 
 /**
- * Mirrors `GlassDashboard.tsx`'s own shape: a category tab row, then a grid
- * of the selected category's tools. Ported behavior, not markup — this
- * screen owns its own layout, not a translation of the web component's JSX.
+ * The reworked dashboard (see the UI redesign mockups): an editorial,
+ * hairline-divided tool list instead of a category-tab grid — with a
+ * functional search filter and a Recent row up top so reaching a tool
+ * never depends on scrolling through all 20. Web reference for the tool
+ * data itself only (`GlassDashboard.tsx` / `pdfTools`), not this screen's
+ * layout — this is a from-scratch native shape, not a port of the tab+grid
+ * one it replaces.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DashboardScreen(onToolSelected: (String) -> Unit) {
-    var selectedCategory by remember { mutableStateOf(ToolCategory.OrganizePages) }
-    val visibleTools = pdfTools.filter { it.category == selectedCategory }
+fun DashboardScreen(recentToolsStore: RecentToolsStore, onToolSelected: (String) -> Unit) {
+    val palette = LocalOffGridPalette.current
+    var query by remember { mutableStateOf("") }
 
-    Scaffold(
-        topBar = { TopAppBar(title = { Text("OffGridPDF") }) },
-    ) { innerPadding ->
-        Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-            ScrollableTabRow(selectedTabIndex = selectedCategory.ordinal) {
-                ToolCategory.entries.forEach { category ->
-                    val count = pdfTools.count { it.category == category }
-                    Tab(
-                        selected = category == selectedCategory,
-                        onClick = { selectedCategory = category },
-                        text = { Text("${category.label} ($count)") },
+    val recentTools = remember(recentToolsStore) {
+        recentToolsStore.recentToolIds().mapNotNull { id -> pdfTools.find { it.id == id } }
+    }.take(4)
+
+    val normalizedQuery = query.trim()
+    val groupedTools = ToolCategory.entries.associateWith { category ->
+        pdfTools.filter { tool ->
+            tool.category == category &&
+                (
+                    normalizedQuery.isBlank() ||
+                        tool.title.contains(normalizedQuery, ignoreCase = true) ||
+                        tool.description.contains(normalizedQuery, ignoreCase = true)
                     )
-                }
-            }
+        }
+    }
 
-            if (visibleTools.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No tools in this category yet.")
-                }
-            } else {
-                LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = 160.dp),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    items(visibleTools, key = { it.id }) { tool ->
-                        ToolCard(tool = tool, onClick = { onToolSelected(tool.id) })
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().background(palette.paper),
+        contentPadding = PaddingValues(horizontal = 22.dp, vertical = 28.dp),
+    ) {
+        item {
+            Masthead()
+            Spacer(Modifier.height(20.dp))
+            SearchField(query = query, onQueryChange = { query = it })
+        }
+
+        if (normalizedQuery.isBlank() && recentTools.isNotEmpty()) {
+            item {
+                Spacer(Modifier.height(28.dp))
+                Text(
+                    "RECENT",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = palette.inkTertiary,
+                    modifier = Modifier.padding(start = 2.dp, bottom = 10.dp),
+                )
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    items(recentTools, key = { it.id }) { tool ->
+                        RecentChip(tool = tool, onClick = { onToolSelected(tool.id) })
                     }
                 }
+            }
+        }
+
+        ToolCategory.entries.forEach { category ->
+            val tools = groupedTools[category].orEmpty()
+            if (tools.isNotEmpty()) {
+                item {
+                    Spacer(Modifier.height(30.dp))
+                    Text(
+                        category.label.uppercase(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = category.labelAccent(palette),
+                        modifier = Modifier.padding(start = 2.dp, bottom = 10.dp),
+                    )
+                    HorizontalDivider(color = palette.hairline, thickness = 1.dp)
+                }
+                tools.forEach { tool ->
+                    item(key = tool.id) {
+                        ToolRow(tool = tool, accent = category.accent(palette), onClick = { onToolSelected(tool.id) })
+                        HorizontalDivider(color = palette.hairline, thickness = 1.dp)
+                    }
+                }
+            }
+        }
+
+        if (normalizedQuery.isNotBlank() && groupedTools.values.all { it.isEmpty() }) {
+            item {
+                Spacer(Modifier.height(40.dp))
+                Text(
+                    "No tools match “$query”.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = palette.inkSecondary,
+                )
             }
         }
     }
 }
 
 @Composable
-private fun ToolCard(tool: PdfTool, onClick: () -> Unit) {
-    Card(onClick = onClick) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Icon(imageVector = tool.icon, contentDescription = null)
-            Text(tool.title)
-            Text(tool.description)
+private fun Masthead() {
+    val palette = LocalOffGridPalette.current
+    Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Icon(
+            painter = painterResource(R.drawable.ic_brand_mark),
+            contentDescription = null,
+            tint = palette.organize,
+            modifier = Modifier.size(30.dp),
+        )
+        Column {
+            Text(
+                "OffGridPDF",
+                style = MaterialTheme.typography.headlineMedium,
+                color = palette.ink,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Every tool runs on this device. Nothing you open ever leaves it.",
+                style = MaterialTheme.typography.bodySmall,
+                color = palette.inkTertiary,
+            )
         }
+    }
+}
+
+@Composable
+private fun SearchField(query: String, onQueryChange: (String) -> Unit) {
+    val palette = LocalOffGridPalette.current
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(9.dp))
+            .background(palette.paperRaised)
+            .border(BorderStroke(1.dp, palette.hairlineStrong), RoundedCornerShape(9.dp))
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_search),
+            contentDescription = null,
+            tint = palette.inkTertiary,
+            modifier = Modifier.size(16.dp),
+        )
+        Box(modifier = Modifier.fillMaxWidth()) {
+            if (query.isEmpty()) {
+                Text(
+                    "Search ${pdfTools.size} tools…",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = palette.inkTertiary,
+                )
+            }
+            BasicTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodyMedium.copy(color = palette.ink),
+                cursorBrush = SolidColor(palette.organize),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun RecentChip(tool: PdfTool, onClick: () -> Unit) {
+    val palette = LocalOffGridPalette.current
+    val accent = tool.category.accent(palette)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(palette.paperRaised)
+            .border(BorderStroke(1.dp, palette.hairlineStrong), RoundedCornerShape(999.dp))
+            .clickable(onClick = onClick)
+            .padding(start = 10.dp, end = 14.dp, top = 9.dp, bottom = 9.dp),
+    ) {
+        Icon(
+            painter = painterResource(tool.icon),
+            contentDescription = null,
+            tint = accent,
+            modifier = Modifier.size(18.dp),
+        )
+        Text(
+            tool.title,
+            style = MaterialTheme.typography.titleSmall,
+            color = palette.ink,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun ToolRow(tool: PdfTool, accent: Color, onClick: () -> Unit) {
+    val palette = LocalOffGridPalette.current
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 13.dp, horizontal = 2.dp),
+    ) {
+        Icon(
+            painter = painterResource(tool.icon),
+            contentDescription = null,
+            tint = accent,
+            modifier = Modifier.size(23.dp),
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(tool.title, style = MaterialTheme.typography.titleMedium, color = palette.ink)
+            Spacer(Modifier.height(2.dp))
+            Text(
+                tool.description,
+                style = MaterialTheme.typography.bodySmall,
+                color = palette.inkSecondary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Icon(
+            painter = painterResource(R.drawable.ic_chevron_right),
+            contentDescription = null,
+            tint = palette.inkTertiary,
+            modifier = Modifier.size(14.dp),
+        )
     }
 }

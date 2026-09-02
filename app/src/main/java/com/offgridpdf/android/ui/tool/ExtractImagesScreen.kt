@@ -1,5 +1,7 @@
 package com.offgridpdf.android.ui.tool
 
+import com.offgridpdf.android.ui.theme.LocalOffGridPalette
+
 import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -80,8 +82,10 @@ fun ExtractImagesScreen() {
         pendingBytes = null
     }
 
+    val accent = LocalOffGridPalette.current.convert
     ToolScaffold(
         title = "Extract Images",
+        accent = accent,
         pickedFileName = pickedUri?.lastPathSegment,
         onPickFile = { pickLauncher.launch(arrayOf("application/pdf")) },
         password = password,

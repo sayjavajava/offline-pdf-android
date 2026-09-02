@@ -1,5 +1,7 @@
 package com.offgridpdf.android.ui.tool
 
+import com.offgridpdf.android.ui.theme.LocalOffGridPalette
+
 import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -49,8 +51,10 @@ fun CompressScreen() {
         pendingBytes = null
     }
 
+    val accent = LocalOffGridPalette.current.edit
     ToolScaffold(
         title = "Compress PDF",
+        accent = accent,
         pickedFileName = pickedUri?.lastPathSegment,
         onPickFile = { pickLauncher.launch(arrayOf("application/pdf")) },
         password = password,

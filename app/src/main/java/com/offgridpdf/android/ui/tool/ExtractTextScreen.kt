@@ -1,5 +1,7 @@
 package com.offgridpdf.android.ui.tool
 
+import com.offgridpdf.android.ui.theme.LocalOffGridPalette
+
 import android.net.Uri
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -56,8 +58,10 @@ fun ExtractTextScreen() {
         pendingBytes = null
     }
 
+    val accent = LocalOffGridPalette.current.convert
     ToolScaffold(
         title = "Extract Text",
+        accent = accent,
         pickedFileName = pickedUri?.lastPathSegment,
         onPickFile = { pickLauncher.launch(arrayOf("application/pdf")) },
         password = password,
