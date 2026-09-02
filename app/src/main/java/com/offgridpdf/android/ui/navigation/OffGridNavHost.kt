@@ -14,6 +14,7 @@ import com.offgridpdf.android.chain.PendingNavigation
 import com.offgridpdf.android.chain.ROUTE_DASHBOARD
 import com.offgridpdf.android.ui.dashboard.DashboardScreen
 import com.offgridpdf.android.ui.dashboard.RecentToolsStore
+import com.offgridpdf.android.ui.settings.SettingsScreen
 import com.offgridpdf.android.ui.tool.CompareScreen
 import com.offgridpdf.android.ui.tool.CompressScreen
 import com.offgridpdf.android.ui.tool.CropResizeScreen
@@ -37,6 +38,7 @@ import com.offgridpdf.android.ui.tool.UnlockScreen
 import com.offgridpdf.android.ui.tool.WatermarkScreen
 
 private const val ROUTE_TOOL = "tool/{toolId}"
+private const val ROUTE_SETTINGS = "settings"
 private const val ARG_TOOL_ID = "toolId"
 
 @Composable
@@ -70,7 +72,11 @@ fun OffGridNavHost() {
                         recentToolsStore.recordUsed(toolId)
                         navController.navigate("tool/$toolId")
                     },
+                    onSettingsClick = { navController.navigate(ROUTE_SETTINGS) },
                 )
+            }
+            composable(ROUTE_SETTINGS) {
+                SettingsScreen()
             }
             composable(
                 route = ROUTE_TOOL,

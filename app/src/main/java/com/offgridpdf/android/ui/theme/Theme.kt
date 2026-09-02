@@ -23,6 +23,10 @@ import androidx.compose.ui.unit.sp
  * bespoke light/dark palette in both [MaterialTheme.colorScheme] (so plain
  * Material3 components still look right) and [LocalOffGridPalette] (the
  * four category accents Material3's ColorScheme has no slot for).
+ *
+ * Which palette wins follows [ThemeState.mode] (System/Light/Dark, set from
+ * the Settings screen) rather than always the device setting — System still
+ * falls through to [isSystemInDarkTheme].
  */
 val LocalOffGridPalette = staticCompositionLocalOf { LightOffGridPalette }
 
@@ -82,10 +86,12 @@ private val OffGridTypography = Typography(
 )
 
 @Composable
-fun OffGridPdfTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    content: @Composable () -> Unit,
-) {
+fun OffGridPdfTheme(content: @Composable () -> Unit) {
+    val darkTheme = when (ThemeState.mode) {
+        ThemeMode.System -> isSystemInDarkTheme()
+        ThemeMode.Light -> false
+        ThemeMode.Dark -> true
+    }
     val palette = if (darkTheme) DarkOffGridPalette else LightOffGridPalette
 
     CompositionLocalProvider(LocalOffGridPalette provides palette) {

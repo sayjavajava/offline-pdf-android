@@ -1,6 +1,7 @@
 package com.offgridpdf.android
 
 import android.app.Application
+import com.offgridpdf.android.ui.theme.ThemeState
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 
 /**
@@ -15,10 +16,15 @@ import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
  * every text-drawing tool's first real run, on every device, missed until
  * now because CI has only ever run JVM-stubbed unit tests, never a real
  * Android runtime (see Spike A, `ANDROID_IMPLEMENTATION_PLAN.md`).
+ *
+ * Also where [ThemeState] loads the user's saved theme choice — once, here,
+ * before `MainActivity` composes anything, so `OffGridPdfTheme` never
+ * renders a first frame in the wrong palette.
  */
 class OffGridPdfApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         PDFBoxResourceLoader.init(applicationContext)
+        ThemeState.initialize(applicationContext)
     }
 }
