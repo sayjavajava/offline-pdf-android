@@ -1,12 +1,16 @@
 package com.offgridpdf.android.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.offgridpdf.android.ui.dashboard.DashboardScreen
+import com.offgridpdf.android.ui.dashboard.RecentToolsStore
 import com.offgridpdf.android.ui.tool.CompareScreen
 import com.offgridpdf.android.ui.tool.CompressScreen
 import com.offgridpdf.android.ui.tool.CropResizeScreen
@@ -37,36 +41,46 @@ private const val ARG_TOOL_ID = "toolId"
 fun OffGridNavHost() {
     val navController = rememberNavController()
 
-    NavHost(navController = navController, startDestination = ROUTE_DASHBOARD) {
-        composable(ROUTE_DASHBOARD) {
-            DashboardScreen(onToolSelected = { toolId -> navController.navigate("tool/$toolId") })
-        }
-        composable(
-            route = ROUTE_TOOL,
-            arguments = listOf(navArgument(ARG_TOOL_ID) { type = NavType.StringType }),
-        ) { backStackEntry ->
-            when (val toolId = backStackEntry.arguments?.getString(ARG_TOOL_ID).orEmpty()) {
-                "split" -> SplitScreen()
-                "merge" -> MergeScreen()
-                "rotate" -> RotateScreen()
-                "rearrange" -> RearrangeScreen()
-                "crop-resize" -> CropResizeScreen()
-                "protect" -> ProtectScreen()
-                "unlock" -> UnlockScreen()
-                "redact" -> RedactScreen()
-                "edit" -> EditMetadataScreen()
-                "watermark" -> WatermarkScreen()
-                "page-numbers" -> PageNumbersScreen()
-                "images-to-pdf" -> ImagesToPdfScreen()
-                "docx-to-pdf" -> DocxToPdfScreen()
-                "pdf-to-images" -> PdfToImagesScreen()
-                "extract-images" -> ExtractImagesScreen()
-                "extract-text" -> ExtractTextScreen()
-                "compare" -> CompareScreen()
-                "fill-form" -> FillFormScreen()
-                "signature" -> SignatureScreen()
-                "compress" -> CompressScreen()
-                else -> ToolPlaceholderScreen(toolId = toolId)
+    CompositionLocalProvider(LocalNavController provides navController) {
+        NavHost(navController = navController, startDestination = ROUTE_DASHBOARD) {
+            composable(ROUTE_DASHBOARD) {
+                val context = LocalContext.current
+                val recentToolsStore = remember { RecentToolsStore(context) }
+                DashboardScreen(
+                    recentToolsStore = recentToolsStore,
+                    onToolSelected = { toolId ->
+                        recentToolsStore.recordUsed(toolId)
+                        navController.navigate("tool/$toolId")
+                    },
+                )
+            }
+            composable(
+                route = ROUTE_TOOL,
+                arguments = listOf(navArgument(ARG_TOOL_ID) { type = NavType.StringType }),
+            ) { backStackEntry ->
+                when (val toolId = backStackEntry.arguments?.getString(ARG_TOOL_ID).orEmpty()) {
+                    "split" -> SplitScreen()
+                    "merge" -> MergeScreen()
+                    "rotate" -> RotateScreen()
+                    "rearrange" -> RearrangeScreen()
+                    "crop-resize" -> CropResizeScreen()
+                    "protect" -> ProtectScreen()
+                    "unlock" -> UnlockScreen()
+                    "redact" -> RedactScreen()
+                    "edit" -> EditMetadataScreen()
+                    "watermark" -> WatermarkScreen()
+                    "page-numbers" -> PageNumbersScreen()
+                    "images-to-pdf" -> ImagesToPdfScreen()
+                    "docx-to-pdf" -> DocxToPdfScreen()
+                    "pdf-to-images" -> PdfToImagesScreen()
+                    "extract-images" -> ExtractImagesScreen()
+                    "extract-text" -> ExtractTextScreen()
+                    "compare" -> CompareScreen()
+                    "fill-form" -> FillFormScreen()
+                    "signature" -> SignatureScreen()
+                    "compress" -> CompressScreen()
+                    else -> ToolPlaceholderScreen(toolId = toolId)
+                }
             }
         }
     }

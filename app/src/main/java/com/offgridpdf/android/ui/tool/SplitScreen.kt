@@ -25,6 +25,7 @@ import com.offgridpdf.android.pdf.SplitPage
 import com.offgridpdf.android.pdf.loadPdfFromUri
 import com.offgridpdf.android.pdf.splitPdfToPages
 import com.offgridpdf.android.pdf.splitPdfToSingleFile
+import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import kotlinx.coroutines.launch
 
 /** Web reference: `SplitTool.tsx` + `splitPdf`/`splitPdfToZip` (`pdf-ops.ts`). */
@@ -32,6 +33,7 @@ import kotlinx.coroutines.launch
 fun SplitScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val accent = LocalOffGridPalette.current.organize
 
     var pickedUri by remember { mutableStateOf<Uri?>(null) }
     var password by remember { mutableStateOf("") }
@@ -77,6 +79,7 @@ fun SplitScreen() {
 
     ToolScaffold(
         title = "Split PDF",
+        accent = accent,
         pickedFileName = pickedUri?.lastPathSegment,
         onPickFile = { pickLauncher.launch(arrayOf("application/pdf")) },
         password = password,

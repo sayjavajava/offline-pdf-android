@@ -12,16 +12,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -33,9 +33,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
@@ -59,6 +60,12 @@ import com.offgridpdf.android.pdf.pixelToPdfRect
 import com.offgridpdf.android.pdf.redactPdf
 import com.offgridpdf.android.pdf.resolvePageIndices
 import com.offgridpdf.android.pdf.toPixelRect
+import com.offgridpdf.android.ui.common.FilePickerCard
+import com.offgridpdf.android.ui.common.PrimaryButton
+import com.offgridpdf.android.ui.common.PrivacyLine
+import com.offgridpdf.android.ui.common.ScreenTopBar
+import com.offgridpdf.android.ui.theme.LocalOffGridPalette
+import com.offgridpdf.android.ui.theme.PlexMono
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.rendering.PDFRenderer
 import kotlin.math.abs
@@ -84,12 +91,22 @@ private const val MIN_BOX_PT = 4f / PREVIEW_SCALE
  * loading and closing it within a single button press — genuinely
  * necessary here since drawing, page navigation, and Find all need the
  * same open document.
+ *
+ * Restyled to the "paper & ink" redesign (see the UI redesign mockups):
+ * applied boxes render solid ink (permanent, not a translucent overlay)
+ * and the box being dragged renders as a dashed security-accent outline
+ * with the same visual language `ToolScaffold`/`FilePickerCard` use
+ * elsewhere, even though this screen keeps its own bespoke `Scaffold`
+ * rather than using `ToolScaffold` (its multi-step load → edit → apply
+ * flow doesn't fit that single-button shape).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RedactScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val palette = LocalOffGridPalette.current
+    val accent = palette.security
 
     var pickedUri by remember { mutableStateOf<Uri?>(null) }
     var password by remember { mutableStateOf("") }
@@ -216,10 +233,34 @@ fun RedactScreen() {
         }
     }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Redact PDF") }) }) { innerPadding ->
+    val fieldColors = OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = accent,
+        unfocusedBorderColor = palette.hairlineStrong,
+        focusedContainerColor = palette.paperRaised,
+        unfocusedContainerColor = palette.paperRaised,
+        focusedTextColor = palette.ink,
+        unfocusedTextColor = palette.ink,
+        focusedLabelColor = accent,
+        unfocusedLabelColor = palette.inkTertiary,
+    )
+
+    Scaffold(
+        topBar = {
+            ScreenTopBar(title = "Redact PDF") {
+                if (pageCount > 0) {
+                    Text(
+                        "$pageNumber / $pageCount",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontFamily = PlexMono),
+                        color = palette.inkTertiary,
+                    )
+                }
+            }
+        },
+        containerColor = palette.paper,
+    ) { innerPadding ->
         LazyColumn(
-            modifier = Modifier.padding(innerPadding).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(innerPadding).padding(horizontal = 22.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item {
                 Text(
@@ -229,12 +270,12 @@ fun RedactScreen() {
                         "rebuilt as a plain image; pages you leave untouched keep theirs. Or search for text " +
                         "below to find every occurrence across the document and turn them into boxes " +
                         "automatically — review them like any other box before applying.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = palette.inkSecondary,
                 )
             }
             item {
-                Button(onClick = { pickLauncher.launch(arrayOf("application/pdf")) }, modifier = Modifier.fillMaxWidth()) {
-                    Text(pickedUri?.lastPathSegment ?: "Choose a PDF")
-                }
+                FilePickerCard(fileName = pickedUri?.lastPathSegment, onClick = { pickLauncher.launch(arrayOf("application/pdf")) })
             }
             if (pickedUri != null && document == null) {
                 item {
@@ -243,39 +284,45 @@ fun RedactScreen() {
                         onValueChange = { password = it },
                         label = { Text("Password (if encrypted)") },
                         visualTransformation = PasswordVisualTransformation(),
+                        colors = fieldColors,
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
                 item {
-                    Button(onClick = { loadDocument() }, enabled = !loading, modifier = Modifier.fillMaxWidth()) {
-                        Text(if (loading) "Loading..." else "Load")
-                    }
+                    PrimaryButton(
+                        text = if (loading) "Loading..." else "Load",
+                        onClick = { loadDocument() },
+                        accent = accent,
+                        enabled = !loading,
+                    )
                 }
-                loadMessage?.let { item { Text(it) } }
+                loadMessage?.let { item { Text(it, style = MaterialTheme.typography.bodySmall, color = palette.inkSecondary) } }
             }
 
             val doc = document
             val image = previewImage
             if (doc != null && image != null) {
                 item {
-                    Text("Find text to redact")
+                    Text("Find text to redact", style = MaterialTheme.typography.titleMedium, color = palette.ink)
                 }
                 item {
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
                         label = { Text("e.g. a name or account number") },
+                        colors = fieldColors,
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
                 item {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(checked = caseSensitive, onCheckedChange = { caseSensitive = it })
-                        Text("Match case")
+                        Text("Match case", style = MaterialTheme.typography.bodyMedium, color = palette.inkSecondary)
                     }
                 }
                 item {
-                    Button(
+                    PrimaryButton(
+                        text = if (searching) "Searching..." else "Find",
                         onClick = {
                             searching = true
                             findResult = null
@@ -291,13 +338,11 @@ fun RedactScreen() {
                                 searching = false
                             }
                         },
+                        accent = accent,
                         enabled = !searching,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(if (searching) "Searching..." else "Find")
-                    }
+                    )
                 }
-                findMessage?.let { message -> item { Text(message) } }
+                findMessage?.let { message -> item { Text(message, style = MaterialTheme.typography.bodySmall, color = palette.inkSecondary) } }
                 findResult?.let { result ->
                     item {
                         Text(
@@ -307,6 +352,8 @@ fun RedactScreen() {
                                 "Found ${result.totalMatches} match${if (result.totalMatches == 1) "" else "es"} across " +
                                     "${result.matchesByPage.size} page${if (result.matchesByPage.size == 1) "" else "s"}."
                             },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = palette.inkSecondary,
                         )
                     }
                     val totalSkipped = result.skippedByPage.values.sum()
@@ -316,6 +363,8 @@ fun RedactScreen() {
                                 "$totalSkipped match${if (totalSkipped == 1) "" else "es"} skipped — " +
                                     "${if (totalSkipped == 1) "it spans" else "they span"} a line break, so draw " +
                                     "${if (totalSkipped == 1) "that one" else "those"} by hand.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = palette.inkTertiary,
                             )
                         }
                     }
@@ -325,6 +374,8 @@ fun RedactScreen() {
                                 "No text layer on page${if (result.noTextLayerPages.size == 1) "" else "s"} " +
                                     "${result.noTextLayerPages.joinToString(", ")} — likely scanned; redact " +
                                     "${if (result.noTextLayerPages.size == 1) "that one" else "those"} manually.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = palette.inkTertiary,
                             )
                         }
                     }
@@ -354,6 +405,8 @@ fun RedactScreen() {
                         Text(
                             "Page $pageNumber of $pageCount" +
                                 if (currentPageBoxes.isNotEmpty()) " — ${currentPageBoxes.size} box${if (currentPageBoxes.size == 1) "" else "es"}" else "",
+                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = PlexMono),
+                            color = palette.inkTertiary,
                         )
                         OutlinedButton(onClick = { goToPage(pageIndex + 1) }, enabled = pageIndex < pageCount - 1) { Text("Next") }
                     }
@@ -402,7 +455,7 @@ fun RedactScreen() {
                                 for (rect in currentPageBoxes) {
                                     val px = toPixelRect(rect, previewHeightPts, PREVIEW_SCALE)
                                     drawRect(
-                                        color = Color(0x80DC2626),
+                                        color = palette.ink,
                                         topLeft = Offset(px.x * displayScale, px.y * displayScale),
                                         size = Size(px.width * displayScale, px.height * displayScale),
                                     )
@@ -413,9 +466,13 @@ fun RedactScreen() {
                                     val left = minOf(start.x, current.x)
                                     val top = minOf(start.y, current.y)
                                     drawRect(
-                                        color = Color(0x4DDC2626),
+                                        color = accent,
                                         topLeft = Offset(left, top),
                                         size = Size(abs(current.x - start.x), abs(current.y - start.y)),
+                                        style = Stroke(
+                                            width = 3f,
+                                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(14f, 10f)),
+                                        ),
                                     )
                                 }
                             }
@@ -425,11 +482,19 @@ fun RedactScreen() {
                 if (currentPageBoxes.isNotEmpty()) {
                     items(currentPageBoxes.size) { i ->
                         val rect = currentPageBoxes[i]
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("Box ${i + 1}: ${rect.width.toInt()}×${rect.height.toInt()} pt")
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                "${rect.width.toInt()} × ${rect.height.toInt()} pt",
+                                style = MaterialTheme.typography.bodyMedium.copy(fontFamily = PlexMono),
+                                color = palette.ink,
+                            )
                             TextButton(onClick = {
                                 redactions = redactions + (pageNumber to currentPageBoxes.filterIndexed { index, _ -> index != i })
-                            }) { Text("Remove") }
+                            }) { Text("Remove", color = palette.securityLabel) }
                         }
                     }
                 }
@@ -440,6 +505,7 @@ fun RedactScreen() {
                             onValueChange = { applyRangeText = it },
                             label = { Text("Apply this page's box${if (currentPageBoxes.size == 1) "" else "es"} to other pages") },
                             placeholder = { Text("e.g. 2-50 — or leave blank for every other page") },
+                            colors = fieldColors,
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
@@ -479,17 +545,26 @@ fun RedactScreen() {
                     } else {
                         "$totalBoxes box${if (totalBoxes == 1) "" else "es"} across $pagesWithBoxes page${if (pagesWithBoxes == 1) "" else "s"} will be redacted."
                     },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = palette.inkSecondary,
                 )
             }
             item {
-                Button(
+                if (applying) {
+                    CircularProgressIndicator(color = accent, modifier = Modifier.padding(bottom = 4.dp))
+                }
+                PrivacyLine("This permanently removes the content — not just a visual overlay.")
+            }
+            item {
+                PrimaryButton(
+                    text = if (applying) "Redacting..." else "Apply Redactions & Download",
                     onClick = {
-                        val doc = document ?: return@Button
+                        val doc2 = document ?: return@PrimaryButton
                         applying = true
                         resultMessage = null
                         scope.launch {
                             try {
-                                pendingBytes = redactPdf(doc, redactions)
+                                pendingBytes = redactPdf(doc2, redactions)
                                 val name = pickedUri?.let { suggestedBaseName(it) } ?: "document"
                                 saveLauncher.launch("${name}_redacted.pdf")
                             } catch (e: IllegalArgumentException) {
@@ -500,16 +575,12 @@ fun RedactScreen() {
                             applying = false
                         }
                     },
+                    accent = accent,
                     enabled = document != null && totalBoxes > 0 && !applying,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(if (applying) "Redacting..." else "Apply Redactions & Download")
-                }
+                )
             }
-            if (applying) {
-                item { CircularProgressIndicator() }
-            }
-            resultMessage?.let { message -> item { Text(message) } }
+            resultMessage?.let { message -> item { Text(message, style = MaterialTheme.typography.bodySmall, color = palette.inkSecondary) } }
+            item { Box(modifier = Modifier.padding(bottom = 18.dp)) }
         }
     }
 }

@@ -13,8 +13,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import com.offgridpdf.android.ui.common.ScreenTopBar
+import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -78,7 +79,10 @@ fun CompareScreen() {
         pendingReportBytes = null
     }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Compare PDFs") }) }) { innerPadding ->
+    Scaffold(
+        topBar = { ScreenTopBar(title = "Compare PDFs") },
+        containerColor = LocalOffGridPalette.current.paper,
+    ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.padding(innerPadding).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),

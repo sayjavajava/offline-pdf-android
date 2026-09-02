@@ -1,5 +1,7 @@
 package com.offgridpdf.android.ui.tool
 
+import com.offgridpdf.android.ui.theme.LocalOffGridPalette
+
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -109,8 +111,10 @@ fun PageNumbersScreen() {
         pendingBytes = null
     }
 
+    val accent = LocalOffGridPalette.current.edit
     ToolScaffold(
         title = "Add Page Numbers",
+        accent = accent,
         pickedFileName = pickedUri?.lastPathSegment,
         onPickFile = { pickLauncher.launch(arrayOf("application/pdf")) },
         password = password,

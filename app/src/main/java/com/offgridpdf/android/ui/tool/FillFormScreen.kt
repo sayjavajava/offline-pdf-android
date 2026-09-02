@@ -15,8 +15,9 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import com.offgridpdf.android.ui.common.ScreenTopBar
+import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -91,7 +92,10 @@ fun FillFormScreen() {
         pendingBytes = null
     }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Fill PDF Forms") }) }) { innerPadding ->
+    Scaffold(
+        topBar = { ScreenTopBar(title = "Fill PDF Forms") },
+        containerColor = LocalOffGridPalette.current.paper,
+    ) { innerPadding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(innerPadding).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),

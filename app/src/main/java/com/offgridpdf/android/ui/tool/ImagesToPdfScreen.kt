@@ -9,8 +9,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
+import com.offgridpdf.android.ui.common.ScreenTopBar
+import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -68,7 +69,10 @@ fun ImagesToPdfScreen() {
         pendingBytes = null
     }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Convert Images to PDF") }) }) { innerPadding ->
+    Scaffold(
+        topBar = { ScreenTopBar(title = "Convert Images to PDF") },
+        containerColor = LocalOffGridPalette.current.paper,
+    ) { innerPadding ->
         Column(
             modifier = Modifier.fillMaxSize().padding(innerPadding).padding(16.dp),
         ) {
