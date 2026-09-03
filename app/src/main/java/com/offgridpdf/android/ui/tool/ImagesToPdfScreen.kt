@@ -26,6 +26,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.offgridpdf.android.files.SavedFile
 import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
+import com.offgridpdf.android.files.queryDisplayName
 import com.offgridpdf.android.files.readBytesFromUri
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenMultipleDocumentsLauncher
@@ -36,6 +37,7 @@ import com.offgridpdf.android.pdf.imagesToPdf
 import com.offgridpdf.android.ui.common.ScreenTopBar
 import com.offgridpdf.android.ui.common.ToolCompletion
 import com.offgridpdf.android.ui.common.UriListSaver
+import com.offgridpdf.android.ui.common.rememberDisplayNames
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import kotlinx.coroutines.Dispatchers
@@ -118,7 +120,7 @@ fun ImagesToPdfScreen() {
             }
 
             if (files.isNotEmpty()) {
-                Text(files.joinToString("\n") { it.lastPathSegment ?: it.toString() })
+                Text(rememberDisplayNames(files).joinToString("\n"))
             }
 
             Button(
@@ -133,7 +135,7 @@ fun ImagesToPdfScreen() {
                         scope.launch {
                             try {
                                 val images = toConvert.map { uri ->
-                                    val name = uri.lastPathSegment ?: uri.toString()
+                                    val name = queryDisplayName(context, uri)
                                     ImageFile(name, readBytesFromUri(context, uri))
                                 }
                                 pendingBytes = withContext(Dispatchers.Default) { imagesToPdf(images) }

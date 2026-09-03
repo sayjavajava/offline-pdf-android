@@ -67,6 +67,7 @@ import com.offgridpdf.android.ui.common.PageOverlayStyle
 import com.offgridpdf.android.ui.common.PagePreview
 import com.offgridpdf.android.ui.common.ScreenTopBar
 import com.offgridpdf.android.ui.common.ToolCompletion
+import com.offgridpdf.android.ui.common.rememberDisplayName
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import com.tom_roush.pdfbox.pdmodel.PDDocument
@@ -277,7 +278,7 @@ fun SignatureScreen() {
                 onClick = { pickLauncher.launch(arrayOf("application/pdf")) },
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(pickedUri?.lastPathSegment ?: "Choose a PDF file")
+                Text(rememberDisplayName(pickedUri) ?: "Choose a PDF file")
             }
             OutlinedTextField(
                 value = password,
@@ -476,8 +477,8 @@ fun SignatureScreen() {
                     running = true
                     resultMessage = null
                     savedFile = null
-                    val baseName = suggestedBaseName(uri)
                     scope.launch {
+                        val baseName = suggestedBaseName(context, uri)
                         try {
                             pendingBytes = withContext(Dispatchers.Default) {
                                 addSignature(

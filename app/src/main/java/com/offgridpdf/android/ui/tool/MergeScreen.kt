@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import com.offgridpdf.android.chain.PendingFile
 import com.offgridpdf.android.files.SavedFile
 import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
+import com.offgridpdf.android.files.queryDisplayName
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenMultipleDocumentsLauncher
 import com.offgridpdf.android.files.saveResult
@@ -37,6 +38,7 @@ import com.offgridpdf.android.pdf.mergePdf
 import com.offgridpdf.android.ui.common.ScreenTopBar
 import com.offgridpdf.android.ui.common.ToolCompletion
 import com.offgridpdf.android.ui.common.UriListSaver
+import com.offgridpdf.android.ui.common.rememberDisplayNames
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import com.tom_roush.pdfbox.pdmodel.PDDocument
@@ -111,7 +113,7 @@ fun MergeScreen() {
             }
 
             if (files.isNotEmpty()) {
-                Text(files.joinToString("\n") { it.lastPathSegment ?: it.toString() })
+                Text(rememberDisplayNames(files).joinToString("\n"))
             }
 
             Button(
@@ -128,7 +130,7 @@ fun MergeScreen() {
                             var failureMessage: String? = null
 
                             for (uri in toMerge) {
-                                val name = uri.lastPathSegment ?: uri.toString()
+                                val name = queryDisplayName(context, uri)
                                 when (val result = loadPdfFromUri(context, uri)) {
                                     is PdfLoadResult.Success -> opened.add(result.document)
                                     PdfLoadResult.PasswordRequired -> {

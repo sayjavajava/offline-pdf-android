@@ -28,6 +28,7 @@ import com.offgridpdf.android.pdf.PdfLoadResult
 import com.offgridpdf.android.pdf.extractText
 import com.offgridpdf.android.pdf.loadPdfFromUri
 import com.offgridpdf.android.ui.common.NullableUriSaver
+import com.offgridpdf.android.ui.common.rememberDisplayName
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import kotlinx.coroutines.Dispatchers
@@ -79,7 +80,7 @@ fun ExtractTextScreen() {
     ToolScaffold(
         title = "Extract Text",
         accent = accent,
-        pickedFileName = pickedUri?.lastPathSegment,
+        pickedFileName = rememberDisplayName(pickedUri),
         onPickFile = { pickLauncher.launch(arrayOf("application/pdf")) },
         password = password,
         onPasswordChange = { password = it },
@@ -90,10 +91,10 @@ fun ExtractTextScreen() {
                 running = true
                 resultMessage = null
                 savedFile = null
-                val baseName = suggestedBaseName(uri)
                 val pageRange = pagesText.ifBlank { "all" }
 
                 scope.launch {
+                    val baseName = suggestedBaseName(context, uri)
                     when (val result = loadPdfFromUri(context, uri, password.ifBlank { null })) {
                         is PdfLoadResult.Success -> {
                             try {

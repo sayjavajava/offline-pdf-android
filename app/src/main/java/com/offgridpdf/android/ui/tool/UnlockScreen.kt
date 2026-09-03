@@ -21,6 +21,7 @@ import com.offgridpdf.android.pdf.PdfLoadResult
 import com.offgridpdf.android.pdf.loadPdfFromUri
 import com.offgridpdf.android.pdf.removePdfPassword
 import com.offgridpdf.android.ui.common.NullableUriSaver
+import com.offgridpdf.android.ui.common.rememberDisplayName
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import kotlinx.coroutines.Dispatchers
@@ -68,7 +69,7 @@ fun UnlockScreen() {
     ToolScaffold(
         title = "Remove PDF Protection",
         accent = accent,
-        pickedFileName = pickedUri?.lastPathSegment,
+        pickedFileName = rememberDisplayName(pickedUri),
         onPickFile = { pickLauncher.launch(arrayOf("application/pdf")) },
         password = password,
         onPasswordChange = { password = it },
@@ -81,9 +82,9 @@ fun UnlockScreen() {
                 running = true
                 resultMessage = null
                 savedFile = null
-                val baseName = suggestedBaseName(uri)
 
                 scope.launch {
+                    val baseName = suggestedBaseName(context, uri)
                     when (val result = loadPdfFromUri(context, uri, password.ifBlank { null })) {
                         is PdfLoadResult.Success -> {
                             try {

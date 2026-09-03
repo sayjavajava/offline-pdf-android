@@ -45,6 +45,7 @@ import com.offgridpdf.android.pdf.loadPdfFromUri
 import com.offgridpdf.android.ui.common.NullableUriSaver
 import com.offgridpdf.android.ui.common.ScreenTopBar
 import com.offgridpdf.android.ui.common.ToolCompletion
+import com.offgridpdf.android.ui.common.rememberDisplayName
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -66,6 +67,12 @@ fun CompareScreen() {
 
     var uriA by rememberSaveable(stateSaver = NullableUriSaver) { mutableStateOf(PendingFile.consume()) }
     var uriB by rememberSaveable(stateSaver = NullableUriSaver) { mutableStateOf<Uri?>(null) }
+    // Real filenames, resolved once here and reused for both the button
+    // labels below and the report's document labels -- see
+    // rememberDisplayName's own doc for why a Uri's path segment is not
+    // a real filename.
+    val displayNameA = rememberDisplayName(uriA)
+    val displayNameB = rememberDisplayName(uriB)
     // Plain `remember`, deliberately: a document password is never written
     // to saved instance state (see `ui/common/Savers.kt`).
     var passwordA by remember { mutableStateOf("") }
@@ -130,7 +137,7 @@ fun CompareScreen() {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { pickLauncherA.launch(arrayOf("application/pdf")) }, modifier = Modifier.fillMaxWidth()) {
-                        Text(uriA?.lastPathSegment ?: "Choose PDF A")
+                        Text(displayNameA ?: "Choose PDF A")
                     }
                     OutlinedTextField(
                         value = passwordA,
@@ -144,7 +151,7 @@ fun CompareScreen() {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { pickLauncherB.launch(arrayOf("application/pdf")) }, modifier = Modifier.fillMaxWidth()) {
-                        Text(uriB?.lastPathSegment ?: "Choose PDF B")
+                        Text(displayNameB ?: "Choose PDF B")
                     }
                     OutlinedTextField(
                         value = passwordB,
@@ -229,8 +236,8 @@ fun CompareScreen() {
                     OutlinedButton(
                         onClick = {
                             pendingReportBytes = buildCompareReport(
-                                uriA?.lastPathSegment ?: "A.pdf",
-                                uriB?.lastPathSegment ?: "B.pdf",
+                                displayNameA ?: "A.pdf",
+                                displayNameB ?: "B.pdf",
                                 current,
                             ).toByteArray()
                             saveReportLauncher.launch("compare_report.txt")

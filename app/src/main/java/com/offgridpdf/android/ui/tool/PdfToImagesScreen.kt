@@ -30,6 +30,7 @@ import com.offgridpdf.android.pdf.RenderedPage
 import com.offgridpdf.android.pdf.loadPdfFromUri
 import com.offgridpdf.android.pdf.renderPdfPagesToPng
 import com.offgridpdf.android.ui.common.NullableUriSaver
+import com.offgridpdf.android.ui.common.rememberDisplayName
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import kotlinx.coroutines.Dispatchers
@@ -106,7 +107,7 @@ fun PdfToImagesScreen() {
     ToolScaffold(
         title = "PDF to Images",
         accent = accent,
-        pickedFileName = pickedUri?.lastPathSegment,
+        pickedFileName = rememberDisplayName(pickedUri),
         onPickFile = { pickLauncher.launch(arrayOf("application/pdf")) },
         password = password,
         onPasswordChange = { password = it },
@@ -121,9 +122,9 @@ fun PdfToImagesScreen() {
                 savedFile = null
                 val pageRange = pagesText.ifBlank { "all" }
                 val scale = scaleText.toFloatOrNull()
-                val baseName = suggestedBaseName(uri)
 
                 scope.launch {
+                    val baseName = suggestedBaseName(context, uri)
                     if (scale == null) {
                         resultMessage = "Enter a valid scale."
                         running = false

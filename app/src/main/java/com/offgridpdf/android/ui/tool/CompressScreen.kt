@@ -21,6 +21,7 @@ import com.offgridpdf.android.files.savedFileOrNull
 import com.offgridpdf.android.files.suggestedBaseName
 import com.offgridpdf.android.pdf.compressPdf
 import com.offgridpdf.android.ui.common.UriListSaver
+import com.offgridpdf.android.ui.common.rememberDisplayNames
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
@@ -88,9 +89,15 @@ fun CompressScreen() {
     }
 
     val accent = LocalOffGridPalette.current.edit
+    // Kept separate from pickedFiles.size in the labels above/below: those
+    // read the count synchronously off the Uri list, but a name needs an
+    // async provider query (see rememberDisplayNames), so it can lag one
+    // frame behind a fresh pick -- fine for this label, wrong for a count.
+    val pickedFileNames = rememberDisplayNames(pickedFiles)
     val fileName = when {
         pickedFiles.isEmpty() -> null
-        pickedFiles.size == 1 -> pickedFiles[0].lastPathSegment
+        pickedFileNames.size == 1 -> pickedFileNames[0]
+        pickedFiles.size == 1 -> null
         else -> "${pickedFiles.size} files selected"
     }
 
@@ -135,7 +142,7 @@ fun CompressScreen() {
                         } else {
                             "Compressed to ${formatSize(result.singleBytes.size)}."
                         }
-                        savePdfLauncher.launch("${suggestedBaseName(files[0])}_compressed.pdf")
+                        savePdfLauncher.launch("${suggestedBaseName(context, files[0])}_compressed.pdf")
                     }
                     result.zipBytes != null -> {
                         pendingBytes = result.zipBytes

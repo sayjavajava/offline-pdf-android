@@ -80,7 +80,7 @@ suspend fun runOnEachPdf(
     val failures = mutableListOf<String>()
     val seen = mutableMapOf<String, Int>()
     for (uri in files) {
-        val baseName = suggestedBaseName(uri)
+        val baseName = suggestedBaseName(context, uri)
         when (val result = loadPdfFromUri(context, uri, password.ifBlank { null })) {
             is PdfLoadResult.Success -> {
                 try {

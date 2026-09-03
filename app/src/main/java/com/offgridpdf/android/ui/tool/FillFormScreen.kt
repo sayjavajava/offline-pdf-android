@@ -46,6 +46,7 @@ import com.offgridpdf.android.pdf.readFormFields
 import com.offgridpdf.android.ui.common.NullableUriSaver
 import com.offgridpdf.android.ui.common.ScreenTopBar
 import com.offgridpdf.android.ui.common.ToolCompletion
+import com.offgridpdf.android.ui.common.rememberDisplayName
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import com.tom_roush.pdfbox.pdmodel.PDDocument
@@ -150,7 +151,7 @@ fun FillFormScreen() {
                     onClick = { pickLauncher.launch(arrayOf("application/pdf")) },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text(pickedUri?.lastPathSegment ?: "Choose a PDF file")
+                    Text(rememberDisplayName(pickedUri) ?: "Choose a PDF file")
                 }
                 OutlinedTextField(
                     value = password,
@@ -284,9 +285,9 @@ fun FillFormScreen() {
                         filling = true
                         resultMessage = null
                         savedFile = null
-                        val baseName = suggestedBaseName(uri)
                         val filledValues = values
                         scope.launch {
+                            val baseName = suggestedBaseName(context, uri)
                             try {
                                 pendingBytes = withContext(Dispatchers.Default) {
                                     fillFormFields(document, filledValues, flatten)
