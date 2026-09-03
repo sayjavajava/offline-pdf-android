@@ -10,12 +10,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.offgridpdf.android.chain.PendingFile
+import com.offgridpdf.android.files.SavedFile
 import com.offgridpdf.android.files.batchResultMessage
 import com.offgridpdf.android.files.readBytesFromUri
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenMultipleDocumentsLauncher
 import com.offgridpdf.android.files.runOnEachPdf
 import com.offgridpdf.android.files.saveResult
+import com.offgridpdf.android.files.savedFileOrNull
 import com.offgridpdf.android.files.suggestedBaseName
 import com.offgridpdf.android.pdf.compressPdf
 import com.offgridpdf.android.ui.common.UriListSaver
@@ -45,6 +47,9 @@ fun CompressScreen() {
     var password by remember { mutableStateOf("") }
     var running by remember { mutableStateOf(false) }
     var resultMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    // The file this run produced, once it is really on disk. Not
+    // saveable: it holds the bytes, and a Bundle caps out around 1 MB.
+    var savedFile by remember { mutableStateOf<SavedFile?>(null) }
     var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
     // Paired with pendingBytes, which a Bundle cannot hold — so neither is
@@ -55,13 +60,16 @@ fun CompressScreen() {
         pickedFiles = uris
         password = ""
         resultMessage = null
+        savedFile = null
     }
 
     val savePdfLauncher = rememberCreateDocumentLauncher("application/pdf") { uri ->
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                resultMessage = saveResult(context, uri, bytes, pendingSuccessMessage)
+                val outcome = saveResult(context, uri, bytes, pendingSuccessMessage)
+                resultMessage = outcome.message
+                savedFile = outcome.savedFileOrNull
             }
         }
         pendingBytes = null
@@ -71,7 +79,9 @@ fun CompressScreen() {
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                resultMessage = saveResult(context, uri, bytes, pendingSuccessMessage)
+                val outcome = saveResult(context, uri, bytes, pendingSuccessMessage)
+                resultMessage = outcome.message
+                savedFile = outcome.savedFileOrNull
             }
         }
         pendingBytes = null
@@ -96,6 +106,7 @@ fun CompressScreen() {
         onRun = {
             running = true
             resultMessage = null
+            savedFile = null
             lastResultBytes = null
             val files = pickedFiles
 
@@ -144,6 +155,7 @@ fun CompressScreen() {
             else -> "Compress PDF"
         },
         resultMessage = resultMessage,
+        savedFile = savedFile,
         chainableBytes = lastResultBytes,
         batchNote = if (pickedFiles.size > 1) {
             "Compress will run with the same settings on all ${pickedFiles.size} files, saved as one zip."

@@ -2,6 +2,7 @@ package com.offgridpdf.android
 
 import android.app.Application
 import com.offgridpdf.android.files.clearChainCache
+import com.offgridpdf.android.files.clearShareCache
 import com.offgridpdf.android.ui.settings.SecureScreenState
 import com.offgridpdf.android.ui.theme.ThemeState
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
@@ -26,8 +27,9 @@ import kotlinx.coroutines.launch
  * Also where [ThemeState] and [SecureScreenState] load their saved choices — once, here,
  * before `MainActivity` composes anything, so `OffGridPdfTheme` never
  * renders a first frame in the wrong palette — and where the tool-chaining
- * cache is emptied (`files/ChainFile.kt`), so a document handed between
- * tools in a previous session isn't still on disk in this one.
+ * caches are emptied (`files/ChainFile.kt`, `files/ShareFile.kt`), so a
+ * document handed between tools or sent to the share sheet in a previous
+ * session isn't still on disk in this one.
  */
 class OffGridPdfApplication : Application() {
     /**
@@ -48,6 +50,7 @@ class OffGridPdfApplication : Application() {
         // session writes its own file after this has already run.
         appScope.launch {
             runCatching { clearChainCache(applicationContext) }
+            runCatching { clearShareCache(applicationContext) }
         }
     }
 }

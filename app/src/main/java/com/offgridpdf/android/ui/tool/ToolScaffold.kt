@@ -26,12 +26,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.offgridpdf.android.files.SavedFile
 import com.offgridpdf.android.ui.common.ContinueChainAction
 import com.offgridpdf.android.ui.common.FilePickerCard
 import com.offgridpdf.android.ui.common.PrimaryButton
 import com.offgridpdf.android.ui.common.PrivacyLine
 import com.offgridpdf.android.ui.common.RunningIndicator
 import com.offgridpdf.android.ui.common.ScreenTopBar
+import com.offgridpdf.android.ui.common.ToolCompletion
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 
 /**
@@ -82,6 +84,9 @@ fun ToolScaffold(
     onRun: () -> Unit,
     runLabel: String = "Run",
     resultMessage: String?,
+    /** Set when the run finished and a file really reached disk. Drives the
+     * success styling and the Share action. */
+    savedFile: SavedFile? = null,
     chainableBytes: ByteArray? = null,
     batchNote: String? = null,
     options: @Composable () -> Unit = {},
@@ -155,11 +160,18 @@ fun ToolScaffold(
             if (running) {
                 RunningIndicator(accent = accent)
             }
-            resultMessage?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall, color = palette.inkSecondary)
-            }
-            if (resultMessage != null) {
-                ContinueChainAction(bytes = chainableBytes, accent = accent)
+            resultMessage?.let { message ->
+                // One banner for the end of a run, success or failure, rather
+                // than a line of grey text that read the same either way.
+                // ContinueChainAction lives inside it now, which also stops it
+                // being offered after a failure -- there was nothing to
+                // continue with, and it used to appear anyway.
+                ToolCompletion(
+                    message = message,
+                    savedFile = savedFile,
+                    accent = accent,
+                    chainableBytes = chainableBytes,
+                )
             }
             PrivacyLine()
             PrimaryButton(
