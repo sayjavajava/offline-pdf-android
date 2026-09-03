@@ -78,8 +78,8 @@ fine and then block every future update.
 ### CI builds
 
 The **Signed release APK** workflow (`.github/workflows/release-apk.yml`)
-does the same thing on demand: run it from the Actions tab and download the
-`offgridpdf-release-apk` artifact. It needs four repository secrets:
+does the same thing on demand: run it from the Actions tab. It needs four
+repository secrets:
 
 | Secret | Value |
 |---|---|
@@ -89,7 +89,17 @@ does the same thing on demand: run it from the Actions tab and download the
 | `OFFGRID_KEY_PASSWORD` | the key password |
 
 The workflow checks the APK it built is really signed, is not debuggable, and
-still declares no `INTERNET` permission, before uploading it.
+still declares no `INTERNET` permission, before publishing it two ways:
+
+- A **GitHub Release**, tagged `v<versionName>` (from `app/build.gradle.kts`)
+  and named `OffGridPDF <versionName>` — a stable link under the repo's
+  Releases tab, which is what you'd hand a tester or link from a device.
+  Bump `versionName` (and `versionCode`) before running the workflow again;
+  it refuses to overwrite a Release that already exists for the current
+  version, on purpose, rather than silently replace someone's build.
+- This run's own **Actions artifact** (`offgridpdf-release-apk`), kept for
+  convenience — but it expires (90 days, this repo's default setting) and
+  needs Actions-tab access to find, unlike the Release above.
 
 ### What signing does and does not do
 

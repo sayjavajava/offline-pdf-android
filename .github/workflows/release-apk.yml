@@ -4,17 +4,51 @@ name: Signed release APK
 # signed, non-debuggable APK that installs over the previous one, instead of
 # the debug APK from ci.yml, which is signed with a throwaway key the runner
 # regenerates every time and so forces an uninstall on every update.
+#
+# The APK is published to a GitHub Release, not just this run's own artifact
+# (kept below too, for convenience): an Actions artifact expires (90 days,
+# this repo's default) and needs repo-Actions-tab access to find; a Release
+# has a stable URL and shows up in the repo's own Releases list. The tag is
+# v<versionName> from app/build.gradle.kts, so bump versionName there before
+# running this again for a new build -- see "Refuse to overwrite" below.
 on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   release-apk:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+
+      # The tag and Release name both come from versionName, the one place
+      # this app's version is already declared -- not re-typed here, so the
+      # two can never drift apart.
+      - name: Read the app version
+        id: version
+        run: |
+          VERSION_NAME=$(grep -oP 'versionName\s*=\s*"\K[^"]+' app/build.gradle.kts)
+          if [ -z "$VERSION_NAME" ]; then
+            echo "::error::Could not read versionName from app/build.gradle.kts."
+            exit 1
+          fi
+          echo "name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "tag=v$VERSION_NAME" >> "$GITHUB_OUTPUT"
+
+      # Checked first, before any of the expensive build steps below: a
+      # re-run for a version that already has a Release almost always means
+      # someone forgot to bump versionName, and this fails loudly on that
+      # rather than silently overwrite a Release's asset -- same instinct as
+      # the unsigned-APK and offline-permission checks further down, just
+      # moved to the front so the mistake doesn't cost a full build first.
+      - name: Refuse to overwrite an existing release
+        run: |
+          if git ls-remote --tags origin "refs/tags/${{ steps.version.outputs.tag }}" | grep -q .; then
+            echo "::error::Tag ${{ steps.version.outputs.tag }} already exists -- bump versionName in app/build.gradle.kts before running this again."
+            exit 1
+          fi
 
       - uses: actions/setup-java@v5
         with:
@@ -71,9 +105,20 @@ jobs:
           fi
           echo "✓ No INTERNET permission."
 
-      - name: Upload the signed APK
+      - name: Upload the signed APK as this run's own artifact
         uses: actions/upload-artifact@v7
         with:
           name: offgridpdf-release-apk
           path: app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
+
+      # The durable copy: a GitHub Release, tagged and named from versionName
+      # (read above), with the APK attached as a release asset. This is what
+      # gives testers a stable link instead of an expiring Actions artifact.
+      - name: Publish the GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: OffGridPDF ${{ steps.version.outputs.name }}
+          files: app/build/outputs/apk/release/app-release.apk
+          generate_release_notes: true
