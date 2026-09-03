@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.offgridpdf.android.chain.ChainOrigin
 import com.offgridpdf.android.chain.PendingFile
 import com.offgridpdf.android.files.SavedFile
 import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
@@ -66,6 +67,7 @@ fun CropResizeScreen() {
     val scope = rememberCoroutineScope()
 
     var pickedUri by rememberSaveable(stateSaver = NullableUriSaver) { mutableStateOf(PendingFile.consume()) }
+    var inheritedChainOrigin by rememberSaveable { mutableStateOf(ChainOrigin.consume()) }
     // Plain `remember`, deliberately: a document password is never written
     // to saved instance state (see `ui/common/Savers.kt`).
     var password by remember { mutableStateOf("") }
@@ -106,6 +108,8 @@ fun CropResizeScreen() {
     var savedFile by remember { mutableStateOf<SavedFile?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
     var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var chainOriginBaseName by remember { mutableStateOf("") }
+    var chainedFileName by remember { mutableStateOf("") }
 
     val pickLauncher = rememberOpenDocumentLauncher { uri ->
         pickedUri = uri
@@ -114,6 +118,7 @@ fun CropResizeScreen() {
         savedFile = null
         previewImage = null
         previewMessage = null
+        inheritedChainOrigin = null
     }
 
     val saveLauncher = rememberCreateDocumentLauncher("application/pdf") { uri ->
@@ -207,6 +212,7 @@ fun CropResizeScreen() {
 
                     scope.launch {
                         val baseName = suggestedBaseName(context, uri)
+                        val originBaseName = inheritedChainOrigin ?: baseName
                         when (val result = loadPdfFromUri(context, uri, password.ifBlank { null })) {
                             is PdfLoadResult.Success -> {
                                 try {
@@ -214,6 +220,8 @@ fun CropResizeScreen() {
                                         cropPdf(result.document, margins, pageRange)
                                     }
                                     lastResultBytes = pendingBytes
+                                    chainOriginBaseName = originBaseName
+                                    chainedFileName = "${originBaseName}_cropped.pdf"
                                     saveLauncher.launch("${baseName}_cropped.pdf")
                                 } catch (e: Exception) {
                                     resultMessage = userMessageFor(e)
@@ -252,6 +260,7 @@ fun CropResizeScreen() {
 
                     scope.launch {
                         val baseName = suggestedBaseName(context, uri)
+                        val originBaseName = inheritedChainOrigin ?: baseName
                         when (val result = loadPdfFromUri(context, uri, password.ifBlank { null })) {
                             is PdfLoadResult.Success -> {
                                 try {
@@ -259,6 +268,8 @@ fun CropResizeScreen() {
                                         resizePdf(result.document, target, pageRange, stretch)
                                     }
                                     lastResultBytes = pendingBytes
+                                    chainOriginBaseName = originBaseName
+                                    chainedFileName = "${originBaseName}_resized.pdf"
                                     saveLauncher.launch("${baseName}_resized.pdf")
                                 } catch (e: Exception) {
                                     resultMessage = userMessageFor(e)
@@ -291,6 +302,8 @@ fun CropResizeScreen() {
         resultMessage = resultMessage,
         savedFile = savedFile,
         chainableBytes = lastResultBytes,
+        chainOriginBaseName = chainOriginBaseName,
+        chainedFileName = chainedFileName,
         options = {
             Text(
                 "Crop trims margins non-destructively — the underlying content is untouched, only " +

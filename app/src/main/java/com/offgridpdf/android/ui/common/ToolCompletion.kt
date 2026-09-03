@@ -51,6 +51,11 @@ fun ToolCompletion(
     accent: Color,
     modifier: Modifier = Modifier,
     chainableBytes: ByteArray? = null,
+    // Unused unless chainableBytes is non-null -- ContinueChainAction
+    // returns before touching either, so the empty-string default is never
+    // observable.
+    chainOriginBaseName: String = "",
+    chainedFileName: String = "",
 ) {
     val palette = LocalOffGridPalette.current
     val succeeded = savedFile != null
@@ -99,7 +104,12 @@ fun ToolCompletion(
             ShareAction(file = savedFile, accent = accent)
         }
         if (succeeded) {
-            ContinueChainAction(bytes = chainableBytes, accent = accent)
+            ContinueChainAction(
+                bytes = chainableBytes,
+                accent = accent,
+                originBaseName = chainOriginBaseName,
+                chainedFileName = chainedFileName,
+            )
         }
     }
 }

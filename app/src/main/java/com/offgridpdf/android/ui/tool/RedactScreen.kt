@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.offgridpdf.android.chain.ChainOrigin
 import com.offgridpdf.android.chain.PendingFile
 import com.offgridpdf.android.files.SavedFile
 import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
@@ -112,6 +113,7 @@ fun RedactScreen() {
     val accent = palette.security
 
     var pickedUri by rememberSaveable(stateSaver = NullableUriSaver) { mutableStateOf(PendingFile.consume()) }
+    var inheritedChainOrigin by rememberSaveable { mutableStateOf(ChainOrigin.consume()) }
     // Plain `remember`, deliberately: a document password is never written
     // to saved instance state (see `ui/common/Savers.kt`).
     var password by remember { mutableStateOf("") }
@@ -149,6 +151,8 @@ fun RedactScreen() {
 
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
     var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var chainOriginBaseName by remember { mutableStateOf("") }
+    var chainedFileName by remember { mutableStateOf("") }
 
     // The in-flight page render, so a newer page turn can cancel an older
     // one (see goToPage).
@@ -197,6 +201,7 @@ fun RedactScreen() {
         previewImage = null
         searchQuery = ""
         findResult = null
+        inheritedChainOrigin = null
         findMessage = null
     }
 
@@ -584,6 +589,9 @@ fun RedactScreen() {
                                 pendingBytes = bytes
                                 lastResultBytes = bytes
                                 val name = pickedUri?.let { suggestedBaseName(context, it) } ?: "document"
+                                val originBaseName = inheritedChainOrigin ?: name
+                                chainOriginBaseName = originBaseName
+                                chainedFileName = "${originBaseName}_redacted.pdf"
                                 saveLauncher.launch("${name}_redacted.pdf")
                             } catch (e: Exception) {
                                 resultMessage = userMessageFor(e)
@@ -604,6 +612,8 @@ fun RedactScreen() {
                         savedFile = savedFile,
                         accent = accent,
                         chainableBytes = lastResultBytes,
+                        chainOriginBaseName = chainOriginBaseName,
+                        chainedFileName = chainedFileName,
                     )
                 }
             }

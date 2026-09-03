@@ -9,6 +9,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import com.offgridpdf.android.chain.ChainOrigin
 import com.offgridpdf.android.chain.PendingFile
 import com.offgridpdf.android.files.SavedFile
 import com.offgridpdf.android.files.batchResultMessage
@@ -43,6 +44,9 @@ fun CompressScreen() {
     val scope = rememberCoroutineScope()
 
     var pickedFiles by rememberSaveable(stateSaver = UriListSaver) { mutableStateOf(PendingFile.consume()?.let { listOf(it) } ?: emptyList<Uri>()) }
+    // Non-null only when opened via "Continue with another tool" — see
+    // SplitScreen's identical field for the full explanation.
+    var inheritedChainOrigin by rememberSaveable { mutableStateOf(ChainOrigin.consume()) }
     // Plain `remember`, deliberately: a document password is never written
     // to saved instance state (see `ui/common/Savers.kt`).
     var password by remember { mutableStateOf("") }
@@ -52,6 +56,8 @@ fun CompressScreen() {
     // saveable: it holds the bytes, and a Bundle caps out around 1 MB.
     var savedFile by remember { mutableStateOf<SavedFile?>(null) }
     var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var chainOriginBaseName by remember { mutableStateOf("") }
+    var chainedFileName by remember { mutableStateOf("") }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
     // Paired with pendingBytes, which a Bundle cannot hold — so neither is
     // saved (see `ui/common/Savers.kt`).
@@ -62,6 +68,7 @@ fun CompressScreen() {
         password = ""
         resultMessage = null
         savedFile = null
+        inheritedChainOrigin = null
     }
 
     val savePdfLauncher = rememberCreateDocumentLauncher("application/pdf") { uri ->
@@ -137,12 +144,16 @@ fun CompressScreen() {
                     result.singleBytes != null -> {
                         pendingBytes = result.singleBytes
                         lastResultBytes = result.singleBytes
+                        val baseName = suggestedBaseName(context, files[0])
+                        val originBaseName = inheritedChainOrigin ?: baseName
+                        chainOriginBaseName = originBaseName
+                        chainedFileName = "${originBaseName}_compressed.pdf"
                         pendingSuccessMessage = if (singleOriginalSize != null) {
                             compressionMessage(singleOriginalSize, result.singleBytes.size)
                         } else {
                             "Compressed to ${formatSize(result.singleBytes.size)}."
                         }
-                        savePdfLauncher.launch("${suggestedBaseName(context, files[0])}_compressed.pdf")
+                        savePdfLauncher.launch("${baseName}_compressed.pdf")
                     }
                     result.zipBytes != null -> {
                         pendingBytes = result.zipBytes
@@ -164,6 +175,8 @@ fun CompressScreen() {
         resultMessage = resultMessage,
         savedFile = savedFile,
         chainableBytes = lastResultBytes,
+        chainOriginBaseName = chainOriginBaseName,
+        chainedFileName = chainedFileName,
         batchNote = if (pickedFiles.size > 1) {
             "Compress will run with the same settings on all ${pickedFiles.size} files, saved as one zip."
         } else {

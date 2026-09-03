@@ -9,6 +9,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import com.offgridpdf.android.chain.ChainOrigin
 import com.offgridpdf.android.chain.PendingFile
 import com.offgridpdf.android.files.SavedFile
 import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
@@ -35,6 +36,7 @@ fun UnlockScreen() {
     val scope = rememberCoroutineScope()
 
     var pickedUri by rememberSaveable(stateSaver = NullableUriSaver) { mutableStateOf(PendingFile.consume()) }
+    var inheritedChainOrigin by rememberSaveable { mutableStateOf(ChainOrigin.consume()) }
     // Plain `remember`, deliberately: a document password is never written
     // to saved instance state (see `ui/common/Savers.kt`).
     var password by remember { mutableStateOf("") }
@@ -45,12 +47,15 @@ fun UnlockScreen() {
     var savedFile by remember { mutableStateOf<SavedFile?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
     var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var chainOriginBaseName by remember { mutableStateOf("") }
+    var chainedFileName by remember { mutableStateOf("") }
 
     val pickLauncher = rememberOpenDocumentLauncher { uri ->
         pickedUri = uri
         password = ""
         resultMessage = null
         savedFile = null
+        inheritedChainOrigin = null
     }
 
     val saveLauncher = rememberCreateDocumentLauncher("application/pdf") { uri ->
@@ -85,6 +90,7 @@ fun UnlockScreen() {
 
                 scope.launch {
                     val baseName = suggestedBaseName(context, uri)
+                    val originBaseName = inheritedChainOrigin ?: baseName
                     when (val result = loadPdfFromUri(context, uri, password.ifBlank { null })) {
                         is PdfLoadResult.Success -> {
                             try {
@@ -92,6 +98,8 @@ fun UnlockScreen() {
                                     removePdfPassword(result.document)
                                 }
                                 lastResultBytes = pendingBytes
+                                chainOriginBaseName = originBaseName
+                                chainedFileName = "${originBaseName}_unprotected.pdf"
                                 saveLauncher.launch("${baseName}_unprotected.pdf")
                             } catch (e: Exception) {
                                 resultMessage = userMessageFor(e)
@@ -120,5 +128,7 @@ fun UnlockScreen() {
         resultMessage = resultMessage,
         savedFile = savedFile,
         chainableBytes = lastResultBytes,
+        chainOriginBaseName = chainOriginBaseName,
+        chainedFileName = chainedFileName,
     )
 }

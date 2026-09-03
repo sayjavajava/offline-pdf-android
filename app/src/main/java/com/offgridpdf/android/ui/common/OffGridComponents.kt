@@ -32,6 +32,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.offgridpdf.android.R
+import com.offgridpdf.android.chain.ChainOrigin
 import com.offgridpdf.android.chain.PendingFile
 import com.offgridpdf.android.chain.PendingNavigation
 import com.offgridpdf.android.chain.ROUTE_DASHBOARD
@@ -205,9 +206,26 @@ fun RunningIndicator(accent: Color, modifier: Modifier = Modifier) {
  * tool the user picks next via [PendingFile]/[PendingNavigation] — the
  * same mechanism a Share/View intent or a shortcut launch uses to seed a
  * tool screen, so nothing here needs its own bespoke plumbing.
+ *
+ * [originBaseName] — the *original* file's base name, before any operation
+ * was applied — is carried via [ChainOrigin] so the next hop's own chain
+ * result is still named from it rather than from this cache file's own
+ * name. That keeps a chained name from growing with every hop: hop 2 names
+ * its result `<originBaseName>_<its own suffix>`, not
+ * `<hop 1's already-suffixed name>_<its own suffix>`. [chainedFileName] is
+ * the caller's already-built `<originBaseName>_<this hop's suffix>.pdf` —
+ * computed by the caller, not here, because only the caller knows which
+ * operation just ran (and, for a screen with more than one success path
+ * such as Crop/Resize, which of its own suffixes applies).
  */
 @Composable
-fun ContinueChainAction(bytes: ByteArray?, accent: Color, modifier: Modifier = Modifier) {
+fun ContinueChainAction(
+    bytes: ByteArray?,
+    accent: Color,
+    originBaseName: String,
+    chainedFileName: String,
+    modifier: Modifier = Modifier,
+) {
     if (bytes == null) return
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -220,7 +238,8 @@ fun ContinueChainAction(bytes: ByteArray?, accent: Color, modifier: Modifier = M
             .border(BorderStroke(1.dp, accent), RoundedCornerShape(10.dp))
             .clickable {
                 scope.launch {
-                    val uri = writeBytesToCacheUri(context, bytes, "chained-result.pdf")
+                    val uri = writeBytesToCacheUri(context, bytes, chainedFileName)
+                    ChainOrigin.set(originBaseName)
                     PendingFile.set(uri)
                     PendingNavigation.set(ROUTE_DASHBOARD)
                 }

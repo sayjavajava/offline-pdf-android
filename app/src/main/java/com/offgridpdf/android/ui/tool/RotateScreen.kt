@@ -18,6 +18,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.offgridpdf.android.chain.ChainOrigin
 import com.offgridpdf.android.chain.PendingFile
 import com.offgridpdf.android.files.SavedFile
 import com.offgridpdf.android.files.batchResultMessage
@@ -47,6 +48,7 @@ fun RotateScreen() {
     val scope = rememberCoroutineScope()
 
     var pickedFiles by rememberSaveable(stateSaver = UriListSaver) { mutableStateOf(PendingFile.consume()?.let { listOf(it) } ?: emptyList<Uri>()) }
+    var inheritedChainOrigin by rememberSaveable { mutableStateOf(ChainOrigin.consume()) }
     // Plain `remember`, deliberately: a document password is never written
     // to saved instance state (see `ui/common/Savers.kt`).
     var password by remember { mutableStateOf("") }
@@ -62,12 +64,15 @@ fun RotateScreen() {
     // saved (see `ui/common/Savers.kt`).
     var pendingSuccessMessage by remember { mutableStateOf("") }
     var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var chainOriginBaseName by remember { mutableStateOf("") }
+    var chainedFileName by remember { mutableStateOf("") }
 
     val pickLauncher = rememberOpenMultipleDocumentsLauncher { uris ->
         pickedFiles = uris
         password = ""
         resultMessage = null
         savedFile = null
+        inheritedChainOrigin = null
     }
 
     val savePdfLauncher = rememberCreateDocumentLauncher("application/pdf") { uri ->
@@ -136,8 +141,12 @@ fun RotateScreen() {
                     result.singleBytes != null -> {
                         pendingBytes = result.singleBytes
                         lastResultBytes = result.singleBytes
+                        val baseName = suggestedBaseName(context, files[0])
+                        val originBaseName = inheritedChainOrigin ?: baseName
+                        chainOriginBaseName = originBaseName
+                        chainedFileName = "${originBaseName}_rotated$angle.pdf"
                         pendingSuccessMessage = "Pages rotated $angle°."
-                        savePdfLauncher.launch("${suggestedBaseName(context, files[0])}_rotated$angle.pdf")
+                        savePdfLauncher.launch("${baseName}_rotated$angle.pdf")
                     }
                     result.zipBytes != null -> {
                         pendingBytes = result.zipBytes
@@ -159,6 +168,8 @@ fun RotateScreen() {
         resultMessage = resultMessage,
         savedFile = savedFile,
         chainableBytes = lastResultBytes,
+        chainOriginBaseName = chainOriginBaseName,
+        chainedFileName = chainedFileName,
         batchNote = if (pickedFiles.size > 1) {
             "Rotate will run with the same settings on all ${pickedFiles.size} files, saved as one zip."
         } else {

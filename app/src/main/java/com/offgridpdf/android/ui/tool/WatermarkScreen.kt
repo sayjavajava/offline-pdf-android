@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.offgridpdf.android.chain.ChainOrigin
 import com.offgridpdf.android.chain.PendingFile
 import com.offgridpdf.android.files.SavedFile
 import com.offgridpdf.android.files.batchResultMessage
@@ -62,6 +63,7 @@ fun WatermarkScreen() {
     val scope = rememberCoroutineScope()
 
     var pickedFiles by rememberSaveable(stateSaver = UriListSaver) { mutableStateOf(PendingFile.consume()?.let { listOf(it) } ?: emptyList<Uri>()) }
+    var inheritedChainOrigin by rememberSaveable { mutableStateOf(ChainOrigin.consume()) }
     // Plain `remember`, deliberately: a document password is never written
     // to saved instance state (see `ui/common/Savers.kt`).
     var password by remember { mutableStateOf("") }
@@ -85,12 +87,15 @@ fun WatermarkScreen() {
     // saved (see `ui/common/Savers.kt`).
     var pendingSuccessMessage by remember { mutableStateOf("") }
     var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var chainOriginBaseName by remember { mutableStateOf("") }
+    var chainedFileName by remember { mutableStateOf("") }
 
     val pickLauncher = rememberOpenMultipleDocumentsLauncher { uris ->
         pickedFiles = uris
         password = ""
         resultMessage = null
         savedFile = null
+        inheritedChainOrigin = null
     }
 
     val savePdfLauncher = rememberCreateDocumentLauncher("application/pdf") { uri ->
@@ -165,8 +170,12 @@ fun WatermarkScreen() {
                         result.singleBytes != null -> {
                             pendingBytes = result.singleBytes
                             lastResultBytes = result.singleBytes
+                            val baseName = suggestedBaseName(context, files[0])
+                            val originBaseName = inheritedChainOrigin ?: baseName
+                            chainOriginBaseName = originBaseName
+                            chainedFileName = "${originBaseName}_watermarked.pdf"
                             pendingSuccessMessage = "Watermark added to your PDF."
-                            savePdfLauncher.launch("${suggestedBaseName(context, files[0])}_watermarked.pdf")
+                            savePdfLauncher.launch("${baseName}_watermarked.pdf")
                         }
                         result.zipBytes != null -> {
                             pendingBytes = result.zipBytes
@@ -189,6 +198,8 @@ fun WatermarkScreen() {
         resultMessage = resultMessage,
         savedFile = savedFile,
         chainableBytes = lastResultBytes,
+        chainOriginBaseName = chainOriginBaseName,
+        chainedFileName = chainedFileName,
         batchNote = if (pickedFiles.size > 1) {
             "Watermark will run with the same settings on all ${pickedFiles.size} files, saved as one zip."
         } else {

@@ -15,6 +15,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import com.offgridpdf.android.chain.ChainOrigin
 import com.offgridpdf.android.chain.PendingFile
 import com.offgridpdf.android.files.SavedFile
 import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
@@ -46,6 +47,11 @@ fun SplitScreen() {
     val accent = LocalOffGridPalette.current.organize
 
     var pickedUri by rememberSaveable(stateSaver = NullableUriSaver) { mutableStateOf(PendingFile.consume()) }
+    // Non-null only when this screen was opened via "Continue with another
+    // tool" — the original file's base name, from before the *previous*
+    // hop's own operation. Null means this screen's own picked file IS the
+    // origin (either a fresh pick, or the app's entry point).
+    var inheritedChainOrigin by rememberSaveable { mutableStateOf(ChainOrigin.consume()) }
     // Plain `remember`, deliberately: a document password is never written
     // to saved instance state (see `ui/common/Savers.kt`).
     var password by remember { mutableStateOf("") }
@@ -70,12 +76,18 @@ fun SplitScreen() {
     // something the next tool screen can open, so chaining stays null for
     // that path (see the "separate files" branch below).
     var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
+    // Captured at the same moment as lastResultBytes, from the same
+    // originBaseName used for the Save suggestion — see ContinueChainAction's
+    // doc for why the chain name must not accumulate suffixes across hops.
+    var chainOriginBaseName by remember { mutableStateOf("") }
+    var chainedFileName by remember { mutableStateOf("") }
 
     val pickLauncher = rememberOpenDocumentLauncher { uri ->
         pickedUri = uri
         password = ""
         resultMessage = null
         savedFile = null
+        inheritedChainOrigin = null
     }
 
     val savePdfLauncher = rememberCreateDocumentLauncher("application/pdf") { uri ->
@@ -122,6 +134,7 @@ fun SplitScreen() {
 
                 scope.launch {
                     val baseName = suggestedBaseName(context, uri)
+                    val originBaseName = inheritedChainOrigin ?: baseName
                     when (val result = loadPdfFromUri(context, uri, password.ifBlank { null })) {
                         is PdfLoadResult.Success -> {
                             try {
@@ -136,6 +149,8 @@ fun SplitScreen() {
                                         val page = pages[0]
                                         pendingBytes = page.bytes
                                         lastResultBytes = pendingBytes
+                                        chainOriginBaseName = originBaseName
+                                        chainedFileName = "${originBaseName}_split.pdf"
                                         val suggestedName = "${baseName}_page-${page.pageNumber.toString().padStart(3, '0')}.pdf"
                                         savePdfLauncher.launch(suggestedName)
                                     } else {
@@ -149,6 +164,8 @@ fun SplitScreen() {
                                         splitPdfToSingleFile(result.document, pageRange)
                                     }
                                     lastResultBytes = pendingBytes
+                                    chainOriginBaseName = originBaseName
+                                    chainedFileName = "${originBaseName}_split.pdf"
                                     pendingSuccessMessage = "Your PDF has been split successfully."
                                     savePdfLauncher.launch("${baseName}_split.pdf")
                                 }

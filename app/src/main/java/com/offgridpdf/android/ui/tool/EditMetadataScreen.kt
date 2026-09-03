@@ -13,6 +13,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import com.offgridpdf.android.chain.ChainOrigin
 import com.offgridpdf.android.chain.PendingFile
 import com.offgridpdf.android.files.SavedFile
 import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
@@ -45,6 +46,7 @@ fun EditMetadataScreen() {
     val scope = rememberCoroutineScope()
 
     var pickedUri by rememberSaveable(stateSaver = NullableUriSaver) { mutableStateOf(PendingFile.consume()) }
+    var inheritedChainOrigin by rememberSaveable { mutableStateOf(ChainOrigin.consume()) }
     // Plain `remember`, deliberately: a document password is never written
     // to saved instance state (see `ui/common/Savers.kt`).
     var password by remember { mutableStateOf("") }
@@ -59,12 +61,15 @@ fun EditMetadataScreen() {
     var savedFile by remember { mutableStateOf<SavedFile?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
     var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var chainOriginBaseName by remember { mutableStateOf("") }
+    var chainedFileName by remember { mutableStateOf("") }
 
     val pickLauncher = rememberOpenDocumentLauncher { uri ->
         pickedUri = uri
         password = ""
         resultMessage = null
         savedFile = null
+        inheritedChainOrigin = null
     }
 
     val saveLauncher = rememberCreateDocumentLauncher("application/pdf") { uri ->
@@ -108,7 +113,11 @@ fun EditMetadataScreen() {
                                     )
                                 }
                                 lastResultBytes = pendingBytes
-                                saveLauncher.launch("${suggestedBaseName(context, uri)}_edited.pdf")
+                                val baseName = suggestedBaseName(context, uri)
+                                val originBaseName = inheritedChainOrigin ?: baseName
+                                chainOriginBaseName = originBaseName
+                                chainedFileName = "${originBaseName}_edited.pdf"
+                                saveLauncher.launch("${baseName}_edited.pdf")
                             } catch (e: Exception) {
                                 resultMessage = userMessageFor(e)
                             } catch (e: OutOfMemoryError) {
@@ -136,6 +145,8 @@ fun EditMetadataScreen() {
         resultMessage = resultMessage,
         savedFile = savedFile,
         chainableBytes = lastResultBytes,
+        chainOriginBaseName = chainOriginBaseName,
+        chainedFileName = chainedFileName,
         options = {
             OutlinedTextField(
                 value = title,
