@@ -24,7 +24,13 @@
 #    that wrote to it.
 set +e
 adb logcat -c
-./gradlew connectedDebugAndroidTest --stacktrace
+# Scoped to Spike A's own class. Without the filter this runs *every*
+# androidTest class on the device, so an unrelated UI test failing takes
+# this spike's workflow red with it -- which is exactly what happened when
+# OptionRowLayoutTest was added.
+./gradlew connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=com.offgridpdf.android.spike.PageRenderingSpikeTest \
+  --stacktrace
 GRADLE_EXIT=$?
 
 echo "=================================================="
