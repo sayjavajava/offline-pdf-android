@@ -1,9 +1,6 @@
 package com.offgridpdf.android.ui.tool
 
 import android.net.Uri
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -11,7 +8,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.offgridpdf.android.chain.ChainOrigin
 import com.offgridpdf.android.chain.PendingFile
@@ -27,6 +23,7 @@ import com.offgridpdf.android.pdf.PdfMetadataEdit
 import com.offgridpdf.android.pdf.editPdfMetadata
 import com.offgridpdf.android.pdf.loadPdfFromUri
 import com.offgridpdf.android.ui.common.NullableUriSaver
+import com.offgridpdf.android.ui.common.ToolTextField
 import com.offgridpdf.android.ui.common.rememberDisplayName
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
@@ -148,29 +145,29 @@ fun EditMetadataScreen() {
         chainOriginBaseName = chainOriginBaseName,
         chainedFileName = chainedFileName,
         options = {
-            OutlinedTextField(
+            ToolTextField(
                 value = title,
                 onValueChange = { title = it },
-                label = { Text("Title") },
-                modifier = Modifier.fillMaxWidth(),
+                label = "Title",
+                accent = accent,
             )
-            OutlinedTextField(
+            ToolTextField(
                 value = author,
                 onValueChange = { author = it },
-                label = { Text("Author") },
-                modifier = Modifier.fillMaxWidth(),
+                label = "Author",
+                accent = accent,
             )
-            OutlinedTextField(
+            ToolTextField(
                 value = subject,
                 onValueChange = { subject = it },
-                label = { Text("Subject") },
-                modifier = Modifier.fillMaxWidth(),
+                label = "Subject",
+                accent = accent,
             )
-            OutlinedTextField(
+            ToolTextField(
                 value = keywords,
                 onValueChange = { keywords = it },
-                label = { Text("Keywords (comma-separated)") },
-                modifier = Modifier.fillMaxWidth(),
+                label = "Keywords (comma-separated)",
+                accent = accent,
             )
         },
     )

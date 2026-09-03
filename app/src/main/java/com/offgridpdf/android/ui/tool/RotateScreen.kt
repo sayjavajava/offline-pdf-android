@@ -1,13 +1,6 @@
 package com.offgridpdf.android.ui.tool
 
 import android.net.Uri
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -15,9 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import com.offgridpdf.android.chain.ChainOrigin
 import com.offgridpdf.android.chain.PendingFile
 import com.offgridpdf.android.files.SavedFile
@@ -29,6 +20,10 @@ import com.offgridpdf.android.files.saveResult
 import com.offgridpdf.android.files.savedFileOrNull
 import com.offgridpdf.android.files.suggestedBaseName
 import com.offgridpdf.android.pdf.rotatePdf
+import com.offgridpdf.android.ui.common.OptionChip
+import com.offgridpdf.android.ui.common.OptionChipRow
+import com.offgridpdf.android.ui.common.SectionLabel
+import com.offgridpdf.android.ui.common.ToolTextField
 import com.offgridpdf.android.ui.common.UriListSaver
 import com.offgridpdf.android.ui.common.rememberDisplayNames
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
@@ -176,22 +171,23 @@ fun RotateScreen() {
             null
         },
         options = {
-            Text("Rotation")
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SectionLabel("Rotation")
+            OptionChipRow {
                 for (candidate in ANGLES) {
-                    if (candidate == angle) {
-                        Button(onClick = { angle = candidate }) { Text("$candidate°") }
-                    } else {
-                        OutlinedButton(onClick = { angle = candidate }) { Text("$candidate°") }
-                    }
+                    OptionChip(
+                        label = "$candidate°",
+                        selected = candidate == angle,
+                        accent = accent,
+                        onClick = { angle = candidate },
+                    )
                 }
             }
-            OutlinedTextField(
+            ToolTextField(
                 value = pagesText,
                 onValueChange = { pagesText = it },
-                label = { Text("Pages (blank = all)") },
-                placeholder = { Text("e.g. 1, 3-5 — or leave blank for all") },
-                modifier = Modifier.fillMaxWidth(),
+                label = "Pages (blank = all)",
+                accent = accent,
+                placeholder = "e.g. 1, 3-5 — or leave blank for all",
             )
         },
     )

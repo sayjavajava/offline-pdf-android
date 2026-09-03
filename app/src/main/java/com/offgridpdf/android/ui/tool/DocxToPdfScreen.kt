@@ -35,8 +35,13 @@ import com.offgridpdf.android.files.savedFileOrNull
 import com.offgridpdf.android.files.suggestedBaseName
 import com.offgridpdf.android.pdf.convertDocxToPdf
 import com.offgridpdf.android.ui.common.NullableUriSaver
-import com.offgridpdf.android.ui.common.ScreenTopBar
+import com.offgridpdf.android.ui.common.FilePickerCard
+import com.offgridpdf.android.ui.common.PrimaryButton
+import com.offgridpdf.android.ui.common.PrivacyLine
+import com.offgridpdf.android.ui.common.RunningIndicator
+import com.offgridpdf.android.ui.common.ToolBodyText
 import com.offgridpdf.android.ui.common.ToolCompletion
+import com.offgridpdf.android.ui.common.ToolScreenScaffold
 import com.offgridpdf.android.ui.common.rememberDisplayName
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
@@ -56,7 +61,6 @@ import kotlinx.coroutines.withContext
  * No password field (unlike `ToolScaffold`'s tools): DOCX files aren't
  * encrypted the way PDFs are, so there's no such concept here.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DocxToPdfScreen() {
     val context = LocalContext.current
@@ -94,40 +98,20 @@ fun DocxToPdfScreen() {
         pendingBytes = null
     }
 
-    Scaffold(
-        topBar = { ScreenTopBar(title = "Convert DOCX to PDF") },
-        containerColor = LocalOffGridPalette.current.paper,
-        // Bottom and horizontal only. The top inset belongs to ScreenTopBar,
-        // which applies it itself, so asking Scaffold for it as well risks
-        // counting the status bar twice. Bottom is safeDrawing rather than
-        // navigationBars so content also clears the keyboard.
-        contentWindowInsets = WindowInsets.safeDrawing.only(
-            WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal,
-        ),
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(innerPadding).padding(16.dp),
-        ) {
-            Text(
-                "Convert a Word document to a real, text-based PDF — selectable and " +
-                    "searchable, not a picture of the page. Headings, paragraphs, and " +
-                    "bold/italic text are supported. Tables and images aren't yet, and are " +
-                    "reported rather than silently dropped; list items still convert, just " +
-                    "without their bullet or number.",
-            )
-
-            Button(
-                onClick = {
-                    pickLauncher.launch(
-                        arrayOf("application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
-                    )
-                },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(rememberDisplayName(pickedUri) ?: "Choose a DOCX file")
+    ToolScreenScaffold(
+        title = "Convert DOCX to PDF",
+        bottomBar = {
+            if (running) {
+                RunningIndicator(accent = accent)
             }
-
-            Button(
+            resultMessage?.let { message ->
+                ToolCompletion(message = message, savedFile = savedFile, accent = accent)
+            }
+            PrivacyLine()
+            PrimaryButton(
+                text = if (running) "Converting..." else "Convert to PDF",
+                accent = accent,
+                enabled = !running,
                 onClick = {
                     val uri = pickedUri
                     if (uri == null) {
@@ -159,19 +143,24 @@ fun DocxToPdfScreen() {
                         }
                     }
                 },
-                enabled = !running,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(if (running) "Converting..." else "Convert to PDF")
-            }
+            )
+        },
+    ) {
+        FilePickerCard(
+            fileName = rememberDisplayName(pickedUri),
+            onClick = {
+                pickLauncher.launch(
+                    arrayOf("application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+                )
+            },
+        )
 
-            if (running) {
-                CircularProgressIndicator()
-            }
-
-            resultMessage?.let { message ->
-                ToolCompletion(message = message, savedFile = savedFile, accent = accent)
-            }
-        }
+        ToolBodyText(
+            "Convert a Word document to a real, text-based PDF — selectable and " +
+                "searchable, not a picture of the page. Headings, paragraphs, and " +
+                "bold/italic text are supported. Tables and images aren't yet, and are " +
+                "reported rather than silently dropped; list items still convert, just " +
+                "without their bullet or number.",
+        )
     }
 }

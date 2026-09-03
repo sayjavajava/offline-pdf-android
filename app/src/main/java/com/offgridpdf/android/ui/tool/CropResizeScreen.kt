@@ -1,15 +1,9 @@
 package com.offgridpdf.android.ui.tool
 
 import android.net.Uri
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -23,7 +17,6 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
 import com.offgridpdf.android.chain.ChainOrigin
 import com.offgridpdf.android.chain.PendingFile
 import com.offgridpdf.android.files.SavedFile
@@ -44,10 +37,17 @@ import com.offgridpdf.android.pdf.loadPdfFromUri
 import com.offgridpdf.android.pdf.renderPageForPreview
 import com.offgridpdf.android.pdf.resizePdf
 import com.offgridpdf.android.pdf.resolvePageIndices
+import com.offgridpdf.android.ui.common.CheckboxRow
 import com.offgridpdf.android.ui.common.NullableUriSaver
+import com.offgridpdf.android.ui.common.OptionChip
+import com.offgridpdf.android.ui.common.OptionChipRow
 import com.offgridpdf.android.ui.common.PageOverlay
 import com.offgridpdf.android.ui.common.PageOverlayStyle
 import com.offgridpdf.android.ui.common.PagePreview
+import com.offgridpdf.android.ui.common.SecondaryButton
+import com.offgridpdf.android.ui.common.SectionLabel
+import com.offgridpdf.android.ui.common.ToolBodyText
+import com.offgridpdf.android.ui.common.ToolTextField
 import com.offgridpdf.android.ui.common.rememberDisplayName
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
@@ -305,63 +305,61 @@ fun CropResizeScreen() {
         chainOriginBaseName = chainOriginBaseName,
         chainedFileName = chainedFileName,
         options = {
-            Text(
+            ToolBodyText(
                 "Crop trims margins non-destructively — the underlying content is untouched, only " +
                     "the visible window shrinks. Resize actually rescales content and page size " +
                     "together; it defaults to scale-to-fit so nothing is distorted.",
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (mode == Mode.CROP) {
-                    Button(onClick = { mode = Mode.CROP }) { Text("Crop") }
-                } else {
-                    OutlinedButton(onClick = { mode = Mode.CROP }) { Text("Crop") }
-                }
-                if (mode == Mode.RESIZE) {
-                    Button(onClick = { mode = Mode.RESIZE }) { Text("Resize") }
-                } else {
-                    OutlinedButton(onClick = { mode = Mode.RESIZE }) { Text("Resize") }
+            OptionChipRow {
+                for (candidate in Mode.entries) {
+                    OptionChip(
+                        label = if (candidate == Mode.CROP) "Crop" else "Resize",
+                        selected = candidate == mode,
+                        accent = accent,
+                        onClick = { mode = candidate },
+                    )
                 }
             }
 
             if (mode == Mode.CROP) {
-                OutlinedTextField(
+                ToolTextField(
                     value = topText,
                     onValueChange = { topText = it },
-                    label = { Text("Top margin (pt)") },
+                    label = "Top margin (pt)",
+                    accent = accent,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
+                ToolTextField(
                     value = bottomText,
                     onValueChange = { bottomText = it },
-                    label = { Text("Bottom margin (pt)") },
+                    label = "Bottom margin (pt)",
+                    accent = accent,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
+                ToolTextField(
                     value = leftText,
                     onValueChange = { leftText = it },
-                    label = { Text("Left margin (pt)") },
+                    label = "Left margin (pt)",
+                    accent = accent,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
+                ToolTextField(
                     value = rightText,
                     onValueChange = { rightText = it },
-                    label = { Text("Right margin (pt)") },
+                    label = "Right margin (pt)",
+                    accent = accent,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth(),
                 )
 
                 val image = previewImage
                 if (image == null) {
-                    OutlinedButton(
+                    SecondaryButton(
+                        text = if (previewLoading) "Rendering page..." else "Preview the crop",
                         onClick = { loadPreview() },
+                        accent = accent,
                         enabled = pickedUri != null && !previewLoading,
                         modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(if (previewLoading) "Rendering page..." else "Preview the crop")
-                    }
+                    )
                 } else {
                     val kept = keptRegionOf(
                         topText,
@@ -397,54 +395,57 @@ fun CropResizeScreen() {
                             listOf(PageOverlay(it, PageOverlayStyle.Outlined(accent)))
                         }.orEmpty(),
                     )
-                    OutlinedButton(
+                    SecondaryButton(
+                        text = if (previewLoading) "Rendering page..." else "Refresh preview",
                         onClick = { loadPreview() },
+                        accent = accent,
                         enabled = !previewLoading,
                         modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(if (previewLoading) "Rendering page..." else "Refresh preview")
-                    }
+                    )
                 }
-                previewMessage?.let { Text(it) }
+                previewMessage?.let { ToolBodyText(it) }
             } else {
-                Text("Target page size")
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SectionLabel("Target page size")
+                OptionChipRow {
                     for (name in PAPER_SIZES.keys + CUSTOM_PAPER_OPTION) {
-                        if (paperOption == name) {
-                            Button(onClick = { paperOption = name }) { Text(name) }
-                        } else {
-                            OutlinedButton(onClick = { paperOption = name }) { Text(name) }
-                        }
+                        OptionChip(
+                            label = name,
+                            selected = paperOption == name,
+                            accent = accent,
+                            onClick = { paperOption = name },
+                        )
                     }
                 }
                 if (paperOption == CUSTOM_PAPER_OPTION) {
-                    OutlinedTextField(
+                    ToolTextField(
                         value = customWidthText,
                         onValueChange = { customWidthText = it },
-                        label = { Text("Width (pt)") },
+                        label = "Width (pt)",
+                        accent = accent,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth(),
                     )
-                    OutlinedTextField(
+                    ToolTextField(
                         value = customHeightText,
                         onValueChange = { customHeightText = it },
-                        label = { Text("Height (pt)") },
+                        label = "Height (pt)",
+                        accent = accent,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
-                Row {
-                    Checkbox(checked = stretch, onCheckedChange = { stretch = it })
-                    Text("Stretch to fill exactly (distorts proportions)")
-                }
+                CheckboxRow(
+                    checked = stretch,
+                    onCheckedChange = { stretch = it },
+                    label = "Stretch to fill exactly (distorts proportions)",
+                    accent = accent,
+                )
             }
 
-            OutlinedTextField(
+            ToolTextField(
                 value = pagesText,
                 onValueChange = { pagesText = it },
-                label = { Text("Pages (blank = all)") },
-                placeholder = { Text("e.g. 1, 3-5 — or leave blank for all") },
-                modifier = Modifier.fillMaxWidth(),
+                label = "Pages (blank = all)",
+                accent = accent,
+                placeholder = "e.g. 1, 3-5 — or leave blank for all",
             )
         },
     )

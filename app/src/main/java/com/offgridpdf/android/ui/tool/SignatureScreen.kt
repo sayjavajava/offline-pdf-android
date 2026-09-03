@@ -24,7 +24,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -65,8 +64,18 @@ import com.offgridpdf.android.ui.common.NullableUriSaver
 import com.offgridpdf.android.ui.common.PageOverlay
 import com.offgridpdf.android.ui.common.PageOverlayStyle
 import com.offgridpdf.android.ui.common.PagePreview
-import com.offgridpdf.android.ui.common.ScreenTopBar
+import com.offgridpdf.android.ui.common.FilePickerCard
+import com.offgridpdf.android.ui.common.OptionChip
+import com.offgridpdf.android.ui.common.OptionChipRow
+import com.offgridpdf.android.ui.common.PrimaryButton
+import com.offgridpdf.android.ui.common.PrivacyLine
+import com.offgridpdf.android.ui.common.RunningIndicator
+import com.offgridpdf.android.ui.common.SecondaryButton
+import com.offgridpdf.android.ui.common.SectionLabel
+import com.offgridpdf.android.ui.common.ToolBodyText
 import com.offgridpdf.android.ui.common.ToolCompletion
+import com.offgridpdf.android.ui.common.ToolScreenScaffold
+import com.offgridpdf.android.ui.common.ToolTextField
 import com.offgridpdf.android.ui.common.rememberDisplayName
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
@@ -96,7 +105,6 @@ private enum class SignatureMode { TYPE, DRAW, UPLOAD }
  * land at an exact offset a finger cannot hit, and that was the one thing
  * the old UI was genuinely good at.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SignatureScreen() {
     val context = LocalContext.current
@@ -244,225 +252,34 @@ fun SignatureScreen() {
         }
     }
 
-    Scaffold(
-        topBar = { ScreenTopBar(title = "Add Signature") },
-        containerColor = LocalOffGridPalette.current.paper,
-        // Bottom and horizontal only. The top inset belongs to ScreenTopBar,
-        // which applies it itself, so asking Scaffold for it as well risks
-        // counting the status bar twice. Bottom is safeDrawing rather than
-        // navigationBars so content also clears the keyboard.
-        contentWindowInsets = WindowInsets.safeDrawing.only(
-            WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal,
-        ),
-    ) { innerPadding ->
-        // Scrollable: this screen was already tall (file, password, three
-        // signature modes, five placement fields, the action button) and a
-        // full page preview puts the button well below the fold. Dragging
-        // *on* the preview places the signature rather than scrolling, since
-        // the preview consumes the gesture -- same trade RedactScreen's
-        // preview already makes; scroll from anywhere else on the screen.
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(
-                "Stamp a visual signature — typed, drawn, or an uploaded image — onto a page. " +
-                    "This is a visual mark, not a cryptographic digital signature.",
-            )
-
-            Button(
-                onClick = { pickLauncher.launch(arrayOf("application/pdf")) },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(rememberDisplayName(pickedUri) ?: "Choose a PDF file")
+    ToolScreenScaffold(
+        title = "Add Signature",
+        // Dragging *on* the preview places the signature rather than
+        // scrolling, since the preview consumes the gesture -- same trade
+        // RedactScreen's preview already makes; scroll from anywhere else.
+        bottomBar = {
+            if (running) {
+                RunningIndicator(accent = accent)
             }
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text("Password (if encrypted)") },
-                modifier = Modifier.fillMaxWidth(),
-            )
-            if (pickedUri != null && pageCount == null) {
-                Button(onClick = { loadDocument() }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Load PDF")
-                }
+            resultMessage?.let { message ->
+                ToolCompletion(message = message, savedFile = savedFile, accent = accent)
             }
-            pageCount?.let { count -> Text("This PDF has $count page(s).") }
-            loadError?.let { Text(it) }
-
-            Text("Signature")
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                for ((label, candidate) in listOf("Type" to SignatureMode.TYPE, "Draw" to SignatureMode.DRAW, "Upload" to SignatureMode.UPLOAD)) {
-                    if (mode == candidate) {
-                        Button(onClick = { mode = candidate }) { Text(label) }
-                    } else {
-                        OutlinedButton(onClick = { mode = candidate }) { Text(label) }
-                    }
-                }
-            }
-
-            when (mode) {
-                SignatureMode.TYPE -> {
-                    OutlinedTextField(
-                        value = typedName,
-                        onValueChange = { typedName = it },
-                        label = { Text("Your name") },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Button(onClick = { signatureBytes = renderTypedSignature(typedName) }) {
-                        Text("Use this signature")
-                    }
-                }
-                SignatureMode.DRAW -> {
-                    Canvas(
-                        modifier = Modifier
-                            .size(320.dp, 120.dp)
-                            .background(Color.White)
-                            .border(1.dp, Color.Gray)
-                            .pointerInput(Unit) {
-                                detectDragGestures(
-                                    onDragStart = { offset -> currentStroke = listOf(offset) },
-                                    onDrag = { change, _ -> currentStroke = currentStroke + change.position },
-                                    onDragEnd = {
-                                        strokes = strokes + listOf(currentStroke)
-                                        currentStroke = emptyList()
-                                    },
-                                )
-                            },
-                    ) {
-                        for (stroke in strokes + listOf(currentStroke)) {
-                            for (i in 0 until stroke.size - 1) {
-                                drawLine(Color.Black, stroke[i], stroke[i + 1], strokeWidth = 4f)
-                            }
-                        }
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { strokes = emptyList(); currentStroke = emptyList() }) {
-                            Text("Clear")
-                        }
-                        OutlinedButton(onClick = { signatureBytes = renderDrawnSignature(strokes) }) {
-                            Text("Use this signature")
-                        }
-                    }
-                }
-                SignatureMode.UPLOAD -> {
-                    Button(onClick = { uploadLauncher.launch(arrayOf("image/png", "image/jpeg")) }) {
-                        Text("Choose signature image")
-                    }
-                }
-            }
-
-            if (signatureBytes != null) {
-                Text("Signature ready.")
-            }
-
-            Text("Placement")
-
-            val placementRect = placementRectOf(xText, yText, widthText, heightText)
-            val image = previewImage
-            if (image != null) {
-                Text(
-                    "Drag on the page to place your signature, or type exact " +
-                        "coordinates below.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = LocalOffGridPalette.current.inkTertiary,
-                )
-                PagePreview(
-                    image = image,
-                    bitmapWidth = previewBitmapWidth,
-                    bitmapHeight = previewBitmapHeight,
-                    pageHeightPts = previewPageHeightPts,
-                    contentDescription = if (placementRect != null) {
-                        "Page $pageText, with the signature's placement marked"
-                    } else {
-                        "Page $pageText"
-                    },
-                    scale = PREVIEW_SCALE,
-                    // Outlined, not filled: the whole point is to see what the
-                    // signature will sit on top of.
-                    overlays = placementRect?.let {
-                        listOf(PageOverlay(it, PageOverlayStyle.Outlined(accent)))
-                    }.orEmpty(),
-                    onRectDragged = { rect ->
-                        // Whole points. A finger on a preview rendered at
-                        // PREVIEW_SCALE cannot resolve better than about a
-                        // point anyway, and round numbers are what someone
-                        // then nudges by hand in the fields below.
-                        xText = rect.x.roundToInt().toString()
-                        yText = rect.y.roundToInt().toString()
-                        widthText = rect.width.roundToInt().toString()
-                        heightText = rect.height.roundToInt().toString()
-                    },
-                    dragIndicatorColor = accent,
-                    minDraggedSizePts = MIN_PLACEMENT_PT,
-                )
-            }
-            if (renderingPreview) {
-                Text(
-                    "Rendering page...",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = LocalOffGridPalette.current.inkTertiary,
-                )
-            }
-            previewMessage?.let { Text(it) }
-
-            Text(
-                "Coordinates are in points from the page's bottom-left corner.",
-                style = MaterialTheme.typography.bodySmall,
-                color = LocalOffGridPalette.current.inkTertiary,
-            )
-            OutlinedTextField(
-                value = pageText,
-                onValueChange = { pageText = it },
-                label = { Text("Page number") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            OutlinedTextField(
-                value = xText,
-                onValueChange = { xText = it },
-                label = { Text("X") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            OutlinedTextField(
-                value = yText,
-                onValueChange = { yText = it },
-                label = { Text("Y") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            OutlinedTextField(
-                value = widthText,
-                onValueChange = { widthText = it },
-                label = { Text("Width") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth(),
-            )
-            OutlinedTextField(
-                value = heightText,
-                onValueChange = { heightText = it },
-                label = { Text("Height") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            Button(
+            PrivacyLine()
+            PrimaryButton(
+                text = if (running) "Adding signature..." else "Add Signature & Download",
+                accent = accent,
+                enabled = !running,
                 onClick = {
                     val document = openDocument
                     val uri = pickedUri
                     val bytes = signatureBytes
                     if (document == null || uri == null) {
                         resultMessage = "Load a PDF first."
-                        return@Button
+                        return@PrimaryButton
                     }
                     if (bytes == null) {
                         resultMessage = "Type, draw, or upload a signature first."
-                        return@Button
+                        return@PrimaryButton
                     }
                     val page = pageText.toIntOrNull()
                     val x = xText.toFloatOrNull()
@@ -471,7 +288,7 @@ fun SignatureScreen() {
                     val height = heightText.toFloatOrNull()
                     if (page == null || x == null || y == null || width == null || height == null) {
                         resultMessage = "Page, X, Y, width, and height must all be numbers."
-                        return@Button
+                        return@PrimaryButton
                     }
 
                     running = true
@@ -497,23 +314,204 @@ fun SignatureScreen() {
                         running = false
                     }
                 },
-                enabled = !running,
+            )
+        },
+    ) {
+        FilePickerCard(
+            fileName = rememberDisplayName(pickedUri),
+            onClick = { pickLauncher.launch(arrayOf("application/pdf")) },
+        )
+
+        ToolBodyText(
+            "Stamp a visual signature — typed, drawn, or an uploaded image — onto a page. " +
+                "This is a visual mark, not a cryptographic digital signature.",
+        )
+        ToolTextField(
+            value = password,
+            onValueChange = { password = it },
+            label = "Password (if encrypted)",
+            accent = accent,
+        )
+        if (pickedUri != null && pageCount == null) {
+            SecondaryButton(
+                text = "Load PDF",
+                onClick = { loadDocument() },
+                accent = accent,
                 modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(if (running) "Adding signature..." else "Add Signature & Download")
-            }
+            )
+        }
+        pageCount?.let { count -> ToolBodyText("This PDF has $count page(s).") }
+        loadError?.let { ToolBodyText(it) }
 
-            if (running) {
-                CircularProgressIndicator()
-            }
-
-            resultMessage?.let { message ->
-                ToolCompletion(message = message, savedFile = savedFile, accent = accent)
+        SectionLabel("Signature")
+        OptionChipRow {
+            for ((label, candidate) in listOf("Type" to SignatureMode.TYPE, "Draw" to SignatureMode.DRAW, "Upload" to SignatureMode.UPLOAD)) {
+                OptionChip(
+                    label = label,
+                    selected = mode == candidate,
+                    accent = accent,
+                    onClick = { mode = candidate },
+                )
             }
         }
+
+        when (mode) {
+            SignatureMode.TYPE -> {
+                ToolTextField(
+                    value = typedName,
+                    onValueChange = { typedName = it },
+                    label = "Your name",
+                    accent = accent,
+                )
+                SecondaryButton(
+                    text = "Use this signature",
+                    onClick = { signatureBytes = renderTypedSignature(typedName) },
+                    accent = accent,
+                )
+            }
+            SignatureMode.DRAW -> {
+                Canvas(
+                    modifier = Modifier
+                        .size(320.dp, 120.dp)
+                        .background(Color.White)
+                        .border(1.dp, Color.Gray)
+                        .pointerInput(Unit) {
+                            detectDragGestures(
+                                onDragStart = { offset -> currentStroke = listOf(offset) },
+                                onDrag = { change, _ -> currentStroke = currentStroke + change.position },
+                                onDragEnd = {
+                                    strokes = strokes + listOf(currentStroke)
+                                    currentStroke = emptyList()
+                                },
+                            )
+                        },
+                ) {
+                    for (stroke in strokes + listOf(currentStroke)) {
+                        for (i in 0 until stroke.size - 1) {
+                            drawLine(Color.Black, stroke[i], stroke[i + 1], strokeWidth = 4f)
+                        }
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SecondaryButton(
+                        text = "Clear",
+                        onClick = { strokes = emptyList(); currentStroke = emptyList() },
+                        accent = accent,
+                    )
+                    SecondaryButton(
+                        text = "Use this signature",
+                        onClick = { signatureBytes = renderDrawnSignature(strokes) },
+                        accent = accent,
+                    )
+                }
+            }
+            SignatureMode.UPLOAD -> {
+                SecondaryButton(
+                    text = "Choose signature image",
+                    onClick = { uploadLauncher.launch(arrayOf("image/png", "image/jpeg")) },
+                    accent = accent,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+
+        if (signatureBytes != null) {
+            ToolBodyText("Signature ready.")
+        }
+
+        SectionLabel("Placement")
+
+        val placementRect = placementRectOf(xText, yText, widthText, heightText)
+        val image = previewImage
+        if (image != null) {
+            Text(
+                "Drag on the page to place your signature, or type exact " +
+                    "coordinates below.",
+                style = MaterialTheme.typography.bodySmall,
+                color = LocalOffGridPalette.current.inkTertiary,
+            )
+            PagePreview(
+                image = image,
+                bitmapWidth = previewBitmapWidth,
+                bitmapHeight = previewBitmapHeight,
+                pageHeightPts = previewPageHeightPts,
+                contentDescription = if (placementRect != null) {
+                    "Page $pageText, with the signature's placement marked"
+                } else {
+                    "Page $pageText"
+                },
+                scale = PREVIEW_SCALE,
+                // Outlined, not filled: the whole point is to see what the
+                // signature will sit on top of.
+                overlays = placementRect?.let {
+                    listOf(PageOverlay(it, PageOverlayStyle.Outlined(accent)))
+                }.orEmpty(),
+                onRectDragged = { rect ->
+                    // Whole points. A finger on a preview rendered at
+                    // PREVIEW_SCALE cannot resolve better than about a
+                    // point anyway, and round numbers are what someone
+                    // then nudges by hand in the fields below.
+                    xText = rect.x.roundToInt().toString()
+                    yText = rect.y.roundToInt().toString()
+                    widthText = rect.width.roundToInt().toString()
+                    heightText = rect.height.roundToInt().toString()
+                },
+                dragIndicatorColor = accent,
+                minDraggedSizePts = MIN_PLACEMENT_PT,
+            )
+        }
+        if (renderingPreview) {
+            Text(
+                "Rendering page...",
+                style = MaterialTheme.typography.bodySmall,
+                color = LocalOffGridPalette.current.inkTertiary,
+            )
+        }
+        previewMessage?.let { ToolBodyText(it) }
+
+        Text(
+            "Coordinates are in points from the page's bottom-left corner.",
+            style = MaterialTheme.typography.bodySmall,
+            color = LocalOffGridPalette.current.inkTertiary,
+        )
+        ToolTextField(
+            value = pageText,
+            onValueChange = { pageText = it },
+            label = "Page number",
+            accent = accent,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        )
+        ToolTextField(
+            value = xText,
+            onValueChange = { xText = it },
+            label = "X",
+            accent = accent,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        )
+        ToolTextField(
+            value = yText,
+            onValueChange = { yText = it },
+            label = "Y",
+            accent = accent,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        )
+        ToolTextField(
+            value = widthText,
+            onValueChange = { widthText = it },
+            label = "Width",
+            accent = accent,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        )
+        ToolTextField(
+            value = heightText,
+            onValueChange = { heightText = it },
+            label = "Height",
+            accent = accent,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        )
+
     }
 }
-
 /**
  * Ignore an accidental tap on the preview. Points, so it is a real size on
  * the page rather than a number of screen pixels that would mean something

@@ -1,11 +1,6 @@
 package com.offgridpdf.android.ui.tool
 
 import android.net.Uri
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -13,7 +8,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.offgridpdf.android.chain.ChainOrigin
 import com.offgridpdf.android.chain.PendingFile
@@ -32,6 +26,8 @@ import com.offgridpdf.android.pdf.loadPdfFromUri
 import com.offgridpdf.android.pdf.splitPdfToPages
 import com.offgridpdf.android.pdf.splitPdfToSingleFile
 import com.offgridpdf.android.ui.common.NullableUriSaver
+import com.offgridpdf.android.ui.common.CheckboxRow
+import com.offgridpdf.android.ui.common.ToolTextField
 import com.offgridpdf.android.ui.common.rememberDisplayName
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
@@ -197,17 +193,19 @@ fun SplitScreen() {
         savedFile = savedFile,
         chainableBytes = lastResultBytes,
         options = {
-            OutlinedTextField(
+            ToolTextField(
                 value = pagesText,
                 onValueChange = { pagesText = it },
-                label = { Text("Pages to extract") },
-                placeholder = { Text("e.g. 1, 3-5, 8 — or \"all\"") },
-                modifier = Modifier.fillMaxWidth(),
+                label = "Pages to extract",
+                accent = accent,
+                placeholder = "e.g. 1, 3-5, 8 — or \"all\"",
             )
-            Row {
-                Checkbox(checked = separateFiles, onCheckedChange = { separateFiles = it })
-                Text("Download as separate files (zip)")
-            }
+            CheckboxRow(
+                checked = separateFiles,
+                onCheckedChange = { separateFiles = it },
+                label = "Download as separate files (zip)",
+                accent = accent,
+            )
         },
     )
 }

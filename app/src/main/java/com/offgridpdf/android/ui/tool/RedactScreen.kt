@@ -13,13 +13,10 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -58,6 +55,7 @@ import com.offgridpdf.android.pdf.loadPdfFromUri
 import com.offgridpdf.android.pdf.redactPdf
 import com.offgridpdf.android.pdf.renderPageForPreview
 import com.offgridpdf.android.pdf.resolvePageIndices
+import com.offgridpdf.android.ui.common.CheckboxRow
 import com.offgridpdf.android.ui.common.FilePickerCard
 import com.offgridpdf.android.ui.common.NullableUriSaver
 import com.offgridpdf.android.ui.common.PageOverlay
@@ -66,7 +64,9 @@ import com.offgridpdf.android.ui.common.PagePreview
 import com.offgridpdf.android.ui.common.PrimaryButton
 import com.offgridpdf.android.ui.common.PrivacyLine
 import com.offgridpdf.android.ui.common.ScreenTopBar
+import com.offgridpdf.android.ui.common.SecondaryButton
 import com.offgridpdf.android.ui.common.ToolCompletion
+import com.offgridpdf.android.ui.common.ToolTextField
 import com.offgridpdf.android.ui.common.rememberDisplayName
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
@@ -277,17 +277,6 @@ fun RedactScreen() {
         }
     }
 
-    val fieldColors = OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = accent,
-        unfocusedBorderColor = palette.hairlineStrong,
-        focusedContainerColor = palette.paperRaised,
-        unfocusedContainerColor = palette.paperRaised,
-        focusedTextColor = palette.ink,
-        unfocusedTextColor = palette.ink,
-        focusedLabelColor = accent,
-        unfocusedLabelColor = palette.inkTertiary,
-    )
-
     Scaffold(
         topBar = {
             ScreenTopBar(title = "Redact PDF") {
@@ -336,13 +325,12 @@ fun RedactScreen() {
             }
             if (pickedUri != null && document == null) {
                 item {
-                    OutlinedTextField(
+                    ToolTextField(
                         value = password,
                         onValueChange = { password = it },
-                        label = { Text("Password (if encrypted)") },
+                        label = "Password (if encrypted)",
+                        accent = accent,
                         visualTransformation = PasswordVisualTransformation(),
-                        colors = fieldColors,
-                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
                 item {
@@ -363,19 +351,20 @@ fun RedactScreen() {
                     Text("Find text to redact", style = MaterialTheme.typography.titleMedium, color = palette.ink)
                 }
                 item {
-                    OutlinedTextField(
+                    ToolTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
-                        label = { Text("e.g. a name or account number") },
-                        colors = fieldColors,
-                        modifier = Modifier.fillMaxWidth(),
+                        label = "e.g. a name or account number",
+                        accent = accent,
                     )
                 }
                 item {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(checked = caseSensitive, onCheckedChange = { caseSensitive = it })
-                        Text("Match case", style = MaterialTheme.typography.bodyMedium, color = palette.inkSecondary)
-                    }
+                    CheckboxRow(
+                        checked = caseSensitive,
+                        onCheckedChange = { caseSensitive = it },
+                        label = "Match case",
+                        accent = accent,
+                    )
                 }
                 item {
                     PrimaryButton(
@@ -440,7 +429,10 @@ fun RedactScreen() {
                     }
                     if (result.totalMatches > 0) {
                         item {
-                            OutlinedButton(
+                            SecondaryButton(
+                                text = "Add all ${result.totalMatches} as redaction box${if (result.totalMatches == 1) "" else "es"}",
+                                accent = accent,
+                                modifier = Modifier.fillMaxWidth(),
                                 onClick = {
                                     val merged = redactions.toMutableMap()
                                     for ((page, rects) in result.matchesByPage) {
@@ -451,23 +443,30 @@ fun RedactScreen() {
                                         "as redaction box${if (result.totalMatches == 1) "" else "es"}."
                                     findResult = null
                                 },
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text("Add all ${result.totalMatches} as redaction box${if (result.totalMatches == 1) "" else "es"}")
-                            }
+                            )
                         }
                     }
                 }
                 item {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { goToPage(pageIndex - 1) }, enabled = pageIndex > 0) { Text("Previous") }
+                        SecondaryButton(
+                            text = "Previous",
+                            onClick = { goToPage(pageIndex - 1) },
+                            accent = accent,
+                            enabled = pageIndex > 0,
+                        )
                         Text(
                             "Page $pageNumber of $pageCount" +
                                 if (currentPageBoxes.isNotEmpty()) " — ${currentPageBoxes.size} box${if (currentPageBoxes.size == 1) "" else "es"}" else "",
                             style = MaterialTheme.typography.bodySmall.copy(fontFamily = PlexMono),
                             color = palette.inkTertiary,
                         )
-                        OutlinedButton(onClick = { goToPage(pageIndex + 1) }, enabled = pageIndex < pageCount - 1) { Text("Next") }
+                        SecondaryButton(
+                            text = "Next",
+                            onClick = { goToPage(pageIndex + 1) },
+                            accent = accent,
+                            enabled = pageIndex < pageCount - 1,
+                        )
                     }
                 }
                 item {
@@ -512,17 +511,19 @@ fun RedactScreen() {
                 }
                 if (currentPageBoxes.isNotEmpty()) {
                     item {
-                        OutlinedTextField(
+                        ToolTextField(
                             value = applyRangeText,
                             onValueChange = { applyRangeText = it },
-                            label = { Text("Apply this page's box${if (currentPageBoxes.size == 1) "" else "es"} to other pages") },
-                            placeholder = { Text("e.g. 2-50 — or leave blank for every other page") },
-                            colors = fieldColors,
-                            modifier = Modifier.fillMaxWidth(),
+                            label = "Apply this page's box${if (currentPageBoxes.size == 1) "" else "es"} to other pages",
+                            accent = accent,
+                            placeholder = "e.g. 2-50 — or leave blank for every other page",
                         )
                     }
                     item {
-                        OutlinedButton(
+                        SecondaryButton(
+                            text = "Apply to Range",
+                            accent = accent,
+                            modifier = Modifier.fillMaxWidth(),
                             onClick = {
                                 val targets = if (applyRangeText.isBlank() || applyRangeText.trim().equals("all", ignoreCase = true)) {
                                     (1..pageCount).toList()
@@ -549,8 +550,7 @@ fun RedactScreen() {
                                     }
                                 }
                             },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) { Text("Apply to Range") }
+                        )
                     }
                 }
             }

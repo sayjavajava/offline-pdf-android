@@ -1,10 +1,7 @@
 package com.offgridpdf.android.ui.tool
 
 import android.net.Uri
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -12,7 +9,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import com.offgridpdf.android.chain.PendingFile
@@ -30,6 +26,7 @@ import com.offgridpdf.android.pdf.RenderedPage
 import com.offgridpdf.android.pdf.loadPdfFromUri
 import com.offgridpdf.android.pdf.renderPdfPagesToPng
 import com.offgridpdf.android.ui.common.NullableUriSaver
+import com.offgridpdf.android.ui.common.ToolTextField
 import com.offgridpdf.android.ui.common.rememberDisplayName
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
@@ -175,19 +172,19 @@ fun PdfToImagesScreen() {
         resultMessage = resultMessage,
         savedFile = savedFile,
         options = {
-            OutlinedTextField(
+            ToolTextField(
                 value = pagesText,
                 onValueChange = { pagesText = it },
-                label = { Text("Pages (blank = all)") },
-                placeholder = { Text("e.g. 1, 3-5") },
-                modifier = Modifier.fillMaxWidth(),
+                label = "Pages (blank = all)",
+                accent = accent,
+                placeholder = "e.g. 1, 3-5",
             )
-            OutlinedTextField(
+            ToolTextField(
                 value = scaleText,
                 onValueChange = { scaleText = it },
-                label = { Text("Scale (1 = 72dpi)") },
+                label = "Scale (1 = 72dpi)",
+                accent = accent,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.fillMaxWidth(),
             )
         },
     )

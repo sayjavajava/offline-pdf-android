@@ -1,14 +1,7 @@
 package com.offgridpdf.android.ui.tool
 
 import android.net.Uri
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -17,10 +10,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
 import com.offgridpdf.android.chain.ChainOrigin
 import com.offgridpdf.android.chain.PendingFile
 import com.offgridpdf.android.files.SavedFile
@@ -37,6 +28,11 @@ import com.offgridpdf.android.pdf.PageNumberOptions
 import com.offgridpdf.android.pdf.PageNumberPosition
 import com.offgridpdf.android.pdf.addPageNumbers
 import com.offgridpdf.android.pdf.formatPageNumber
+import com.offgridpdf.android.ui.common.OptionChip
+import com.offgridpdf.android.ui.common.OptionChipRow
+import com.offgridpdf.android.ui.common.SectionLabel
+import com.offgridpdf.android.ui.common.ToolBodyText
+import com.offgridpdf.android.ui.common.ToolTextField
 import com.offgridpdf.android.ui.common.UriListSaver
 import com.offgridpdf.android.ui.common.rememberDisplayNames
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
@@ -249,80 +245,83 @@ fun PageNumbersScreen() {
             null
         },
         options = {
-            Text("Format")
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SectionLabel("Format")
+            OptionChipRow {
                 for (option in FORMATS) {
-                    if (option.format == format) {
-                        Button(onClick = { format = option.format }) { Text(option.label) }
-                    } else {
-                        OutlinedButton(onClick = { format = option.format }) { Text(option.label) }
-                    }
+                    OptionChip(
+                        label = option.label,
+                        selected = option.format == format,
+                        accent = accent,
+                        onClick = { format = option.format },
+                    )
                 }
             }
-            OutlinedTextField(
+            ToolTextField(
                 value = prefix,
                 onValueChange = { prefix = it },
-                label = { Text("Prefix (optional)") },
-                placeholder = { Text("e.g. ABC-") },
-                modifier = Modifier.fillMaxWidth(),
+                label = "Prefix (optional)",
+                accent = accent,
+                placeholder = "e.g. ABC-",
             )
-            Text("First stamp will read: $preview")
-            OutlinedTextField(
+            ToolBodyText("First stamp will read: $preview")
+            ToolTextField(
                 value = startText,
                 onValueChange = { startText = it },
-                label = { Text("Start at") },
+                label = "Start at",
+                accent = accent,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth(),
             )
             if (format == PageNumberFormat.BATES) {
-                OutlinedTextField(
+                ToolTextField(
                     value = digitsText,
                     onValueChange = { digitsText = it },
-                    label = { Text("Digits (1–20)") },
+                    label = "Digits (1–20)",
+                    accent = accent,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth(),
                 )
             }
-            Text("Position")
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SectionLabel("Position")
+            OptionChipRow {
                 for (option in POSITIONS) {
-                    if (option.position == position) {
-                        Button(onClick = { position = option.position }) { Text(option.label) }
-                    } else {
-                        OutlinedButton(onClick = { position = option.position }) { Text(option.label) }
-                    }
+                    OptionChip(
+                        label = option.label,
+                        selected = option.position == position,
+                        accent = accent,
+                        onClick = { position = option.position },
+                    )
                 }
             }
-            OutlinedTextField(
+            ToolTextField(
                 value = fontSizeText,
                 onValueChange = { fontSizeText = it },
-                label = { Text("Font Size (1–300)") },
+                label = "Font Size (1–300)",
+                accent = accent,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth(),
             )
-            OutlinedTextField(
+            ToolTextField(
                 value = marginText,
                 onValueChange = { marginText = it },
-                label = { Text("Margin (points, 0–300)") },
+                label = "Margin (points, 0–300)",
+                accent = accent,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth(),
             )
-            Text("Colour")
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SectionLabel("Colour")
+            OptionChipRow {
                 COLOR_PRESETS.forEachIndexed { index, preset ->
-                    if (index == colorIndex) {
-                        Button(onClick = { colorIndex = index }) { Text(preset.label) }
-                    } else {
-                        OutlinedButton(onClick = { colorIndex = index }) { Text(preset.label) }
-                    }
+                    OptionChip(
+                        label = preset.label,
+                        selected = index == colorIndex,
+                        accent = accent,
+                        onClick = { colorIndex = index },
+                    )
                 }
             }
-            OutlinedTextField(
+            ToolTextField(
                 value = pagesText,
                 onValueChange = { pagesText = it },
-                label = { Text("Pages to number (blank = all)") },
-                placeholder = { Text("e.g. 2-10 — or leave blank for all") },
-                modifier = Modifier.fillMaxWidth(),
+                label = "Pages to number (blank = all)",
+                accent = accent,
+                placeholder = "e.g. 2-10 — or leave blank for all",
             )
         },
     )

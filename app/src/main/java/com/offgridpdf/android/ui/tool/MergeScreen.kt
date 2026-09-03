@@ -1,18 +1,9 @@
 package com.offgridpdf.android.ui.tool
 
-import android.net.Uri
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.only
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -21,8 +12,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.offgridpdf.android.chain.PendingFile
 import com.offgridpdf.android.files.SavedFile
@@ -35,12 +26,18 @@ import com.offgridpdf.android.files.savedFileOrNull
 import com.offgridpdf.android.pdf.PdfLoadResult
 import com.offgridpdf.android.pdf.loadPdfFromUri
 import com.offgridpdf.android.pdf.mergePdf
-import com.offgridpdf.android.ui.common.ScreenTopBar
+import com.offgridpdf.android.ui.common.FilePickerCard
+import com.offgridpdf.android.ui.common.PrimaryButton
+import com.offgridpdf.android.ui.common.PrivacyLine
+import com.offgridpdf.android.ui.common.RunningIndicator
+import com.offgridpdf.android.ui.common.ToolBodyText
 import com.offgridpdf.android.ui.common.ToolCompletion
+import com.offgridpdf.android.ui.common.ToolScreenScaffold
 import com.offgridpdf.android.ui.common.UriListSaver
 import com.offgridpdf.android.ui.common.rememberDisplayNames
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
+import com.offgridpdf.android.ui.theme.PlexMono
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -56,7 +53,6 @@ import kotlinx.coroutines.withContext
  * Forcing this through `ToolScaffold` would mean bending its API around a
  * shape it was never modeled on — worse than a second small screen.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MergeScreen() {
     val context = LocalContext.current
@@ -72,12 +68,15 @@ fun MergeScreen() {
     // saveable: it holds the bytes, and a Bundle caps out around 1 MB.
     var savedFile by remember { mutableStateOf<SavedFile?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
+    val palette = LocalOffGridPalette.current
 
     val pickLauncher = rememberOpenMultipleDocumentsLauncher { uris ->
         files = uris
         resultMessage = null
         savedFile = null
     }
+
+    val fileNames = rememberDisplayNames(files)
 
     val saveLauncher = rememberCreateDocumentLauncher("application/pdf") { uri ->
         val bytes = pendingBytes
@@ -91,32 +90,20 @@ fun MergeScreen() {
         pendingBytes = null
     }
 
-    Scaffold(
-        topBar = { ScreenTopBar(title = "Merge PDF") },
-        containerColor = LocalOffGridPalette.current.paper,
-        // Bottom and horizontal only. The top inset belongs to ScreenTopBar,
-        // which applies it itself, so asking Scaffold for it as well risks
-        // counting the status bar twice. Bottom is safeDrawing rather than
-        // navigationBars so content also clears the keyboard.
-        contentWindowInsets = WindowInsets.safeDrawing.only(
-            WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal,
-        ),
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(innerPadding).padding(16.dp),
-        ) {
-            Button(
-                onClick = { pickLauncher.launch(arrayOf("application/pdf")) },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(if (files.isEmpty()) "Choose PDF files" else "${files.size} file(s) selected")
+    ToolScreenScaffold(
+        title = "Merge PDF",
+        bottomBar = {
+            if (running) {
+                RunningIndicator(accent = accent)
             }
-
-            if (files.isNotEmpty()) {
-                Text(rememberDisplayNames(files).joinToString("\n"))
+            resultMessage?.let { message ->
+                ToolCompletion(message = message, savedFile = savedFile, accent = accent)
             }
-
-            Button(
+            PrivacyLine()
+            PrimaryButton(
+                text = if (running) "Merging..." else "Merge PDFs",
+                accent = accent,
+                enabled = !running,
                 onClick = {
                     if (files.size < 2) {
                         resultMessage = "Please select at least two PDF files to merge."
@@ -160,18 +147,41 @@ fun MergeScreen() {
                         }
                     }
                 },
-                enabled = !running,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(if (running) "Merging..." else "Merge PDFs")
-            }
+            )
+        },
+    ) {
+        FilePickerCard(
+            fileName = when (files.size) {
+                0 -> null
+                1 -> fileNames.firstOrNull()
+                else -> "${files.size} files selected"
+            },
+            onClick = { pickLauncher.launch(arrayOf("application/pdf")) },
+        )
 
-            if (running) {
-                CircularProgressIndicator()
-            }
+        ToolBodyText("Files are merged in the order shown. Pick at least two.")
 
-            resultMessage?.let { message ->
-                ToolCompletion(message = message, savedFile = savedFile, accent = accent)
+        // One line per file, in merge order, rather than the single
+        // newline-joined blob this screen used to render -- that had no
+        // spacing, no numbering, and no way to tell where one name ended.
+        if (fileNames.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                fileNames.forEachIndexed { index, name ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(
+                            "${index + 1}.",
+                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = PlexMono),
+                            color = palette.inkTertiary,
+                        )
+                        Text(
+                            name,
+                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = PlexMono),
+                            color = palette.inkSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
             }
         }
     }
