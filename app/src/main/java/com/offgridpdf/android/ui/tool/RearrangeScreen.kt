@@ -13,6 +13,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import com.offgridpdf.android.chain.ChainOrigin
 import com.offgridpdf.android.chain.PendingFile
 import com.offgridpdf.android.files.SavedFile
 import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
@@ -39,6 +40,7 @@ fun RearrangeScreen() {
     val scope = rememberCoroutineScope()
 
     var pickedUri by rememberSaveable(stateSaver = NullableUriSaver) { mutableStateOf(PendingFile.consume()) }
+    var inheritedChainOrigin by rememberSaveable { mutableStateOf(ChainOrigin.consume()) }
     // Plain `remember`, deliberately: a document password is never written
     // to saved instance state (see `ui/common/Savers.kt`).
     var password by remember { mutableStateOf("") }
@@ -50,12 +52,15 @@ fun RearrangeScreen() {
     var savedFile by remember { mutableStateOf<SavedFile?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
     var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var chainOriginBaseName by remember { mutableStateOf("") }
+    var chainedFileName by remember { mutableStateOf("") }
 
     val pickLauncher = rememberOpenDocumentLauncher { uri ->
         pickedUri = uri
         password = ""
         resultMessage = null
         savedFile = null
+        inheritedChainOrigin = null
     }
 
     val saveLauncher = rememberCreateDocumentLauncher("application/pdf") { uri ->
@@ -93,6 +98,7 @@ fun RearrangeScreen() {
 
                     scope.launch {
                         val baseName = suggestedBaseName(context, uri)
+                        val originBaseName = inheritedChainOrigin ?: baseName
                         when (val result = loadPdfFromUri(context, uri, password.ifBlank { null })) {
                             is PdfLoadResult.Success -> {
                                 try {
@@ -100,6 +106,8 @@ fun RearrangeScreen() {
                                         rearrangePdf(result.document, pagesText)
                                     }
                                     lastResultBytes = pendingBytes
+                                    chainOriginBaseName = originBaseName
+                                    chainedFileName = "${originBaseName}_rearranged.pdf"
                                     saveLauncher.launch("${baseName}_rearranged.pdf")
                                 } catch (e: Exception) {
                                     resultMessage = userMessageFor(e)
@@ -129,6 +137,8 @@ fun RearrangeScreen() {
         resultMessage = resultMessage,
         savedFile = savedFile,
         chainableBytes = lastResultBytes,
+        chainOriginBaseName = chainOriginBaseName,
+        chainedFileName = chainedFileName,
         options = {
             Text("Keep only the pages you list, in that order. Omit a page to delete it; list a page more than once to duplicate it.")
             OutlinedTextField(

@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.offgridpdf.android.chain.ChainOrigin
 import com.offgridpdf.android.chain.PendingFile
 import com.offgridpdf.android.files.SavedFile
 import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
@@ -60,6 +61,7 @@ fun ProtectScreen() {
     val scope = rememberCoroutineScope()
 
     var pickedUri by rememberSaveable(stateSaver = NullableUriSaver) { mutableStateOf(PendingFile.consume()) }
+    var inheritedChainOrigin by rememberSaveable { mutableStateOf(ChainOrigin.consume()) }
     // Plain `remember`, deliberately: a document password is never written
     // to saved instance state (see `ui/common/Savers.kt`).
     var inputPassword by remember { mutableStateOf("") }
@@ -77,12 +79,15 @@ fun ProtectScreen() {
     var savedFile by remember { mutableStateOf<SavedFile?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
     var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
+    var chainOriginBaseName by remember { mutableStateOf("") }
+    var chainedFileName by remember { mutableStateOf("") }
 
     val pickLauncher = rememberOpenDocumentLauncher { uri ->
         pickedUri = uri
         inputPassword = ""
         resultMessage = null
         savedFile = null
+        inheritedChainOrigin = null
     }
 
     val saveLauncher = rememberCreateDocumentLauncher("application/pdf") { uri ->
@@ -120,6 +125,7 @@ fun ProtectScreen() {
 
                     scope.launch {
                         val baseName = suggestedBaseName(context, uri)
+                        val originBaseName = inheritedChainOrigin ?: baseName
                         when (val result = loadPdfFromUri(context, uri, inputPassword.ifBlank { null })) {
                             is PdfLoadResult.Success -> {
                                 try {
@@ -136,6 +142,8 @@ fun ProtectScreen() {
                                         }
                                     }
                                     lastResultBytes = pendingBytes
+                                    chainOriginBaseName = originBaseName
+                                    chainedFileName = "${originBaseName}_protected.pdf"
                                     saveLauncher.launch("${baseName}_protected.pdf")
                                 } catch (e: Exception) {
                                     resultMessage = userMessageFor(e)
@@ -165,6 +173,8 @@ fun ProtectScreen() {
         resultMessage = resultMessage,
         savedFile = savedFile,
         chainableBytes = lastResultBytes,
+        chainOriginBaseName = chainOriginBaseName,
+        chainedFileName = chainedFileName,
         options = {
             Text("Adds a password to a PDF, so it can only be opened by someone who knows it. There is no way to recover a lost password — keep it somewhere safe.")
 

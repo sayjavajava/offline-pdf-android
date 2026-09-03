@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.core.content.IntentCompat
+import com.offgridpdf.android.chain.ChainOrigin
 import com.offgridpdf.android.chain.PendingFile
 import com.offgridpdf.android.chain.PendingNavigation
 import com.offgridpdf.android.chain.ROUTE_DASHBOARD
@@ -72,12 +73,17 @@ class MainActivity : ComponentActivity() {
             }
             Intent.ACTION_VIEW -> {
                 intent.data?.takeIf { it.isReadableContent() }?.let { uri ->
+                    // A fresh external file, not a chain continuation — any
+                    // origin name left over from an earlier chain must not
+                    // attach itself to this unrelated one.
+                    ChainOrigin.clear()
                     PendingFile.set(uri)
                     PendingNavigation.set(ROUTE_DASHBOARD)
                 }
             }
             Intent.ACTION_SEND -> {
                 sharedPdfUri(intent)?.takeIf { it.isReadableContent() }?.let { uri ->
+                    ChainOrigin.clear()
                     PendingFile.set(uri)
                     PendingNavigation.set(ROUTE_DASHBOARD)
                 }

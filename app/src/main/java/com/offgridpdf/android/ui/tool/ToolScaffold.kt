@@ -88,6 +88,9 @@ fun ToolScaffold(
      * success styling and the Share action. */
     savedFile: SavedFile? = null,
     chainableBytes: ByteArray? = null,
+    /** Forwarded to [ToolCompletion]/[ContinueChainAction] — see their docs. */
+    chainOriginBaseName: String = "",
+    chainedFileName: String = "",
     batchNote: String? = null,
     options: @Composable () -> Unit = {},
 ) {
@@ -171,6 +174,8 @@ fun ToolScaffold(
                     savedFile = savedFile,
                     accent = accent,
                     chainableBytes = chainableBytes,
+                    chainOriginBaseName = chainOriginBaseName,
+                    chainedFileName = chainedFileName,
                 )
             }
             PrivacyLine()
