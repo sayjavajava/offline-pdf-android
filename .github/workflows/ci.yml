@@ -13,11 +13,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Both sides of the PR are needed to diff them in the scope
+          # step below, so no shallow clone.
+          fetch-depth: 0
 
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
+          # Every run used to re-download the whole dependency graph --
+          # AGP, Compose, PdfBox-Android, BouncyCastle -- before it could
+          # compile a line. setup-java caches ~/.gradle itself, so this
+          # needs no extra action.
+          cache: gradle
 
       # GitHub-hosted Ubuntu runners ship a preinstalled Android SDK, but not
       # necessarily the exact compileSdk/build-tools this project pins — this
@@ -25,13 +34,55 @@ jobs:
       # already has it.
       - uses: android-actions/setup-android@v3
 
+      # The Gradle steps below are the slow part of this workflow, and a
+      # change to a README or a workflow file cannot alter what they
+      # produce. This decides whether to run them.
+      #
+      # Deliberately a step inside the one job rather than a job-level `if`
+      # or a `paths-ignore` on the trigger: a skipped job reports neither
+      # success nor failure, so a required status check would sit at
+      # "Expected -- waiting for status" forever and the PR could never
+      # merge. The job always runs and always reports; only its expensive
+      # steps are conditional.
+      #
+      # A change to this workflow still runs it -- what is skipped is the
+      # build, not the YAML being exercised.
+      - name: Decide whether the build needs to run
+        id: scope
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "Not a pull request -- building."
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          BASE='${{ github.event.pull_request.base.sha }}'
+          HEAD='${{ github.event.pull_request.head.sha }}'
+          CHANGED=$(git diff --name-only "$BASE" "$HEAD")
+          echo "Changed files:"
+          echo "$CHANGED" | sed 's/^/  /'
+          # True when anything outside the docs/workflow set changed.
+          # An empty diff also comes out true here, since `echo` still emits
+          # one empty line and that line matches nothing -- which is the
+          # direction to fail in anyway: a diff this step cannot read is a
+          # reason to build, not to skip.
+          if echo "$CHANGED" | grep -qvE '^(\.github/|docs/|.*\.md$|LICENSE$|\.gitignore$)'; then
+            echo "App code changed -- building."
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Only docs and workflow files changed -- skipping the Gradle build."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Unit tests
+        if: steps.scope.outputs.build == 'true'
         run: ./gradlew testDebugUnitTest --stacktrace
 
       - name: Lint
+        if: steps.scope.outputs.build == 'true'
         run: ./gradlew lint --stacktrace
 
       - name: Assemble debug APK
+        if: steps.scope.outputs.build == 'true'
         run: ./gradlew assembleDebug --stacktrace
 
       # The offline guarantee (README.md, ANDROID_IMPLEMENTATION_PLAN.md in
@@ -40,6 +91,7 @@ jobs:
       # a future library dependency could add the permission via its own
       # manifest, and the source file alone wouldn't show that.
       - name: Offline guarantee — no INTERNET permission in the merged manifest
+        if: steps.scope.outputs.build == 'true'
         run: |
           MERGED=$(find app/build/intermediates/merged_manifests -name AndroidManifest.xml | head -n 1)
           if [ -z "$MERGED" ]; then
@@ -53,6 +105,7 @@ jobs:
           echo "✓ No INTERNET permission in the merged manifest."
 
       - name: Upload debug APK
+        if: steps.scope.outputs.build == 'true'
         uses: actions/upload-artifact@v7
         with:
           name: offgridpdf-debug-apk

@@ -1,0 +1,36 @@
+name: Dependency review
+
+# Flags a dependency change that introduces a known vulnerability, at the
+# point it is proposed rather than whenever someone next looks.
+#
+# This project has already been here: BouncyCastle sat at 1.72 with known
+# CVEs until a manual review found it (PR #39), and the fix then had to
+# thread between 1.85's duplicate-class problem and the versions bcpkix and
+# bcutil actually publish. That was avoidable work. Dependabot now proposes
+# version bumps; this is the other half, refusing a bump or a new dependency
+# that brings a known advisory with it.
+#
+# PR-only by design: it compares the base branch against the head, so there
+# is nothing for it to do on a push.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/dependency-review-action@v4
+        with:
+          # Fails the check on a high or critical advisory. Moderate and low
+          # are reported in the job summary without blocking: this app has
+          # no network permission at all, so a good share of advisories in
+          # its dependency graph describe attacks it has no surface for, and
+          # blocking on every one of those would train people to ignore the
+          # check.
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure
