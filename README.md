@@ -77,9 +77,20 @@ fine and then block every future update.
 
 ### CI builds
 
-The **Signed release APK** workflow (`.github/workflows/release-apk.yml`)
-does the same thing on demand: run it from the Actions tab. It needs four
-repository secrets:
+Two manual-only workflows share the same signing keystore and the same
+`v<versionName>` GitHub Release, and produce the two different things
+Android release builds come in:
+
+- **Signed release APK** (`.github/workflows/release-apk.yml`) — an `.apk`,
+  the format you hand a tester to sideload directly.
+- **Signed release AAB** (`.github/workflows/release-aab.yml`) — an `.aab`
+  (Android App Bundle), the format the Play Store requires for upload. An
+  `.aab` is not directly installable; Play itself splits it into
+  device-specific APKs at install time.
+
+Run whichever one you need from the Actions tab — neither triggers
+automatically on push, and running one does not run the other. Each needs
+the same four repository secrets:
 
 | Secret | Value |
 |---|---|
@@ -88,18 +99,53 @@ repository secrets:
 | `OFFGRID_KEY_ALIAS` | `offgridpdf` |
 | `OFFGRID_KEY_PASSWORD` | the key password |
 
-The workflow checks the APK it built is really signed, is not debuggable, and
-still declares no `INTERNET` permission, before publishing it two ways:
+Each workflow verifies its own output is really signed (`apksigner verify`
+for the APK, `jarsigner -verify` for the AAB — an AAB uses a jar-style
+signature, not the APK v2/v3 scheme) before publishing it two ways:
 
 - A **GitHub Release**, tagged `v<versionName>` (from `app/build.gradle.kts`)
   and named `OffGridPDF <versionName>` — a stable link under the repo's
-  Releases tab, which is what you'd hand a tester or link from a device.
-  Bump `versionName` (and `versionCode`) before running the workflow again;
-  it refuses to overwrite a Release that already exists for the current
-  version, on purpose, rather than silently replace someone's build.
-- This run's own **Actions artifact** (`offgridpdf-release-apk`), kept for
-  convenience — but it expires (90 days, this repo's default setting) and
-  needs Actions-tab access to find, unlike the Release above.
+  Releases tab. Both workflows publish to the *same* Release for a given
+  version: whichever you run first creates it, the other adds its own asset
+  alongside. Bump `versionName` before running either workflow again for a
+  new build; each refuses to overwrite its own asset on an existing
+  Release, on purpose, rather than silently replace someone's build.
+- This run's own **Actions artifact** (`offgridpdf-release-apk` or
+  `offgridpdf-release-aab`), kept for convenience — but it expires (90 days,
+  this repo's default setting) and needs Actions-tab access to find, unlike
+  the Release above.
+
+### Publishing to the Play Store: versioning
+
+Every build has two version fields in `app/build.gradle.kts`:
+
+```kotlin
+defaultConfig {
+    versionCode = 1
+    versionName = "0.1.0"
+}
+```
+
+- **`versionName`** is the free-form string a user sees ("0.1.0"). It also
+  names the GitHub Release tag above — bump it for every build you intend to
+  hand out or upload, so each one gets its own Release instead of colliding
+  with the last.
+- **`versionCode`** is the integer Play actually orders releases by. It
+  **must strictly increase with every upload, forever, across every track**
+  — production, closed testing, internal testing, all of them share one
+  counter. Once a `versionCode` has been uploaded to *any* track, even one
+  you never publish, it can never be reused, even from a different track
+  later. There is no way to undo an upload's `versionCode`.
+- Bump both together before a Play upload. Neither release workflow reads
+  or validates `versionCode` — they only read `versionName`, since that's
+  what names the tag — so remembering to bump it is on you; nothing in CI
+  currently catches a forgotten bump.
+
+A typical release: bump `versionCode` and `versionName`, commit that on
+`main`, then run the **Signed release AAB** workflow from the Actions tab
+and upload the resulting `.aab` (from the Release or the Actions artifact)
+to Play Console yourself — that upload step is manual and outside this
+repo's CI, same as the actual Play Console listing and rollout decisions.
 
 ### What signing does and does not do
 
