@@ -1,0 +1,50 @@
+name: UI layout check
+
+# A real regression guard, unlike the ad-hoc screenshot and spike
+# workflows next to it: OptionRowLayoutTest asserts that every option in
+# a group is actually on screen, which is what caught nothing when a
+# non-wrapping Row pushed four of Add Page Numbers' six positions, and
+# Crop/Resize's whole "Custom" paper size, off the right edge.
+#
+# Path-filtered to UI sources so a non-UI PR does not pay for an emulator
+# boot, and dispatchable for a manual re-run.
+on:
+  pull_request:
+    paths:
+      - "app/src/main/java/com/offgridpdf/android/ui/**"
+      - "app/src/androidTest/java/com/offgridpdf/android/ui/**"
+      - ".github/workflows/ui-layout-check.yml"
+      - "scripts/run-ui-layout-check.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ui-layout:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - uses: android-actions/setup-android@v3
+
+      # Same real, sourced unlock step as the other emulator workflows.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Assert every option is on screen, on a real emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 26
+          target: default
+          arch: x86_64
+          script: bash scripts/run-ui-layout-check.sh

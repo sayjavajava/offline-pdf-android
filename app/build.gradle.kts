@@ -182,4 +182,16 @@ dependencies {
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.ext.junit)
+    // Compose's own UI-test rule, for the layout assertions in
+    // OptionRowLayoutTest: assertIsDisplayed() is what actually catches a
+    // chip clipped off the edge of the screen, and there is no way to
+    // assert that from a View-hierarchy or screenshot test. Version comes
+    // from the Compose BOM above, same as every other Compose artifact.
+    // The Compose BOM again: it is applied to `implementation` above, and
+    // a configuration does not inherit another's platform constraints, so
+    // without this the ui-test artifacts resolve with no version at all.
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.ui.test.junit4)
+    debugImplementation(platform(libs.androidx.compose.bom))
+    debugImplementation(libs.androidx.ui.test.manifest)
 }
