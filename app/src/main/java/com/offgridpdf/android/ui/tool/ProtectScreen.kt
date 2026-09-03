@@ -37,6 +37,7 @@ import com.offgridpdf.android.pdf.loadPdfFromUri
 import com.offgridpdf.android.pdf.protectPdf
 import com.offgridpdf.android.pdf.protectPdfWithPermissions
 import com.offgridpdf.android.ui.common.NullableUriSaver
+import com.offgridpdf.android.ui.common.rememberDisplayName
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import kotlinx.coroutines.Dispatchers
@@ -100,7 +101,7 @@ fun ProtectScreen() {
     ToolScaffold(
         title = "Protect PDF",
         accent = accent,
-        pickedFileName = pickedUri?.lastPathSegment,
+        pickedFileName = rememberDisplayName(pickedUri),
         onPickFile = { pickLauncher.launch(arrayOf("application/pdf")) },
         password = inputPassword,
         onPasswordChange = { inputPassword = it },
@@ -116,9 +117,9 @@ fun ProtectScreen() {
                     running = true
                     resultMessage = null
                     savedFile = null
-                    val baseName = suggestedBaseName(uri)
 
                     scope.launch {
+                        val baseName = suggestedBaseName(context, uri)
                         when (val result = loadPdfFromUri(context, uri, inputPassword.ifBlank { null })) {
                             is PdfLoadResult.Success -> {
                                 try {

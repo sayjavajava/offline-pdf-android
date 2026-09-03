@@ -37,6 +37,7 @@ import com.offgridpdf.android.pdf.convertDocxToPdf
 import com.offgridpdf.android.ui.common.NullableUriSaver
 import com.offgridpdf.android.ui.common.ScreenTopBar
 import com.offgridpdf.android.ui.common.ToolCompletion
+import com.offgridpdf.android.ui.common.rememberDisplayName
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import kotlinx.coroutines.Dispatchers
@@ -123,7 +124,7 @@ fun DocxToPdfScreen() {
                 },
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(pickedUri?.lastPathSegment ?: "Choose a DOCX file")
+                Text(rememberDisplayName(pickedUri) ?: "Choose a DOCX file")
             }
 
             Button(
@@ -135,8 +136,8 @@ fun DocxToPdfScreen() {
                         running = true
                         resultMessage = null
                         savedFile = null
-                        val baseName = suggestedBaseName(uri)
                         scope.launch {
+                            val baseName = suggestedBaseName(context, uri)
                             try {
                                 val docxBytes = readBytesFromUri(context, uri)
                                 val result = withContext(Dispatchers.Default) {

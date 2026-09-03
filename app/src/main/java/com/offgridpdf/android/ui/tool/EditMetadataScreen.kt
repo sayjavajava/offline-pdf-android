@@ -26,6 +26,7 @@ import com.offgridpdf.android.pdf.PdfMetadataEdit
 import com.offgridpdf.android.pdf.editPdfMetadata
 import com.offgridpdf.android.pdf.loadPdfFromUri
 import com.offgridpdf.android.ui.common.NullableUriSaver
+import com.offgridpdf.android.ui.common.rememberDisplayName
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import kotlinx.coroutines.Dispatchers
@@ -82,7 +83,7 @@ fun EditMetadataScreen() {
     ToolScaffold(
         title = "Edit PDF Metadata",
         accent = accent,
-        pickedFileName = pickedUri?.lastPathSegment,
+        pickedFileName = rememberDisplayName(pickedUri),
         onPickFile = { pickLauncher.launch(arrayOf("application/pdf")) },
         password = password,
         onPasswordChange = { password = it },
@@ -107,7 +108,7 @@ fun EditMetadataScreen() {
                                     )
                                 }
                                 lastResultBytes = pendingBytes
-                                saveLauncher.launch("${suggestedBaseName(uri)}_edited.pdf")
+                                saveLauncher.launch("${suggestedBaseName(context, uri)}_edited.pdf")
                             } catch (e: Exception) {
                                 resultMessage = userMessageFor(e)
                             } catch (e: OutOfMemoryError) {

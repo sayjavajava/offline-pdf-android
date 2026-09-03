@@ -47,6 +47,7 @@ import com.offgridpdf.android.ui.common.NullableUriSaver
 import com.offgridpdf.android.ui.common.PageOverlay
 import com.offgridpdf.android.ui.common.PageOverlayStyle
 import com.offgridpdf.android.ui.common.PagePreview
+import com.offgridpdf.android.ui.common.rememberDisplayName
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import kotlin.math.roundToInt
@@ -178,7 +179,7 @@ fun CropResizeScreen() {
     ToolScaffold(
         title = "Crop / Resize Pages",
         accent = accent,
-        pickedFileName = pickedUri?.lastPathSegment,
+        pickedFileName = rememberDisplayName(pickedUri),
         onPickFile = { pickLauncher.launch(arrayOf("application/pdf")) },
         password = password,
         onPasswordChange = { password = it },
@@ -202,10 +203,10 @@ fun CropResizeScreen() {
                     running = true
                     resultMessage = null
                     savedFile = null
-                    val baseName = suggestedBaseName(uri)
                     val margins = CropMargins(top, bottom, left, right)
 
                     scope.launch {
+                        val baseName = suggestedBaseName(context, uri)
                         when (val result = loadPdfFromUri(context, uri, password.ifBlank { null })) {
                             is PdfLoadResult.Success -> {
                                 try {
@@ -248,9 +249,9 @@ fun CropResizeScreen() {
                     running = true
                     resultMessage = null
                     savedFile = null
-                    val baseName = suggestedBaseName(uri)
 
                     scope.launch {
+                        val baseName = suggestedBaseName(context, uri)
                         when (val result = loadPdfFromUri(context, uri, password.ifBlank { null })) {
                             is PdfLoadResult.Success -> {
                                 try {

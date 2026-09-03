@@ -66,6 +66,7 @@ import com.offgridpdf.android.ui.common.PrimaryButton
 import com.offgridpdf.android.ui.common.PrivacyLine
 import com.offgridpdf.android.ui.common.ScreenTopBar
 import com.offgridpdf.android.ui.common.ToolCompletion
+import com.offgridpdf.android.ui.common.rememberDisplayName
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import com.offgridpdf.android.ui.theme.PlexMono
@@ -326,7 +327,7 @@ fun RedactScreen() {
                 )
             }
             item {
-                FilePickerCard(fileName = pickedUri?.lastPathSegment, onClick = { pickLauncher.launch(arrayOf("application/pdf")) })
+                FilePickerCard(fileName = rememberDisplayName(pickedUri), onClick = { pickLauncher.launch(arrayOf("application/pdf")) })
             }
             if (pickedUri != null && document == null) {
                 item {
@@ -582,7 +583,7 @@ fun RedactScreen() {
                                 }
                                 pendingBytes = bytes
                                 lastResultBytes = bytes
-                                val name = pickedUri?.let { suggestedBaseName(it) } ?: "document"
+                                val name = pickedUri?.let { suggestedBaseName(context, it) } ?: "document"
                                 saveLauncher.launch("${name}_redacted.pdf")
                             } catch (e: Exception) {
                                 resultMessage = userMessageFor(e)

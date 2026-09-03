@@ -37,6 +37,7 @@ import com.offgridpdf.android.pdf.PageNumberPosition
 import com.offgridpdf.android.pdf.addPageNumbers
 import com.offgridpdf.android.pdf.formatPageNumber
 import com.offgridpdf.android.ui.common.UriListSaver
+import com.offgridpdf.android.ui.common.rememberDisplayNames
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import kotlinx.coroutines.launch
 
@@ -149,9 +150,15 @@ fun PageNumbersScreen() {
     }
 
     val accent = LocalOffGridPalette.current.edit
+    // Kept separate from pickedFiles.size in the labels above/below: those
+    // read the count synchronously off the Uri list, but a name needs an
+    // async provider query (see rememberDisplayNames), so it can lag one
+    // frame behind a fresh pick -- fine for this label, wrong for a count.
+    val pickedFileNames = rememberDisplayNames(pickedFiles)
     val fileName = when {
         pickedFiles.isEmpty() -> null
-        pickedFiles.size == 1 -> pickedFiles[0].lastPathSegment
+        pickedFileNames.size == 1 -> pickedFileNames[0]
+        pickedFiles.size == 1 -> null
         else -> "${pickedFiles.size} files selected"
     }
 
@@ -202,7 +209,7 @@ fun PageNumbersScreen() {
                             pendingBytes = result.singleBytes
                             lastResultBytes = result.singleBytes
                             pendingSuccessMessage = "Page numbers added to your PDF."
-                            savePdfLauncher.launch("${suggestedBaseName(files[0])}_numbered.pdf")
+                            savePdfLauncher.launch("${suggestedBaseName(context, files[0])}_numbered.pdf")
                         }
                         result.zipBytes != null -> {
                             pendingBytes = result.zipBytes
