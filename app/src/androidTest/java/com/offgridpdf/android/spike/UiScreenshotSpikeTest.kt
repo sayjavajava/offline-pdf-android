@@ -1,13 +1,17 @@
 package com.offgridpdf.android.spike
 
 import android.app.Activity
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.util.Base64
 import android.util.Log
 import androidx.test.core.app.ActivityScenario
+import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.offgridpdf.android.MainActivity
+import com.offgridpdf.android.ui.dashboard.ACTION_OPEN_TOOL
+import com.offgridpdf.android.ui.dashboard.EXTRA_TOOL_ID
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.ByteArrayOutputStream
@@ -81,5 +85,41 @@ class UiScreenshotSpikeTest {
         scenario.onActivity { activity -> bitmap = captureWindow(activity) }
         logPreview("dashboard", requireNotNull(bitmap) { "dashboard capture failed" })
         scenario.close()
+    }
+
+    /**
+     * Opens one tool screen directly, the way a launcher shortcut does
+     * (`ShortcutsManager`'s own ACTION_OPEN_TOOL intent), and captures it.
+     */
+    private fun captureTool(toolId: String) {
+        val intent = Intent(ApplicationProvider.getApplicationContext(), MainActivity::class.java)
+            .setAction(ACTION_OPEN_TOOL)
+            .putExtra(EXTRA_TOOL_ID, toolId)
+        val scenario = ActivityScenario.launch<MainActivity>(intent)
+        Thread.sleep(1800) // first composition + the navigate-to-tool hop
+        var bitmap: Bitmap? = null
+        scenario.onActivity { activity -> bitmap = captureWindow(activity) }
+        logPreview(toolId, requireNotNull(bitmap) { "$toolId capture failed" })
+        scenario.close()
+    }
+
+    /**
+     * The screens the form/layout pass changed, captured on a real device
+     * so the claims about them can be checked rather than asserted:
+     *
+     * - `page-numbers` had six position options in a non-wrapping Row, four
+     *   of them off the right edge; `crop-resize` had its "Custom" paper
+     *   size (and so its whole custom-dimensions feature) off the edge the
+     *   same way. Both should now wrap onto as many lines as they need.
+     * - `merge` and `fill-form` never got the redesign at all: default
+     *   Material buttons, no spacing between controls, and no scrolling.
+     *
+     * One test rather than four so the emulator boots once.
+     */
+    @Test
+    fun capturesTheScreensTheFormPassChanged() {
+        for (toolId in listOf("page-numbers", "crop-resize", "merge", "fill-form")) {
+            captureTool(toolId)
+        }
     }
 }
