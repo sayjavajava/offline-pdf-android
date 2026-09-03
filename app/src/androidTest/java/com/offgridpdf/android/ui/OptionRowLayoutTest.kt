@@ -2,6 +2,8 @@ package com.offgridpdf.android.ui
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -86,6 +88,14 @@ class OptionRowLayoutTest {
     fun everyPrintPermissionIsReachable() {
         composeRule.setContent { OffGridPdfTheme { ProtectScreen() } }
         composeRule.onNodeWithText("Restrict printing, copying, or editing").performScrollTo().performClick()
-        assertAllReachable("Full quality", "Low resolution only", "Not allowed")
+        assertAllReachable("Full quality", "Low resolution only")
+        // "Not allowed" is deliberately not unique on this screen: it is the
+        // last print option *and* one of the two editing options. Matching it
+        // by text alone finds both, so assert both are reachable rather than
+        // pretending either one is the node meant.
+        val notAllowed = composeRule.onAllNodesWithText("Not allowed")
+        notAllowed.assertCountEquals(2)
+        notAllowed[0].performScrollTo().assertIsDisplayed()
+        notAllowed[1].performScrollTo().assertIsDisplayed()
     }
 }
