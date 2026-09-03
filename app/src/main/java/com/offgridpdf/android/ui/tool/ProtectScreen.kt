@@ -3,13 +3,6 @@ package com.offgridpdf.android.ui.tool
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -17,7 +10,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -37,7 +29,13 @@ import com.offgridpdf.android.pdf.PrintPermission
 import com.offgridpdf.android.pdf.loadPdfFromUri
 import com.offgridpdf.android.pdf.protectPdf
 import com.offgridpdf.android.pdf.protectPdfWithPermissions
+import com.offgridpdf.android.ui.common.CheckboxRow
 import com.offgridpdf.android.ui.common.NullableUriSaver
+import com.offgridpdf.android.ui.common.OptionChip
+import com.offgridpdf.android.ui.common.OptionChipRow
+import com.offgridpdf.android.ui.common.SectionLabel
+import com.offgridpdf.android.ui.common.ToolBodyText
+import com.offgridpdf.android.ui.common.ToolTextField
 import com.offgridpdf.android.ui.common.rememberDisplayName
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
@@ -176,31 +174,33 @@ fun ProtectScreen() {
         chainOriginBaseName = chainOriginBaseName,
         chainedFileName = chainedFileName,
         options = {
-            Text("Adds a password to a PDF, so it can only be opened by someone who knows it. There is no way to recover a lost password — keep it somewhere safe.")
+            ToolBodyText("Adds a password to a PDF, so it can only be opened by someone who knows it. There is no way to recover a lost password — keep it somewhere safe.")
 
-            OutlinedTextField(
+            ToolTextField(
                 value = newPassword,
                 onValueChange = { newPassword = it },
-                label = { Text(if (restrict) "Open password (leave blank to let anyone open it)" else "Password") },
+                label = if (restrict) "Open password (leave blank to let anyone open it)" else "Password",
+                accent = accent,
                 visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth(),
             )
-            OutlinedTextField(
+            ToolTextField(
                 value = confirmPassword,
                 onValueChange = { confirmPassword = it },
-                label = { Text(if (restrict) "Confirm open password" else "Confirm password") },
+                label = if (restrict) "Confirm open password" else "Confirm password",
+                accent = accent,
                 visualTransformation = PasswordVisualTransformation(),
-                modifier = Modifier.fillMaxWidth(),
             )
 
-            Row {
-                Checkbox(checked = restrict, onCheckedChange = { restrict = it })
-                Text("Restrict printing, copying, or editing")
-            }
+            CheckboxRow(
+                checked = restrict,
+                onCheckedChange = { restrict = it },
+                label = "Restrict printing, copying, or editing",
+                accent = accent,
+            )
 
             if (restrict) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
+                    ToolBodyText(
                         "PDF restrictions are enforced only for whoever opens the file with the " +
                             "open password above — a second, separate permissions password is " +
                             "needed to bypass them, so it must be different from the open " +
@@ -210,46 +210,48 @@ fun ProtectScreen() {
                             "can strip these restrictions. Use it to discourage casual copying " +
                             "or printing, not to protect secrets.",
                     )
-                    OutlinedTextField(
+                    ToolTextField(
                         value = permissionsPassword,
                         onValueChange = { permissionsPassword = it },
-                        label = { Text("Permissions password (required, must differ from the open password)") },
+                        label = "Permissions password (required, must differ from the open password)",
+                        accent = accent,
                         visualTransformation = PasswordVisualTransformation(),
-                        modifier = Modifier.fillMaxWidth(),
                     )
 
-                    Text("Allow printing")
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SectionLabel("Allow printing")
+                    OptionChipRow {
                         for (option in PrintPermission.entries) {
-                            val label = when (option) {
-                                PrintPermission.FULL -> "Full quality"
-                                PrintPermission.LOW -> "Low resolution only"
-                                PrintPermission.NONE -> "Not allowed"
-                            }
-                            if (option == print) {
-                                Button(onClick = { print = option }) { Text(label) }
-                            } else {
-                                OutlinedButton(onClick = { print = option }) { Text(label) }
-                            }
+                            OptionChip(
+                                label = when (option) {
+                                    PrintPermission.FULL -> "Full quality"
+                                    PrintPermission.LOW -> "Low resolution only"
+                                    PrintPermission.NONE -> "Not allowed"
+                                },
+                                selected = option == print,
+                                accent = accent,
+                                onClick = { print = option },
+                            )
                         }
                     }
 
-                    Text("Allow editing")
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SectionLabel("Allow editing")
+                    OptionChipRow {
                         for (option in ModifyPermission.entries) {
-                            val label = if (option == ModifyPermission.ALL) "Allowed" else "Not allowed"
-                            if (option == modify) {
-                                Button(onClick = { modify = option }) { Text(label) }
-                            } else {
-                                OutlinedButton(onClick = { modify = option }) { Text(label) }
-                            }
+                            OptionChip(
+                                label = if (option == ModifyPermission.ALL) "Allowed" else "Not allowed",
+                                selected = option == modify,
+                                accent = accent,
+                                onClick = { modify = option },
+                            )
                         }
                     }
 
-                    Row {
-                        Checkbox(checked = extract, onCheckedChange = { extract = it })
-                        Text("Allow copying text and images")
-                    }
+                    CheckboxRow(
+                        checked = extract,
+                        onCheckedChange = { extract = it },
+                        label = "Allow copying text and images",
+                        accent = accent,
+                    )
                 }
             }
         },

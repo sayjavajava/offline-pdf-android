@@ -2,11 +2,14 @@ package com.offgridpdf.android.ui.tool
 
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.LazyColumn
@@ -15,8 +18,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -25,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -44,7 +48,16 @@ import com.offgridpdf.android.pdf.describeComparison
 import com.offgridpdf.android.pdf.loadPdfFromUri
 import com.offgridpdf.android.ui.common.NullableUriSaver
 import com.offgridpdf.android.ui.common.ScreenTopBar
+import com.offgridpdf.android.ui.common.FilePickerCard
+import com.offgridpdf.android.ui.common.PrimaryButton
+import com.offgridpdf.android.ui.common.PrivacyLine
+import com.offgridpdf.android.ui.common.RunningIndicator
+import com.offgridpdf.android.ui.common.SecondaryButton
+import com.offgridpdf.android.ui.common.SectionLabel
+import com.offgridpdf.android.ui.common.TOOL_CONTENT_MAX_WIDTH
+import com.offgridpdf.android.ui.common.ToolBodyText
 import com.offgridpdf.android.ui.common.ToolCompletion
+import com.offgridpdf.android.ui.common.ToolTextField
 import com.offgridpdf.android.ui.common.rememberDisplayName
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import kotlinx.coroutines.Dispatchers
@@ -123,12 +136,18 @@ fun CompareScreen() {
             WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal,
         ),
     ) { innerPadding ->
+        // Keeps its own LazyColumn rather than ToolScreenScaffold: the
+        // per-page result list can run to hundreds of rows, and a lazy list
+        // cannot nest inside that scaffold's scrolling Column. The padding,
+        // width cap and controls below are the scaffold's, by hand.
+        Box(modifier = Modifier.padding(innerPadding), contentAlignment = Alignment.TopCenter) {
         LazyColumn(
-            modifier = Modifier.padding(innerPadding).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth().widthIn(max = TOOL_CONTENT_MAX_WIDTH),
+            contentPadding = PaddingValues(horizontal = 22.dp, vertical = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             item {
-                Text(
+                ToolBodyText(
                     "Find out what changed between two versions of a document — page by page, both " +
                         "what the text says and what the page looks like. Read-only: nothing is " +
                         "modified, and no PDF is produced, just a report of what differs.",
@@ -136,40 +155,47 @@ fun CompareScreen() {
             }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { pickLauncherA.launch(arrayOf("application/pdf")) }, modifier = Modifier.fillMaxWidth()) {
-                        Text(displayNameA ?: "Choose PDF A")
-                    }
-                    OutlinedTextField(
+                    SectionLabel("PDF A")
+                    FilePickerCard(
+                        fileName = displayNameA,
+                        onClick = { pickLauncherA.launch(arrayOf("application/pdf")) },
+                    )
+                    ToolTextField(
                         value = passwordA,
                         onValueChange = { passwordA = it },
-                        label = { Text("Password A (if encrypted)") },
+                        label = "Password A (if encrypted)",
+                        accent = accent,
                         visualTransformation = PasswordVisualTransformation(),
-                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
             }
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = { pickLauncherB.launch(arrayOf("application/pdf")) }, modifier = Modifier.fillMaxWidth()) {
-                        Text(displayNameB ?: "Choose PDF B")
-                    }
-                    OutlinedTextField(
+                    SectionLabel("PDF B")
+                    FilePickerCard(
+                        fileName = displayNameB,
+                        onClick = { pickLauncherB.launch(arrayOf("application/pdf")) },
+                    )
+                    ToolTextField(
                         value = passwordB,
                         onValueChange = { passwordB = it },
-                        label = { Text("Password B (if encrypted)") },
+                        label = "Password B (if encrypted)",
+                        accent = accent,
                         visualTransformation = PasswordVisualTransformation(),
-                        modifier = Modifier.fillMaxWidth(),
                     )
                 }
             }
             item {
-                Button(
+                PrimaryButton(
+                    text = if (running) "Comparing..." else "Compare",
+                    accent = accent,
+                    enabled = !running,
                     onClick = {
                         val a = uriA
                         val b = uriB
                         if (a == null || b == null) {
                             resultMessage = "Select a PDF for both A and B."
-                            return@Button
+                            return@PrimaryButton
                         }
                         running = true
                         resultMessage = null
@@ -214,14 +240,11 @@ fun CompareScreen() {
                             running = false
                         }
                     },
-                    enabled = !running,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(if (running) "Comparing..." else "Compare")
-                }
+                )
             }
+            item { PrivacyLine() }
             if (running) {
-                item { CircularProgressIndicator() }
+                item { RunningIndicator(accent = accent) }
             }
             resultMessage?.let { message ->
                 item { ToolCompletion(message = message, savedFile = savedFile, accent = accent) }
@@ -230,10 +253,13 @@ fun CompareScreen() {
             val current = result
             if (current != null) {
                 item {
-                    Text("A: ${current.pageCountA} page${if (current.pageCountA == 1) "" else "s"} · B: ${current.pageCountB} page${if (current.pageCountB == 1) "" else "s"}")
+                    ToolBodyText("A: ${current.pageCountA} page${if (current.pageCountA == 1) "" else "s"} · B: ${current.pageCountB} page${if (current.pageCountB == 1) "" else "s"}")
                 }
                 item {
-                    OutlinedButton(
+                    SecondaryButton(
+                        text = "Download Report",
+                        accent = accent,
+                        modifier = Modifier.fillMaxWidth(),
                         onClick = {
                             pendingReportBytes = buildCompareReport(
                                 displayNameA ?: "A.pdf",
@@ -242,8 +268,7 @@ fun CompareScreen() {
                             ).toByteArray()
                             saveReportLauncher.launch("compare_report.txt")
                         },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Download Report") }
+                    )
                 }
                 items(current.pages.size) { i ->
                     val p = current.pages[i]
@@ -252,9 +277,14 @@ fun CompareScreen() {
                     } else {
                         ""
                     }
-                    Text("Page ${p.page}: ${describeComparison(p)}$ratioText")
+                    Text(
+                        "Page ${p.page}: ${describeComparison(p)}$ratioText",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = LocalOffGridPalette.current.inkSecondary,
+                    )
                 }
             }
+        }
         }
     }
 }

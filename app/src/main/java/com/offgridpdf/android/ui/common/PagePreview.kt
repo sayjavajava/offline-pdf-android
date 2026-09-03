@@ -1,6 +1,7 @@
 package com.offgridpdf.android.ui.common
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
@@ -17,11 +18,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
-import androidx.compose.foundation.Image
-import androidx.compose.ui.input.pointer.pointerInput
 import com.offgridpdf.android.pdf.PdfRect
 import com.offgridpdf.android.pdf.PixelPoint
 import com.offgridpdf.android.pdf.pixelToPdfRect

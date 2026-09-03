@@ -1,14 +1,7 @@
 package com.offgridpdf.android.ui.tool
 
 import android.net.Uri
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -17,10 +10,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
 import com.offgridpdf.android.chain.ChainOrigin
 import com.offgridpdf.android.chain.PendingFile
 import com.offgridpdf.android.files.SavedFile
@@ -34,6 +25,11 @@ import com.offgridpdf.android.files.suggestedBaseName
 import com.offgridpdf.android.pdf.WatermarkColor
 import com.offgridpdf.android.pdf.WatermarkOptions
 import com.offgridpdf.android.pdf.addWatermark
+import com.offgridpdf.android.ui.common.CheckboxRow
+import com.offgridpdf.android.ui.common.OptionChip
+import com.offgridpdf.android.ui.common.OptionChipRow
+import com.offgridpdf.android.ui.common.SectionLabel
+import com.offgridpdf.android.ui.common.ToolTextField
 import com.offgridpdf.android.ui.common.UriListSaver
 import com.offgridpdf.android.ui.common.rememberDisplayNames
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
@@ -206,47 +202,50 @@ fun WatermarkScreen() {
             null
         },
         options = {
-            OutlinedTextField(
+            ToolTextField(
                 value = text,
                 onValueChange = { text = it },
-                label = { Text("Watermark Text") },
-                modifier = Modifier.fillMaxWidth(),
+                label = "Watermark Text",
+                accent = accent,
             )
-            OutlinedTextField(
+            ToolTextField(
                 value = fontSizeText,
                 onValueChange = { fontSizeText = it },
-                label = { Text("Font Size (1–300)") },
+                label = "Font Size (1–300)",
+                accent = accent,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth(),
             )
-            OutlinedTextField(
+            ToolTextField(
                 value = opacityText,
                 onValueChange = { opacityText = it },
-                label = { Text("Opacity (0–1)") },
+                label = "Opacity (0–1)",
+                accent = accent,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.fillMaxWidth(),
             )
-            Text("Colour")
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SectionLabel("Colour")
+            OptionChipRow {
                 COLOR_PRESETS.forEachIndexed { index, preset ->
-                    if (index == colorIndex) {
-                        Button(onClick = { colorIndex = index }) { Text(preset.label) }
-                    } else {
-                        OutlinedButton(onClick = { colorIndex = index }) { Text(preset.label) }
-                    }
+                    OptionChip(
+                        label = preset.label,
+                        selected = index == colorIndex,
+                        accent = accent,
+                        onClick = { colorIndex = index },
+                    )
                 }
             }
-            OutlinedTextField(
+            ToolTextField(
                 value = rotationText,
                 onValueChange = { rotationText = it },
-                label = { Text("Rotation (degrees, -360 to 360)") },
+                label = "Rotation (degrees, -360 to 360)",
+                accent = accent,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth(),
             )
-            Row {
-                Checkbox(checked = tile, onCheckedChange = { tile = it })
-                Text("Repeat across the whole page")
-            }
+            CheckboxRow(
+                checked = tile,
+                onCheckedChange = { tile = it },
+                label = "Repeat across the whole page",
+                accent = accent,
+            )
         },
     )
 }

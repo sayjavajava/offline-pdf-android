@@ -1,8 +1,6 @@
 package com.offgridpdf.android.ui.tool
 
 import android.net.Uri
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -11,7 +9,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.offgridpdf.android.chain.ChainOrigin
 import com.offgridpdf.android.chain.PendingFile
@@ -26,6 +23,7 @@ import com.offgridpdf.android.pdf.PdfLoadResult
 import com.offgridpdf.android.pdf.loadPdfFromUri
 import com.offgridpdf.android.pdf.rearrangePdf
 import com.offgridpdf.android.ui.common.NullableUriSaver
+import com.offgridpdf.android.ui.common.ToolTextField
 import com.offgridpdf.android.ui.common.rememberDisplayName
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
@@ -141,12 +139,12 @@ fun RearrangeScreen() {
         chainedFileName = chainedFileName,
         options = {
             Text("Keep only the pages you list, in that order. Omit a page to delete it; list a page more than once to duplicate it.")
-            OutlinedTextField(
+            ToolTextField(
                 value = pagesText,
                 onValueChange = { pagesText = it },
-                label = { Text("Pages to keep (in order)") },
-                placeholder = { Text("e.g. 5,1,3 — omits page 2 and 4") },
-                modifier = Modifier.fillMaxWidth(),
+                label = "Pages to keep (in order)",
+                accent = accent,
+                placeholder = "e.g. 5,1,3 — omits page 2 and 4",
             )
         },
     )

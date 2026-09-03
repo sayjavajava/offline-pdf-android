@@ -1,7 +1,9 @@
 package com.offgridpdf.android.ui.tool
 
 import android.net.Uri
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,6 +15,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -23,6 +26,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.offgridpdf.android.files.SavedFile
 import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
@@ -34,12 +38,18 @@ import com.offgridpdf.android.files.saveResult
 import com.offgridpdf.android.files.savedFileOrNull
 import com.offgridpdf.android.pdf.ImageFile
 import com.offgridpdf.android.pdf.imagesToPdf
-import com.offgridpdf.android.ui.common.ScreenTopBar
+import com.offgridpdf.android.ui.common.FilePickerCard
+import com.offgridpdf.android.ui.common.PrimaryButton
+import com.offgridpdf.android.ui.common.PrivacyLine
+import com.offgridpdf.android.ui.common.RunningIndicator
+import com.offgridpdf.android.ui.common.ToolBodyText
 import com.offgridpdf.android.ui.common.ToolCompletion
+import com.offgridpdf.android.ui.common.ToolScreenScaffold
 import com.offgridpdf.android.ui.common.UriListSaver
 import com.offgridpdf.android.ui.common.rememberDisplayNames
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
+import com.offgridpdf.android.ui.theme.PlexMono
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -53,7 +63,6 @@ import kotlinx.coroutines.withContext
  * `MergeScreen.kt`: multi-file, no password field, and the web tool has
  * no such field for this either.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ImagesToPdfScreen() {
     val context = LocalContext.current
@@ -93,37 +102,23 @@ fun ImagesToPdfScreen() {
         pendingBytes = null
     }
 
-    Scaffold(
-        topBar = { ScreenTopBar(title = "Convert Images to PDF") },
-        containerColor = LocalOffGridPalette.current.paper,
-        // Bottom and horizontal only. The top inset belongs to ScreenTopBar,
-        // which applies it itself, so asking Scaffold for it as well risks
-        // counting the status bar twice. Bottom is safeDrawing rather than
-        // navigationBars so content also clears the keyboard.
-        contentWindowInsets = WindowInsets.safeDrawing.only(
-            WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal,
-        ),
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(innerPadding).padding(16.dp),
-        ) {
-            Text(
-                "Convert JPEG or PNG images to PDF — select several to combine them " +
-                    "into one multi-page PDF, in the order shown.",
-            )
+    val fileNames = rememberDisplayNames(files)
+    val palette = LocalOffGridPalette.current
 
-            Button(
-                onClick = { pickLauncher.launch(arrayOf("image/jpeg", "image/png")) },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(if (files.isEmpty()) "Choose image(s)" else "${files.size} image(s) selected")
+    ToolScreenScaffold(
+        title = "Convert Images to PDF",
+        bottomBar = {
+            if (running) {
+                RunningIndicator(accent = accent)
             }
-
-            if (files.isNotEmpty()) {
-                Text(rememberDisplayNames(files).joinToString("\n"))
+            resultMessage?.let { message ->
+                ToolCompletion(message = message, savedFile = savedFile, accent = accent)
             }
-
-            Button(
+            PrivacyLine()
+            PrimaryButton(
+                text = if (running) "Converting..." else "Convert to PDF",
+                accent = accent,
+                enabled = !running,
                 onClick = {
                     if (files.isEmpty()) {
                         resultMessage = "Select at least one image."
@@ -151,18 +146,43 @@ fun ImagesToPdfScreen() {
                         }
                     }
                 },
-                enabled = !running,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(if (running) "Converting..." else "Convert to PDF")
-            }
+            )
+        },
+    ) {
+        FilePickerCard(
+            fileName = when (files.size) {
+                0 -> null
+                1 -> fileNames.firstOrNull()
+                else -> "${files.size} images selected"
+            },
+            onClick = { pickLauncher.launch(arrayOf("image/jpeg", "image/png")) },
+        )
 
-            if (running) {
-                CircularProgressIndicator()
-            }
+        ToolBodyText(
+            "Convert JPEG or PNG images to PDF — select several to combine them " +
+                "into one multi-page PDF, in the order shown.",
+        )
 
-            resultMessage?.let { message ->
-                ToolCompletion(message = message, savedFile = savedFile, accent = accent)
+        // One numbered line per image, in page order. Previously a single
+        // newline-joined blob with no spacing between names.
+        if (fileNames.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                fileNames.forEachIndexed { index, name ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(
+                            "${index + 1}.",
+                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = PlexMono),
+                            color = palette.inkTertiary,
+                        )
+                        Text(
+                            name,
+                            style = MaterialTheme.typography.bodySmall.copy(fontFamily = PlexMono),
+                            color = palette.inkSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
             }
         }
     }

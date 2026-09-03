@@ -16,7 +16,6 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -44,8 +43,20 @@ import com.offgridpdf.android.pdf.fillFormFields
 import com.offgridpdf.android.pdf.loadPdfFromUri
 import com.offgridpdf.android.pdf.readFormFields
 import com.offgridpdf.android.ui.common.NullableUriSaver
-import com.offgridpdf.android.ui.common.ScreenTopBar
+import com.offgridpdf.android.ui.common.CheckboxRow
+import com.offgridpdf.android.ui.common.FilePickerCard
+import com.offgridpdf.android.ui.common.OptionChip
+import com.offgridpdf.android.ui.common.OptionChipRow
+import com.offgridpdf.android.ui.common.PrimaryButton
+import com.offgridpdf.android.ui.common.PrivacyLine
+import com.offgridpdf.android.ui.common.RadioRow
+import com.offgridpdf.android.ui.common.RunningIndicator
+import com.offgridpdf.android.ui.common.SecondaryButton
+import com.offgridpdf.android.ui.common.SectionLabel
+import com.offgridpdf.android.ui.common.ToolBodyText
 import com.offgridpdf.android.ui.common.ToolCompletion
+import com.offgridpdf.android.ui.common.ToolScreenScaffold
+import com.offgridpdf.android.ui.common.ToolTextField
 import com.offgridpdf.android.ui.common.rememberDisplayName
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
@@ -63,7 +74,6 @@ import kotlinx.coroutines.withContext
  * this specific PDF, so there's no fixed options slot to render up front,
  * matching the web tool's own load-then-fill shape.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FillFormScreen() {
     val context = LocalContext.current
@@ -123,43 +133,23 @@ fun FillFormScreen() {
         pendingBytes = null
     }
 
-    Scaffold(
-        topBar = { ScreenTopBar(title = "Fill PDF Forms") },
-        containerColor = LocalOffGridPalette.current.paper,
-        // Bottom and horizontal only. The top inset belongs to ScreenTopBar,
-        // which applies it itself, so asking Scaffold for it as well risks
-        // counting the status bar twice. Bottom is safeDrawing rather than
-        // navigationBars so content also clears the keyboard.
-        contentWindowInsets = WindowInsets.safeDrawing.only(
-            WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal,
-        ),
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier.fillMaxSize().padding(innerPadding).padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(
-                "Fill in a PDF's fillable fields — text boxes, checkboxes, dropdowns, and radio " +
-                    "buttons — and download the result. Choose to flatten the form so it looks " +
-                    "identical in every reader, or leave it editable so the fields can still be " +
-                    "changed later.",
-            )
+    val currentFields = fields
 
-            val currentFields = fields
+    ToolScreenScaffold(
+        title = "Fill PDF Forms",
+        bottomBar = {
+            if (loadingFields || filling) {
+                RunningIndicator(accent = accent)
+            }
+            resultMessage?.let { message ->
+                ToolCompletion(message = message, savedFile = savedFile, accent = accent)
+            }
+            PrivacyLine()
             if (currentFields == null) {
-                Button(
-                    onClick = { pickLauncher.launch(arrayOf("application/pdf")) },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(rememberDisplayName(pickedUri) ?: "Choose a PDF file")
-                }
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    label = { Text("Password (if encrypted)") },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Button(
+                PrimaryButton(
+                    text = if (loadingFields) "Reading form fields..." else "Load Form Fields",
+                    accent = accent,
+                    enabled = pickedUri != null && !loadingFields,
                     onClick = {
                         pickedUri?.let { uri ->
                             loadingFields = true
@@ -196,92 +186,15 @@ fun FillFormScreen() {
                             }
                         }
                     },
-                    enabled = pickedUri != null && !loadingFields,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(if (loadingFields) "Reading form fields..." else "Load Form Fields")
-                }
+                )
             } else {
-                OutlinedButton(onClick = { reset() }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Choose a different file")
-                }
-
-                if (currentFields.isEmpty() && unsupportedFields.isEmpty()) {
-                    Text("This PDF has no fillable form fields.")
-                }
-                if (unsupportedFields.isNotEmpty()) {
-                    Text(
-                        "${unsupportedFields.size} field(s) in this PDF (${unsupportedFields.joinToString(", ")}) " +
-                            "are a type this tool doesn't edit (buttons, option lists, or signature " +
-                            "fields) and will be left as-is.",
-                    )
-                }
-
-                for (field in currentFields) {
-                    when (field) {
-                        is FormFieldInfo.Text -> OutlinedTextField(
-                            value = values[field.name] as? String ?: "",
-                            onValueChange = { values = values + (field.name to it) },
-                            label = { Text(field.name) },
-                            enabled = !field.readOnly,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        is FormFieldInfo.Checkbox -> Row {
-                            Checkbox(
-                                checked = values[field.name] as? Boolean ?: false,
-                                onCheckedChange = { values = values + (field.name to it) },
-                                enabled = !field.readOnly,
-                            )
-                            Text(field.name)
-                        }
-                        is FormFieldInfo.Dropdown -> Column {
-                            Text(field.name)
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                // "(none)" matches the web tool's own option --
-                                // an empty value leaves the field's current
-                                // selection untouched rather than clearing it
-                                // (see applyFormFieldValues's dropdown case).
-                                for (option in listOf("(none)") + field.options) {
-                                    val actualValue = if (option == "(none)") "" else option
-                                    val selected = (values[field.name] as? String ?: "") == actualValue
-                                    if (selected) {
-                                        Button(onClick = { values = values + (field.name to actualValue) }) { Text(option) }
-                                    } else {
-                                        OutlinedButton(
-                                            onClick = { values = values + (field.name to actualValue) },
-                                            enabled = !field.readOnly,
-                                        ) { Text(option) }
-                                    }
-                                }
-                            }
-                        }
-                        is FormFieldInfo.Radio -> Column {
-                            Text(field.name)
-                            for (option in field.options) {
-                                Row {
-                                    RadioButton(
-                                        selected = values[field.name] as? String == option,
-                                        onClick = { values = values + (field.name to option) },
-                                        enabled = !field.readOnly,
-                                    )
-                                    Text(option)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if (currentFields.isNotEmpty()) {
-                    Row {
-                        Checkbox(checked = flatten, onCheckedChange = { flatten = it })
-                        Text("Flatten form after filling (fields can no longer be edited)")
-                    }
-                }
-
-                Button(
+                PrimaryButton(
+                    text = if (filling) "Filling..." else "Fill & Download",
+                    accent = accent,
+                    enabled = !filling,
                     onClick = {
-                        val document = openDocument ?: return@Button
-                        val uri = pickedUri ?: return@Button
+                        val document = openDocument ?: return@PrimaryButton
+                        val uri = pickedUri ?: return@PrimaryButton
                         filling = true
                         resultMessage = null
                         savedFile = null
@@ -304,19 +217,104 @@ fun FillFormScreen() {
                             filling = false
                         }
                     },
-                    enabled = !filling,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(if (filling) "Filling..." else "Fill & Download")
+                )
+            }
+        },
+    ) {
+        if (currentFields == null) {
+            FilePickerCard(
+                fileName = rememberDisplayName(pickedUri),
+                onClick = { pickLauncher.launch(arrayOf("application/pdf")) },
+            )
+            ToolBodyText(
+                "Fill in a PDF's fillable fields — text boxes, checkboxes, dropdowns, and radio " +
+                    "buttons — and download the result. Choose to flatten the form so it looks " +
+                    "identical in every reader, or leave it editable so the fields can still be " +
+                    "changed later.",
+            )
+            ToolTextField(
+                value = password,
+                onValueChange = { password = it },
+                label = "Password (if encrypted)",
+                accent = accent,
+            )
+        } else {
+            SecondaryButton(
+                text = "Choose a different file",
+                onClick = { reset() },
+                accent = accent,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            if (currentFields.isEmpty() && unsupportedFields.isEmpty()) {
+                ToolBodyText("This PDF has no fillable form fields.")
+            }
+            if (unsupportedFields.isNotEmpty()) {
+                ToolBodyText(
+                    "${unsupportedFields.size} field(s) in this PDF (${unsupportedFields.joinToString(", ")}) " +
+                        "are a type this tool doesn't edit (buttons, option lists, or signature " +
+                        "fields) and will be left as-is.",
+                )
+            }
+
+            for (field in currentFields) {
+                when (field) {
+                    is FormFieldInfo.Text -> ToolTextField(
+                        value = values[field.name] as? String ?: "",
+                        onValueChange = { values = values + (field.name to it) },
+                        label = field.name,
+                        accent = accent,
+                        enabled = !field.readOnly,
+                    )
+                    is FormFieldInfo.Checkbox -> CheckboxRow(
+                        checked = values[field.name] as? Boolean ?: false,
+                        onCheckedChange = { values = values + (field.name to it) },
+                        label = field.name,
+                        accent = accent,
+                        enabled = !field.readOnly,
+                    )
+                    is FormFieldInfo.Dropdown -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SectionLabel(field.name)
+                        OptionChipRow {
+                            // "(none)" matches the web tool's own option --
+                            // an empty value leaves the field's current
+                            // selection untouched rather than clearing it
+                            // (see applyFormFieldValues's dropdown case).
+                            for (option in listOf("(none)") + field.options) {
+                                val actualValue = if (option == "(none)") "" else option
+                                OptionChip(
+                                    label = option,
+                                    selected = (values[field.name] as? String ?: "") == actualValue,
+                                    accent = accent,
+                                    onClick = {
+                                        if (!field.readOnly) values = values + (field.name to actualValue)
+                                    },
+                                )
+                            }
+                        }
+                    }
+                    is FormFieldInfo.Radio -> Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        SectionLabel(field.name)
+                        for (option in field.options) {
+                            RadioRow(
+                                selected = values[field.name] as? String == option,
+                                onSelect = { values = values + (field.name to option) },
+                                label = option,
+                                accent = accent,
+                                enabled = !field.readOnly,
+                            )
+                        }
+                    }
                 }
             }
 
-            if (loadingFields || filling) {
-                CircularProgressIndicator()
-            }
-
-            resultMessage?.let { message ->
-                ToolCompletion(message = message, savedFile = savedFile, accent = accent)
+            if (currentFields.isNotEmpty()) {
+                CheckboxRow(
+                    checked = flatten,
+                    onCheckedChange = { flatten = it },
+                    label = "Flatten form after filling (fields can no longer be edited)",
+                    accent = accent,
+                )
             }
         }
     }
