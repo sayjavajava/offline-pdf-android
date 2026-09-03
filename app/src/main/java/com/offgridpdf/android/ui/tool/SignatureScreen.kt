@@ -8,9 +8,13 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -42,11 +46,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.offgridpdf.android.chain.PendingFile
+import com.offgridpdf.android.files.SavedFile
 import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
 import com.offgridpdf.android.files.readBytesFromUri
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenDocumentLauncher
 import com.offgridpdf.android.files.saveResult
+import com.offgridpdf.android.files.savedFileOrNull
 import com.offgridpdf.android.files.suggestedBaseName
 import com.offgridpdf.android.pdf.PREVIEW_SCALE
 import com.offgridpdf.android.pdf.PdfLoadResult
@@ -60,6 +66,7 @@ import com.offgridpdf.android.ui.common.PageOverlay
 import com.offgridpdf.android.ui.common.PageOverlayStyle
 import com.offgridpdf.android.ui.common.PagePreview
 import com.offgridpdf.android.ui.common.ScreenTopBar
+import com.offgridpdf.android.ui.common.ToolCompletion
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import com.tom_roush.pdfbox.pdmodel.PDDocument
@@ -131,6 +138,9 @@ fun SignatureScreen() {
 
     var running by remember { mutableStateOf(false) }
     var resultMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    // The file this run produced, once it is really on disk. Not
+    // saveable: it holds the bytes, and a Bundle caps out around 1 MB.
+    var savedFile by remember { mutableStateOf<SavedFile?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
 
     val pickLauncher = rememberOpenDocumentLauncher { uri ->
@@ -141,6 +151,7 @@ fun SignatureScreen() {
         pageCount = null
         loadError = null
         resultMessage = null
+        savedFile = null
     }
 
     val uploadLauncher = rememberOpenDocumentLauncher { uri ->
@@ -155,7 +166,9 @@ fun SignatureScreen() {
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                resultMessage = saveResult(context, uri, bytes, "Signature added.")
+                val outcome = saveResult(context, uri, bytes, "Signature added.")
+                resultMessage = outcome.message
+                savedFile = outcome.savedFileOrNull
             }
         }
         pendingBytes = null
@@ -233,6 +246,13 @@ fun SignatureScreen() {
     Scaffold(
         topBar = { ScreenTopBar(title = "Add Signature") },
         containerColor = LocalOffGridPalette.current.paper,
+        // Bottom and horizontal only. The top inset belongs to ScreenTopBar,
+        // which applies it itself, so asking Scaffold for it as well risks
+        // counting the status bar twice. Bottom is safeDrawing rather than
+        // navigationBars so content also clears the keyboard.
+        contentWindowInsets = WindowInsets.safeDrawing.only(
+            WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal,
+        ),
     ) { innerPadding ->
         // Scrollable: this screen was already tall (file, password, three
         // signature modes, five placement fields, the action button) and a
@@ -455,6 +475,7 @@ fun SignatureScreen() {
 
                     running = true
                     resultMessage = null
+                    savedFile = null
                     val baseName = suggestedBaseName(uri)
                     scope.launch {
                         try {
@@ -485,7 +506,9 @@ fun SignatureScreen() {
                 CircularProgressIndicator()
             }
 
-            resultMessage?.let { Text(it) }
+            resultMessage?.let { message ->
+                ToolCompletion(message = message, savedFile = savedFile, accent = accent)
+            }
         }
     }
 }

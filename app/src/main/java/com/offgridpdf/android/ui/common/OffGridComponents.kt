@@ -7,9 +7,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
@@ -61,9 +66,22 @@ fun ScreenTopBar(title: String, modifier: Modifier = Modifier, trailing: @Compos
         horizontalArrangement = Arrangement.SpaceBetween,
         modifier = modifier
             .fillMaxWidth()
-            // Start padding and vertical padding are smaller than the end
-            // padding because the back button's touch target supplies the
-            // rest -- see below. The title still lands in the same place.
+            // The app draws edge to edge (enableEdgeToEdge in MainActivity),
+            // which from targetSdk 35 is not optional. Without this the title
+            // and the back arrow were painted underneath the status bar, with
+            // the clock and battery icon sitting on top of them.
+            //
+            // The bar takes the inset rather than the screen doing it, so the
+            // background still runs to the top edge, and so every screen that
+            // uses this bar is fixed by one change. Horizontal is here too for
+            // a landscape display cutout; Compose consumes what it applies, so
+            // a parent that already handled it costs nothing here.
+            .windowInsetsPadding(
+                WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
+            )
+            // Start and vertical padding are smaller than the end padding
+            // because the back button's touch target supplies the rest -- see
+            // below. The title still lands in the same place.
             .padding(start = 10.dp, end = 22.dp, top = 6.dp, bottom = 6.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {

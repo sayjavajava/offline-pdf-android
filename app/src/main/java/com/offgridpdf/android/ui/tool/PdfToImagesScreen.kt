@@ -16,12 +16,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import com.offgridpdf.android.chain.PendingFile
+import com.offgridpdf.android.files.SavedFile
 import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
 import com.offgridpdf.android.files.ZipEntryData
 import com.offgridpdf.android.files.createZip
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenDocumentLauncher
 import com.offgridpdf.android.files.saveResult
+import com.offgridpdf.android.files.savedFileOrNull
 import com.offgridpdf.android.files.suggestedBaseName
 import com.offgridpdf.android.pdf.PdfLoadResult
 import com.offgridpdf.android.pdf.RenderedPage
@@ -56,6 +58,9 @@ fun PdfToImagesScreen() {
     var scaleText by rememberSaveable { mutableStateOf("2") }
     var running by remember { mutableStateOf(false) }
     var resultMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    // The file this run produced, once it is really on disk. Not
+    // saveable: it holds the bytes, and a Bundle caps out around 1 MB.
+    var savedFile by remember { mutableStateOf<SavedFile?>(null) }
 
     // Set once the result bytes are ready, consumed by whichever save
     // launcher's onResult fires next. Only one of savePngLauncher /
@@ -70,13 +75,16 @@ fun PdfToImagesScreen() {
         pickedUri = uri
         password = ""
         resultMessage = null
+        savedFile = null
     }
 
     val savePngLauncher = rememberCreateDocumentLauncher("image/png") { uri ->
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                resultMessage = saveResult(context, uri, bytes, pendingSuccessMessage)
+                val outcome = saveResult(context, uri, bytes, pendingSuccessMessage)
+                resultMessage = outcome.message
+                savedFile = outcome.savedFileOrNull
             }
         }
         pendingBytes = null
@@ -86,7 +94,9 @@ fun PdfToImagesScreen() {
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                resultMessage = saveResult(context, uri, bytes, pendingSuccessMessage)
+                val outcome = saveResult(context, uri, bytes, pendingSuccessMessage)
+                resultMessage = outcome.message
+                savedFile = outcome.savedFileOrNull
             }
         }
         pendingBytes = null
@@ -108,6 +118,7 @@ fun PdfToImagesScreen() {
             pickedUri?.let { uri ->
                 running = true
                 resultMessage = null
+                savedFile = null
                 val pageRange = pagesText.ifBlank { "all" }
                 val scale = scaleText.toFloatOrNull()
                 val baseName = suggestedBaseName(uri)
@@ -161,6 +172,7 @@ fun PdfToImagesScreen() {
         },
         runLabel = if (running) "Exporting..." else "Export Pages as PNG",
         resultMessage = resultMessage,
+        savedFile = savedFile,
         options = {
             OutlinedTextField(
                 value = pagesText,

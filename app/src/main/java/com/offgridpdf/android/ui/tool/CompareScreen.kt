@@ -3,8 +3,12 @@ package com.offgridpdf.android.ui.tool
 import android.net.Uri
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
@@ -26,9 +30,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.offgridpdf.android.chain.PendingFile
+import com.offgridpdf.android.files.SavedFile
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenDocumentLauncher
 import com.offgridpdf.android.files.saveResult
+import com.offgridpdf.android.files.savedFileOrNull
 import com.offgridpdf.android.pdf.CompareResult
 import com.offgridpdf.android.pdf.PageComparison
 import com.offgridpdf.android.pdf.PdfLoadResult
@@ -38,6 +44,7 @@ import com.offgridpdf.android.pdf.describeComparison
 import com.offgridpdf.android.pdf.loadPdfFromUri
 import com.offgridpdf.android.ui.common.NullableUriSaver
 import com.offgridpdf.android.ui.common.ScreenTopBar
+import com.offgridpdf.android.ui.common.ToolCompletion
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -53,6 +60,9 @@ import kotlinx.coroutines.withContext
 fun CompareScreen() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    // ConvertExport in PdfTool.kt, so that category's accent -- same
+    // convention as every other tool screen.
+    val accent = LocalOffGridPalette.current.convert
 
     var uriA by rememberSaveable(stateSaver = NullableUriSaver) { mutableStateOf(PendingFile.consume()) }
     var uriB by rememberSaveable(stateSaver = NullableUriSaver) { mutableStateOf<Uri?>(null) }
@@ -63,6 +73,9 @@ fun CompareScreen() {
     var running by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<CompareResult?>(null) }
     var resultMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    // The file this run produced, once it is really on disk. Not
+    // saveable: it holds the bytes, and a Bundle caps out around 1 MB.
+    var savedFile by remember { mutableStateOf<SavedFile?>(null) }
     var pendingReportBytes by remember { mutableStateOf<ByteArray?>(null) }
 
     val pickLauncherA = rememberOpenDocumentLauncher { uri ->
@@ -70,18 +83,24 @@ fun CompareScreen() {
         passwordA = ""
         result = null
         resultMessage = null
+        savedFile = null
     }
     val pickLauncherB = rememberOpenDocumentLauncher { uri ->
         uriB = uri
         passwordB = ""
         result = null
         resultMessage = null
+        savedFile = null
     }
 
     val saveReportLauncher = rememberCreateDocumentLauncher("text/plain") { uri ->
         val bytes = pendingReportBytes
         if (uri != null && bytes != null) {
-            scope.launch { resultMessage = saveResult(context, uri, bytes, "Report saved.") }
+            scope.launch {
+                val outcome = saveResult(context, uri, bytes, "Report saved.")
+                resultMessage = outcome.message
+                savedFile = outcome.savedFileOrNull
+            }
         }
         pendingReportBytes = null
     }
@@ -89,6 +108,13 @@ fun CompareScreen() {
     Scaffold(
         topBar = { ScreenTopBar(title = "Compare PDFs") },
         containerColor = LocalOffGridPalette.current.paper,
+        // Bottom and horizontal only. The top inset belongs to ScreenTopBar,
+        // which applies it itself, so asking Scaffold for it as well risks
+        // counting the status bar twice. Bottom is safeDrawing rather than
+        // navigationBars so content also clears the keyboard.
+        contentWindowInsets = WindowInsets.safeDrawing.only(
+            WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal,
+        ),
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.padding(innerPadding).padding(16.dp),
@@ -140,6 +166,7 @@ fun CompareScreen() {
                         }
                         running = true
                         resultMessage = null
+                        savedFile = null
                         result = null
                         scope.launch {
                             when (val loadedA = loadPdfFromUri(context, a, passwordA.ifBlank { null })) {
@@ -189,7 +216,9 @@ fun CompareScreen() {
             if (running) {
                 item { CircularProgressIndicator() }
             }
-            resultMessage?.let { message -> item { Text(message) } }
+            resultMessage?.let { message ->
+                item { ToolCompletion(message = message, savedFile = savedFile, accent = accent) }
+            }
 
             val current = result
             if (current != null) {

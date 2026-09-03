@@ -3,10 +3,15 @@ package com.offgridpdf.android.ui.tool
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -21,12 +26,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.offgridpdf.android.files.SavedFile
 import com.offgridpdf.android.ui.common.ContinueChainAction
 import com.offgridpdf.android.ui.common.FilePickerCard
 import com.offgridpdf.android.ui.common.PrimaryButton
 import com.offgridpdf.android.ui.common.PrivacyLine
 import com.offgridpdf.android.ui.common.RunningIndicator
 import com.offgridpdf.android.ui.common.ScreenTopBar
+import com.offgridpdf.android.ui.common.ToolCompletion
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 
 /**
@@ -77,6 +84,9 @@ fun ToolScaffold(
     onRun: () -> Unit,
     runLabel: String = "Run",
     resultMessage: String?,
+    /** Set when the run finished and a file really reached disk. Drives the
+     * success styling and the Share action. */
+    savedFile: SavedFile? = null,
     chainableBytes: ByteArray? = null,
     batchNote: String? = null,
     options: @Composable () -> Unit = {},
@@ -84,7 +94,15 @@ fun ToolScaffold(
     val palette = LocalOffGridPalette.current
 
     Column(
-        modifier = Modifier.fillMaxSize().background(palette.paper),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(palette.paper)
+            // Horizontal once, here, for a landscape display cutout. Applied
+            // after background so the paper still reaches the screen edge.
+            // Compose consumes the insets a modifier applies, so ScreenTopBar
+            // and the bottom block below see horizontal already handled and
+            // only add their own top and bottom.
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         ScreenTopBar(title = title)
@@ -130,17 +148,30 @@ fun ToolScaffold(
             modifier = Modifier
                 .fillMaxWidth()
                 .widthIn(max = MAX_CONTENT_WIDTH)
+                // The run button lives here, at the bottom of an edge-to-edge
+                // window, so without this the gesture pill sat on top of it.
+                // safeDrawing rather than navigationBars so it also lifts clear
+                // of the keyboard: every one of these screens has a password
+                // field, and the button was unreachable behind the IME.
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
                 .padding(horizontal = 22.dp, vertical = 18.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             if (running) {
                 RunningIndicator(accent = accent)
             }
-            resultMessage?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall, color = palette.inkSecondary)
-            }
-            if (resultMessage != null) {
-                ContinueChainAction(bytes = chainableBytes, accent = accent)
+            resultMessage?.let { message ->
+                // One banner for the end of a run, success or failure, rather
+                // than a line of grey text that read the same either way.
+                // ContinueChainAction lives inside it now, which also stops it
+                // being offered after a failure -- there was nothing to
+                // continue with, and it used to appear anyway.
+                ToolCompletion(
+                    message = message,
+                    savedFile = savedFile,
+                    accent = accent,
+                    chainableBytes = chainableBytes,
+                )
             }
             PrivacyLine()
             PrimaryButton(

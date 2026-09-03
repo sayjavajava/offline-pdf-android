@@ -3,9 +3,13 @@ package com.offgridpdf.android.ui.tool
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -35,10 +39,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.offgridpdf.android.chain.PendingFile
+import com.offgridpdf.android.files.SavedFile
 import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenDocumentLauncher
 import com.offgridpdf.android.files.saveResult
+import com.offgridpdf.android.files.savedFileOrNull
 import com.offgridpdf.android.files.suggestedBaseName
 import com.offgridpdf.android.pdf.ApplyToRangeResult
 import com.offgridpdf.android.pdf.FindMatchResult
@@ -51,7 +57,6 @@ import com.offgridpdf.android.pdf.loadPdfFromUri
 import com.offgridpdf.android.pdf.redactPdf
 import com.offgridpdf.android.pdf.renderPageForPreview
 import com.offgridpdf.android.pdf.resolvePageIndices
-import com.offgridpdf.android.ui.common.ContinueChainAction
 import com.offgridpdf.android.ui.common.FilePickerCard
 import com.offgridpdf.android.ui.common.NullableUriSaver
 import com.offgridpdf.android.ui.common.PageOverlay
@@ -60,6 +65,7 @@ import com.offgridpdf.android.ui.common.PagePreview
 import com.offgridpdf.android.ui.common.PrimaryButton
 import com.offgridpdf.android.ui.common.PrivacyLine
 import com.offgridpdf.android.ui.common.ScreenTopBar
+import com.offgridpdf.android.ui.common.ToolCompletion
 import com.offgridpdf.android.ui.common.userMessageFor
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 import com.offgridpdf.android.ui.theme.PlexMono
@@ -130,6 +136,9 @@ fun RedactScreen() {
     var applyRangeText by remember { mutableStateOf("") }
     var applying by remember { mutableStateOf(false) }
     var resultMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    // The file this run produced, once it is really on disk. Not
+    // saveable: it holds the bytes, and a Bundle caps out around 1 MB.
+    var savedFile by remember { mutableStateOf<SavedFile?>(null) }
 
     var searchQuery by remember { mutableStateOf("") }
     var caseSensitive by remember { mutableStateOf(false) }
@@ -181,6 +190,7 @@ fun RedactScreen() {
         redactions = emptyMap()
         applyRangeText = ""
         resultMessage = null
+        savedFile = null
         lastResultBytes = null
         loadMessage = null
         previewImage = null
@@ -193,7 +203,9 @@ fun RedactScreen() {
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                resultMessage = saveResult(context, uri, bytes, "Redacted $totalBoxes box${if (totalBoxes == 1) "" else "es"} across $pagesWithBoxes page${if (pagesWithBoxes == 1) "" else "s"}.")
+                val outcome = saveResult(context, uri, bytes, "Redacted $totalBoxes box${if (totalBoxes == 1) "" else "es"} across $pagesWithBoxes page${if (pagesWithBoxes == 1) "" else "s"}.")
+                resultMessage = outcome.message
+                savedFile = outcome.savedFileOrNull
             }
         }
         pendingBytes = null
@@ -283,6 +295,13 @@ fun RedactScreen() {
             }
         },
         containerColor = palette.paper,
+        // Bottom and horizontal only. The top inset belongs to ScreenTopBar,
+        // which applies it itself, so asking Scaffold for it as well risks
+        // counting the status bar twice. Bottom is safeDrawing rather than
+        // navigationBars so content also clears the keyboard.
+        contentWindowInsets = WindowInsets.safeDrawing.only(
+            WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal,
+        ),
     ) { innerPadding ->
         // Width capped and centered — a no-op on a phone, but keeps the
         // page preview and controls from stretching edge to edge in the
@@ -554,6 +573,7 @@ fun RedactScreen() {
                         val doc2 = document ?: return@PrimaryButton
                         applying = true
                         resultMessage = null
+                        savedFile = null
                         lastResultBytes = null
                         scope.launch {
                             try {
@@ -576,9 +596,15 @@ fun RedactScreen() {
                     enabled = document != null && totalBoxes > 0 && !applying,
                 )
             }
-            resultMessage?.let { message -> item { Text(message, style = MaterialTheme.typography.bodySmall, color = palette.inkSecondary) } }
-            if (resultMessage != null) {
-                item { ContinueChainAction(bytes = lastResultBytes, accent = accent) }
+            resultMessage?.let { message ->
+                item {
+                    ToolCompletion(
+                        message = message,
+                        savedFile = savedFile,
+                        accent = accent,
+                        chainableBytes = lastResultBytes,
+                    )
+                }
             }
             item { Box(modifier = Modifier.padding(bottom = 18.dp)) }
         }

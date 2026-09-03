@@ -14,10 +14,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.offgridpdf.android.chain.PendingFile
+import com.offgridpdf.android.files.SavedFile
 import com.offgridpdf.android.files.TOO_LARGE_MESSAGE
 import com.offgridpdf.android.files.rememberCreateDocumentLauncher
 import com.offgridpdf.android.files.rememberOpenDocumentLauncher
 import com.offgridpdf.android.files.saveResult
+import com.offgridpdf.android.files.savedFileOrNull
 import com.offgridpdf.android.files.suggestedBaseName
 import com.offgridpdf.android.pdf.PdfLoadResult
 import com.offgridpdf.android.pdf.loadPdfFromUri
@@ -42,6 +44,9 @@ fun RearrangeScreen() {
     var pagesText by rememberSaveable { mutableStateOf("") }
     var running by remember { mutableStateOf(false) }
     var resultMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    // The file this run produced, once it is really on disk. Not
+    // saveable: it holds the bytes, and a Bundle caps out around 1 MB.
+    var savedFile by remember { mutableStateOf<SavedFile?>(null) }
     var pendingBytes by remember { mutableStateOf<ByteArray?>(null) }
     var lastResultBytes by remember { mutableStateOf<ByteArray?>(null) }
 
@@ -49,13 +54,16 @@ fun RearrangeScreen() {
         pickedUri = uri
         password = ""
         resultMessage = null
+        savedFile = null
     }
 
     val saveLauncher = rememberCreateDocumentLauncher("application/pdf") { uri ->
         val bytes = pendingBytes
         if (uri != null && bytes != null) {
             scope.launch {
-                resultMessage = saveResult(context, uri, bytes, "Pages rearranged successfully.")
+                val outcome = saveResult(context, uri, bytes, "Pages rearranged successfully.")
+                resultMessage = outcome.message
+                savedFile = outcome.savedFileOrNull
             }
         }
         pendingBytes = null
@@ -80,6 +88,7 @@ fun RearrangeScreen() {
                 } else {
                     running = true
                     resultMessage = null
+                    savedFile = null
                     val baseName = suggestedBaseName(uri)
 
                     scope.launch {
@@ -117,6 +126,7 @@ fun RearrangeScreen() {
         },
         runLabel = if (running) "Rearranging..." else "Apply",
         resultMessage = resultMessage,
+        savedFile = savedFile,
         chainableBytes = lastResultBytes,
         options = {
             Text("Keep only the pages you list, in that order. Omit a page to delete it; list a page more than once to duplicate it.")

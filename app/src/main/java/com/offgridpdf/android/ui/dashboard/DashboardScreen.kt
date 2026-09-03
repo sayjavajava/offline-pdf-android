@@ -10,10 +10,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -35,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -78,9 +84,21 @@ fun DashboardScreen(
         }
     }
 
+    // Insets go in contentPadding, not on the LazyColumn itself, so the list
+    // scrolls *under* the status and navigation bars while the first and last
+    // rows still clear them. Padding the container instead would leave a dead
+    // band of background at both ends. Before this, the masthead sat behind
+    // the clock and the last tool row behind the gesture pill.
+    val safeInsets = WindowInsets.safeDrawing.asPaddingValues()
+    val layoutDirection = LocalLayoutDirection.current
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(palette.paper),
-        contentPadding = PaddingValues(horizontal = 22.dp, vertical = 28.dp),
+        contentPadding = PaddingValues(
+            start = 22.dp + safeInsets.calculateStartPadding(layoutDirection),
+            end = 22.dp + safeInsets.calculateEndPadding(layoutDirection),
+            top = 28.dp + safeInsets.calculateTopPadding(),
+            bottom = 28.dp + safeInsets.calculateBottomPadding(),
+        ),
     ) {
         item {
             Masthead(onSettingsClick = onSettingsClick)
