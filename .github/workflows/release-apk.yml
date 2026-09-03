@@ -11,6 +11,14 @@ name: Signed release APK
 # has a stable URL and shows up in the repo's own Releases list. The tag is
 # v<versionName> from app/build.gradle.kts, so bump versionName there before
 # running this again for a new build -- see "Refuse to overwrite" below.
+#
+# This tag is shared with release-aab.yml (same v<versionName> scheme, same
+# Release): whichever of the two you run first creates it, the other adds
+# its own asset alongside. The overwrite check below is asset-aware for
+# exactly that reason -- it only refuses when *this* workflow's own asset
+# (app-release.apk) is already on the release for this version, not merely
+# because the release/tag exists (the sibling workflow may have created it
+# first, with nothing to conflict with yet).
 on:
   workflow_dispatch:
 
@@ -38,15 +46,33 @@ jobs:
           echo "tag=v$VERSION_NAME" >> "$GITHUB_OUTPUT"
 
       # Checked first, before any of the expensive build steps below: a
-      # re-run for a version that already has a Release almost always means
-      # someone forgot to bump versionName, and this fails loudly on that
-      # rather than silently overwrite a Release's asset -- same instinct as
-      # the unsigned-APK and offline-permission checks further down, just
-      # moved to the front so the mistake doesn't cost a full build first.
-      - name: Refuse to overwrite an existing release
+      # re-run that already has this exact asset on this version's Release
+      # almost always means someone forgot to bump versionName, and this
+      # fails loudly on that rather than silently overwrite it -- same
+      # instinct as the unsigned-APK and offline-permission checks further
+      # down, just moved to the front so the mistake doesn't cost a full
+      # build first. Asset-aware, not just tag-aware -- see the header
+      # comment on why a bare "does the tag exist" check would wrongly
+      # block this workflow running after release-aab.yml for the same
+      # version.
+      - name: Refuse to overwrite an existing release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          if git ls-remote --tags origin "refs/tags/${{ steps.version.outputs.tag }}" | grep -q .; then
-            echo "::error::Tag ${{ steps.version.outputs.tag }} already exists -- bump versionName in app/build.gradle.kts before running this again."
+          STATUS=$(curl -s -o "$RUNNER_TEMP/release.json" -w "%{http_code}" \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ steps.version.outputs.tag }}")
+          if [ "$STATUS" = "200" ]; then
+            if jq -e '.assets[] | select(.name == "app-release.apk")' "$RUNNER_TEMP/release.json" > /dev/null; then
+              echo "::error::Release ${{ steps.version.outputs.tag }} already has app-release.apk attached -- bump versionName in app/build.gradle.kts before running this again."
+              exit 1
+            fi
+            echo "Release ${{ steps.version.outputs.tag }} exists (from release-aab.yml, presumably) but has no app-release.apk yet -- proceeding to add it."
+          elif [ "$STATUS" = "404" ]; then
+            echo "No release ${{ steps.version.outputs.tag }} yet -- this run will create it."
+          else
+            echo "::error::Unexpected GitHub API status $STATUS checking for an existing release."
             exit 1
           fi
 
@@ -115,6 +141,11 @@ jobs:
       # The durable copy: a GitHub Release, tagged and named from versionName
       # (read above), with the APK attached as a release asset. This is what
       # gives testers a stable link instead of an expiring Actions artifact.
+      # If release-aab.yml already created this tag's Release (for the same
+      # version, with the .aab attached), this action updates that existing
+      # Release with the APK rather than erroring or replacing it -- the
+      # asset-aware check above is what actually guards against a genuine
+      # double-run, not this step.
       - name: Publish the GitHub Release
         uses: softprops/action-gh-release@v2
         with:
