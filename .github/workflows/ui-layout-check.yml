@@ -32,7 +32,7 @@ jobs:
           java-version: "17"
           cache: gradle
 
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
 
       # Same real, sourced unlock step as the other emulator workflows.
       - name: Enable KVM

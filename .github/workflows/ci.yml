@@ -32,7 +32,7 @@ jobs:
       # necessarily the exact compileSdk/build-tools this project pins — this
       # action fills in whatever's missing without assuming the runner image
       # already has it.
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
 
       # The Gradle steps below are the slow part of this workflow, and a
       # change to a README or a workflow file cannot alter what they
