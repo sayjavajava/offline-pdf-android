@@ -114,13 +114,12 @@ same `release` buildType and merged manifest) rather than silently omitting it.
   explicitly a **placeholder** and still needs real art.
 - Build items are numbered `A-<n>` — a strictly separate namespace from the web repo's `F-<n>`.
 
-### Known gaps, deliberately recorded
-
-- **`CHANGELOG.md` is stale.** It stopped tracking after the initial 20-tool build-out. It needs a
-  real backfill pass, not one appended bullet — adding a single line would imply a currency it
-  doesn't have.
-- **There is no `LICENSE` file.** Until there is, this source is *visible*, not *open source*, and
-  the store listing says "source available" for exactly that reason.
+- **`CHANGELOG.md` records user-facing changes only** — a new tool, a behaviour change, a bug
+  someone would notice — under `## [Unreleased]` until there's a release to name. Internal-only
+  work (CI, tooling, refactors, spikes, release plumbing) gets no entry. It went stale once
+  already: it covered the 20 tools and then nothing for the next thirty-odd PRs, and fixing it
+  meant reconstructing the whole period from the merge history. Keep it current as you go.
+- **Licensed GPL-3.0-or-later**, same as both sibling repos. See `LICENSE`.
 
 ## 5. Releasing
 
