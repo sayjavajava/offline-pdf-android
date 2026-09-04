@@ -78,7 +78,7 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
 
       # Same secret, same reasoning as release-apk.yml: never committed, and
       # these four values are the only things that need protecting.

@@ -29,7 +29,7 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
 
       # GitHub-hosted Ubuntu runners support hardware-accelerated (KVM)
       # Android emulation, but it isn't on by default -- this is the

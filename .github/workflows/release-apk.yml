@@ -81,7 +81,7 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
 
       # The keystore lives in a secret as base64 and is written to a file the
       # runner throws away with itself. It is never committed, and the four
