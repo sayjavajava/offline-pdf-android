@@ -156,6 +156,23 @@ the app's logic. Nothing here relies on that logic being secret -- there are
 no keys, credentials or servers in this app, and its behaviour is meant to be
 verifiable rather than hidden.
 
+## Website and privacy policy
+
+`site/` is a small static site published to GitHub Pages by
+`.github/workflows/pages.yml` on every push to `main` that touches it:
+
+- <https://sayjavajava.github.io/offline-pdf-android/> — landing page
+- <https://sayjavajava.github.io/offline-pdf-android/privacy/> — **privacy
+  policy**, which is the URL Play Console requires
+
+It is plain HTML and CSS with no build step, and loads no external fonts,
+scripts or analytics — a page stating that the app collects nothing should not
+itself hand the reader's IP address to a CDN.
+
+**Pages must be enabled once, by hand**, before the workflow can deploy:
+Settings → Pages → Source → **GitHub Actions**. Until then the workflow fails
+with a permissions error, which is expected rather than a broken build.
+
 ## License
 
 GPL-3.0-or-later. See [`LICENSE`](LICENSE). Same license as the sibling

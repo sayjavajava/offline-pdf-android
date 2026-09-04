@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy Policy — OffGridPDF</title>
+    <meta
+      name="description"
+      content="OffGridPDF's privacy policy. The app requests zero Android permissions and has no internet access, so there is nothing to collect."
+    />
+    <link rel="stylesheet" href="../style.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="masthead">
+        <a class="brand" href="../">
+          <svg width="26" height="26" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+            <path
+              d="M8 4h11l7 7v15a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M19 4v7h7"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <span class="brand-name">OffGridPDF</span>
+        </a>
+        <nav>
+          <a href="../">Home</a>
+          <a href="https://github.com/sayjavajava/offline-pdf-android">Source</a>
+        </nav>
+      </header>
+
+      <p class="eyebrow">Legal &amp; privacy</p>
+      <h1>Privacy Policy</h1>
+      <div class="meta">
+        <span>Effective <strong>4 September 2026</strong></span>
+        <span>App version <strong>0.1.0</strong> and later</span>
+        <span>Package <strong>com.offgridpdf.android</strong></span>
+      </div>
+
+      <div class="callout">
+        <p class="lede">
+          OffGridPDF cannot send your files, or anything else, anywhere. It has no
+          <strong>INTERNET</strong> permission — not switched off by a setting, but never requested
+          in the first place, so Android itself refuses any network call the app might attempt.
+        </p>
+        <p>
+          That is not a promise in a document; it is an install-time fact that anyone can verify.
+          Below is the app's actual manifest permission block, unedited:
+        </p>
+        <div class="snippet">
+          <span class="file">AndroidManifest.xml</span><br />
+          <span class="comment"
+            >&lt;!-- No &lt;uses-permission&gt; for INTERNET, anywhere in this file, ever.
+            --&gt;</span
+          ><br />
+          <span class="comment"
+            >&lt;!-- In fact: no &lt;uses-permission&gt; of any kind. Zero permissions requested.
+            --&gt;</span
+          >
+        </div>
+      </div>
+
+      <h2>What this app does</h2>
+      <p>
+        OffGridPDF is a local PDF editor: 20 tools — split, merge, protect, redact, convert and more
+        — that all run on your own device, on files you choose. There is no server behind any of
+        them.
+      </p>
+
+      <h2>Permissions</h2>
+      <p>
+        OffGridPDF requests <strong>no Android permissions at all</strong> — not internet, not
+        camera, not contacts, not location, not broad storage access. When you tap "choose a file",
+        Android's own system file picker opens; you select one file, and the app is handed a
+        temporary, read-only reference to just that file. It never receives a listing of your
+        storage and cannot reach anything you did not pick yourself.
+      </p>
+
+      <h2>Data we collect</h2>
+      <p>
+        <strong>None.</strong> There is no account to create, no sign-up, no analytics, no crash
+        reporting, and — per the permission above — no network connection for any of that to travel
+        over even if it existed. The developer receives nothing about you or your files, ever,
+        because there is no channel through which it could arrive.
+      </p>
+
+      <h2>What stays on your device</h2>
+      <p>
+        A few small preferences are saved locally so the app remembers how you left it. None of it
+        is ever transmitted anywhere.
+      </p>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Stored locally</th>
+              <th>What it is for</th>
+              <th>Transmitted?</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="what">Recent tools</td>
+              <td>Shows your last-used tools on the dashboard</td>
+              <td class="never">Never</td>
+            </tr>
+            <tr>
+              <td class="what">Theme preference</td>
+              <td>Remembers your light / dark / system choice</td>
+              <td class="never">Never</td>
+            </tr>
+            <tr>
+              <td class="what">Screen-capture setting</td>
+              <td>The optional "block screenshots" toggle in Settings</td>
+              <td class="never">Never</td>
+            </tr>
+            <tr>
+              <td class="what">Chaining cache</td>
+              <td>
+                A temporary copy of a result, only while you are part-way through "continue with
+                another tool"; cleared by Android's normal app-cache lifecycle and on next launch
+              </td>
+              <td class="never">Never</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Your PDF files</h2>
+      <p>
+        A file you open is read into memory, processed by the tool you chose, and written back out
+        only when you choose where to save it — through Android's own save dialog. OffGridPDF never
+        copies a file anywhere else on your device, or off it. Close the app and nothing of that
+        file's content persists in it.
+      </p>
+      <p>
+        Tools such as Protect PDF and Redact PDF exist precisely so that <em>you</em> can control
+        access to a file's contents. A password you set, or content you remove, is applied entirely
+        on-device by local code, never sent anywhere to be processed.
+      </p>
+
+      <h2>Third parties</h2>
+      <p>
+        None are involved. No advertising network, no analytics vendor, no cloud PDF service. The
+        PDF and document libraries the app is built on (Apache PDFBox, Bouncy Castle and others)
+        run entirely inside the app, offline — they make no network calls either.
+      </p>
+      <p>
+        This website makes no third-party requests of its own, and sets no cookies. It loads no
+        external fonts, scripts, or analytics — deliberately, since a page explaining that nothing
+        is collected should not be quietly handing your address to someone else.
+      </p>
+
+      <h2>Children's privacy</h2>
+      <p>
+        OffGridPDF does not knowingly collect information from anyone of any age, because it does
+        not collect information from anyone. It is not directed specifically at children, and
+        nothing about it depends on a user's age.
+      </p>
+
+      <h2>Changes to this policy</h2>
+      <p>
+        If this policy changes, the date at the top of this page changes with it. Because the app's
+        source is public, you can also check any claim here directly against the code that shipped
+        in a given version.
+      </p>
+
+      <h2>Contact</h2>
+      <p>
+        Questions about this policy or the app can go to the project's issue tracker:
+        <a href="https://github.com/sayjavajava/offline-pdf-android/issues"
+          >github.com/sayjavajava/offline-pdf-android/issues</a
+        >.
+      </p>
+
+      <footer>
+        <span>OffGridPDF — offline, by construction.</span>
+        <a href="https://github.com/sayjavajava/offline-pdf-android">Source on GitHub</a>
+      </footer>
+    </div>
+  </body>
+</html>
