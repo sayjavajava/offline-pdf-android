@@ -1,8 +1,13 @@
 # Changelog
 
-All notable changes to this project are documented here, one bullet per
-merged PR under `## [Unreleased]`. Same convention as the sibling web repo's
-`CHANGELOG.md`.
+All notable changes to this project are documented here, under
+`## [Unreleased]` until there is a release to name. Same convention as the
+sibling web repo's `CHANGELOG.md`: an entry for anything **user-facing** — a
+new tool, a behaviour change, a bug someone would notice. Internal-only
+changes (CI, tooling, refactors, spikes, release plumbing) don't get one.
+
+Nothing has been released yet: `versionCode` is still 1 and no tag has been
+cut, so everything below is in the first release when it happens.
 
 ## [Unreleased]
 
@@ -76,8 +81,11 @@ merged PR under `## [Unreleased]`. Same convention as the sibling web repo's
   or silently skipped.
 - **Add Signature**: stamp a visual signature — typed, drawn freehand, or
   an uploaded image — onto a page. A visual mark, not a cryptographic
-  digital signature. Placement is entered directly in the page's own
-  point-space (no live preview yet, pending page rendering).
+  digital signature. Place it by dragging on the rendered page, or by
+  typing exact coordinates in the page's own point-space — the two are
+  bound both ways, so dragging rewrites the fields and typing moves the
+  outline. The placement is outlined rather than filled, so you can see
+  what the signature will sit on top of.
 - **Extract Images**: pull the embedded images out of a PDF without
   modifying it — JPEG images are exported as-is, and PNG-style images are
   re-encoded from their raw pixel data. A single image downloads as
@@ -108,3 +116,88 @@ merged PR under `## [Unreleased]`. Same convention as the sibling web repo's
 - **PDF to Images**: render a page range (or every page) to PNG at a
   chosen scale (1 = 72dpi). A single page downloads as itself; more than
   one is bundled into a zip.
+- **Open a PDF from another app**: OffGridPDF now appears in Android's
+  "open with" and "share" sheets for PDFs. The file arrives on the
+  dashboard ready to hand to any tool.
+- **Home-screen shortcuts** for the tools you use most, kept in step with
+  a "Recent" row on the dashboard.
+- **Tool chaining**: "Continue with another tool" takes a result straight
+  into the next tool without saving and re-picking it. The chained file is
+  named from the *original* file plus the latest operation, so a result
+  never accumulates a trail of suffixes across hops.
+- **In-app theme toggle** — System, Light, or Dark, remembered across
+  launches, in a new Settings screen.
+- **Two-pane layout on tablets and wide windows**: the tool list and the
+  open tool sit side by side instead of the phone layout being stretched
+  across the screen.
+- **Batch mode** for Compress, Watermark, Rotate, and Add Page Numbers:
+  pick several PDFs and apply the same operation to each in one run. A
+  file that fails is named and the rest still run.
+- **Crop preview**: "Preview the crop" renders the first page the range
+  covers and draws the boundary on it, updating live as the margins are
+  typed. Outlined rather than filled, because a crop only moves the
+  CropBox — the content outside it is still in the file, and covering it
+  would tell the wrong story about what the tool does. Resize has no
+  preview: it rescales content and page size together, so the page looks
+  the same and only its dimensions change.
+- **Completion feedback and sharing**: a run says clearly when it has
+  finished, and the result can be shared straight to another app.
+- **Opt-in "block screen capture" setting** (Settings): turns on
+  `FLAG_SECURE`, so the app's contents are excluded from screenshots and
+  the recent-apps thumbnail. Off by default.
+
+### Changed
+
+- **The whole UI was reworked into a "paper & ink" editorial design**: a
+  warm paper ground with near-black ink, one accent colour per tool
+  category, vendored typefaces (Source Serif 4 / IBM Plex Sans / IBM Plex
+  Mono), and a hand-drawn line icon per tool in place of stock Material
+  icons. The dashboard gained a masthead, a working search filter, and a
+  hairline category list.
+- **Every tool screen now uses the same set of form controls** — one text
+  field, one option chip, one checkbox row, one section label — instead of
+  each screen styling its own. Six screens that had missed the redesign
+  were brought onto it at the same time.
+- Bar icons are now large enough to hit reliably, meeting the 48dp
+  minimum touch target.
+
+### Fixed
+
+- **Text-drawing tools would have crashed on a real device.** PdfBox-Android
+  needs `PDFBoxResourceLoader.init()` before any standard-14-font metrics
+  lookup, and nothing had ever called it, so Watermark, Add Page Numbers,
+  Convert DOCX to PDF, and Add Signature's typed mode all failed the first
+  time they ran outside a JVM unit test. Now initialised at app startup.
+- **Convert DOCX to PDF silently produced a blank document.** A namespace
+  mismatch meant the document's paragraphs were never found, so the tool
+  reported success and wrote an empty PDF.
+- **The app no longer freezes or crashes while a tool runs.** All PDF work
+  moved off the main thread, and failures now surface as a message on the
+  screen instead of taking the app down.
+- **Page ranges and incoming intents are validated.** A range like
+  "1-999999999" against a small document no longer tries to allocate its
+  way to a crash, and a malformed intent from another app is rejected
+  rather than trusted.
+- **Large documents no longer accumulate page rasters** until the app runs
+  out of memory — rendered pages are bounded and released.
+- **Tool state survives rotation and process death.** Turning the phone
+  mid-task no longer clears the file you picked and the options you set.
+  Document passwords are deliberately excluded: they are never written to
+  saved instance state.
+- **The chain cache is cleared at startup**, so a file left mid-chain by a
+  previous session doesn't persist. Shortcut updates moved off the main
+  thread, and the flash of the wrong theme at launch is gone.
+- **Content no longer sits under the status and navigation bars.**
+- **Picked files show their real name** instead of a provider's internal
+  document id.
+- **Option rows no longer run off the edge of the screen** — most visibly
+  the Crop/Resize "Custom" paper size, which was genuinely unreachable on
+  a narrow screen.
+- Cancelling a page render (by changing pages mid-render) no longer
+  reports itself as a render failure.
+- The Signature screen now scrolls, and closes the PDF it holds open when
+  you navigate away instead of leaking it.
+
+### Security
+
+- Bumped Bouncy Castle 1.72 → 1.85, clearing the CVEs in the older release.

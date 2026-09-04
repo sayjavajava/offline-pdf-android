@@ -155,3 +155,9 @@ a zip, and anyone holding one can unpack it, decompile the bytecode and read
 the app's logic. Nothing here relies on that logic being secret -- there are
 no keys, credentials or servers in this app, and its behaviour is meant to be
 verifiable rather than hidden.
+
+## License
+
+GPL-3.0-or-later. See [`LICENSE`](LICENSE). Same license as the sibling
+[`offline-pdf-utility`](https://github.com/sayjavajava/offline-pdf-utility)
+and [`quiet-ocr`](https://github.com/sayjavajava/quiet-ocr) repositories.
