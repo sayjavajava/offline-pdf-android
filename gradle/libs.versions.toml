@@ -30,7 +30,7 @@ pdfboxAndroid = "2.0.27.0"
 # (fixed in 1.78). Not a dormant dependency: bcprov sits behind PdfBox's
 # encrypted-PDF path, so it parses bytes that came from a file the user
 # did not necessarily write.
-bouncyCastle = "1.85"
+bouncyCastle = "1.84"
 junit = "4.13.2"
 kotlinxCoroutines = "1.11.0"
 # Spike B (ANDROID_IMPLEMENTATION_PLAN.md, tool-docs repo) only — not yet
