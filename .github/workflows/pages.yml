@@ -1,0 +1,60 @@
+name: Pages
+
+# Publishes site/ to GitHub Pages: a small landing page and, more importantly,
+# the privacy policy at /privacy/. Play Console requires a privacy policy at a
+# public, non-editable URL, and a repository blob or raw-markdown link is a
+# page of GitHub chrome rather than a policy page -- a known source of listing
+# review friction. This gives it a real one.
+#
+# Same actions and shape as quiet-ocr's own Pages deploy, which has been
+# running for a while; no reason to invent a second pattern for the same job.
+#
+# Path-filtered because the site changes far less often than the app, and an
+# app-code push has nothing to redeploy. Note this is safe here in a way the
+# equivalent would not be in ci.yml: that workflow's build gate is a required
+# status check, so skipping the job outright would leave a PR waiting forever
+# (see the comment on its "Decide whether the build needs to run" step). This
+# job is not a required check and reports nothing a PR waits on.
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "site/**"
+      - ".github/workflows/pages.yml"
+  # So the site can be republished without touching a file -- for instance
+  # after enabling Pages for the first time.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Never let two deploys race. Not cancel-in-progress: a half-finished deploy
+# of a privacy policy is worse than a queued one, and these runs take seconds.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # Static HTML and CSS -- nothing to build, and deliberately so. The site
+      # loads no external fonts, scripts or analytics: a page that explains the
+      # app collects nothing should not itself hand the reader's IP address to
+      # a CDN.
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
