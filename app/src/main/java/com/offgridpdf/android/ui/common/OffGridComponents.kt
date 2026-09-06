@@ -115,7 +115,12 @@ fun ScreenTopBar(title: String, modifier: Modifier = Modifier, trailing: @Compos
 }
 
 @Composable
-fun FilePickerCard(fileName: String?, onClick: () -> Unit, modifier: Modifier = Modifier) {
+fun FilePickerCard(
+    fileName: String?,
+    onClick: () -> Unit,
+    accent: Color,
+    modifier: Modifier = Modifier,
+) {
     val palette = LocalOffGridPalette.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -131,7 +136,7 @@ fun FilePickerCard(fileName: String?, onClick: () -> Unit, modifier: Modifier = 
         Icon(
             painter = painterResource(R.drawable.ic_file),
             contentDescription = null,
-            tint = if (fileName != null) palette.organize else palette.inkTertiary,
+            tint = if (fileName != null) accent else palette.inkTertiary,
             modifier = Modifier.size(21.dp),
         )
         if (fileName != null) {
@@ -143,7 +148,7 @@ fun FilePickerCard(fileName: String?, onClick: () -> Unit, modifier: Modifier = 
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
-            Text("Change", style = MaterialTheme.typography.labelMedium, color = palette.organizeLabel)
+            Text("Change", style = MaterialTheme.typography.labelMedium, color = accent)
         } else {
             Text(
                 "Choose a file",
@@ -170,14 +175,17 @@ fun PrimaryButton(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
-            .background(if (enabled) accent else palette.hairlineStrong)
+            // A disabled run is a faded copy of the same accent button,
+            // not a muddy grey-brown slab that reads as a third colour
+            // on the page (and as "broken" rather than "not ready").
+            .background(if (enabled) accent else accent.copy(alpha = 0.38f))
             .clickable(enabled = enabled, onClick = onClick)
             .padding(vertical = 15.dp),
     ) {
         Text(
             text,
             style = MaterialTheme.typography.labelLarge,
-            color = if (enabled) palette.onAccent else palette.inkTertiary,
+            color = if (enabled) palette.onAccent else palette.onAccent.copy(alpha = 0.85f),
         )
     }
 }

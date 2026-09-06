@@ -153,6 +153,7 @@ fun DocxToPdfScreen() {
                     arrayOf("application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
                 )
             },
+            accent = accent,
         )
 
         ToolBodyText(

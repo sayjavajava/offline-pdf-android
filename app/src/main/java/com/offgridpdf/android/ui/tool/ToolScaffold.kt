@@ -102,7 +102,7 @@ fun ToolScaffold(
             )
         },
     ) {
-        FilePickerCard(fileName = pickedFileName, onClick = onPickFile)
+        FilePickerCard(fileName = pickedFileName, onClick = onPickFile, accent = accent)
 
         batchNote?.let {
             Text(it, style = MaterialTheme.typography.bodySmall, color = palette.inkSecondary)

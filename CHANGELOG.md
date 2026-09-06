@@ -160,6 +160,11 @@ cut, so everything below is in the first release when it happens.
   were brought onto it at the same time.
 - Bar icons are now large enough to hit reliably, meeting the 48dp
   minimum touch target.
+- Tool screens no longer mix Material outlined text fields (notched
+  floating labels, a different height from the file-picker card) with
+  the rest of the paper-and-ink chrome. Fields, file pickers, and
+  checkboxes now share one left edge and one card height, and a
+  disabled Run button is a faded accent rather than a muddy grey slab.
 
 ### Fixed
 

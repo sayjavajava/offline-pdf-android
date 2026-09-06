@@ -76,8 +76,12 @@ fun ToolScreenScaffold(
             modifier = Modifier
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
-                .fillMaxWidth()
+                // widthIn before fillMaxWidth so a tablet detail pane
+                // measures 560dp and the parent can actually centre it.
+                // fillMaxWidth-first made the min equal the pane width,
+                // which fights the cap and left the column left-aligned.
                 .widthIn(max = TOOL_CONTENT_MAX_WIDTH)
+                .fillMaxWidth()
                 .padding(horizontal = 22.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
             content = content,
@@ -85,8 +89,8 @@ fun ToolScreenScaffold(
 
         Column(
             modifier = Modifier
-                .fillMaxWidth()
                 .widthIn(max = TOOL_CONTENT_MAX_WIDTH)
+                .fillMaxWidth()
                 // The action button lives here, at the bottom of an
                 // edge-to-edge window, so without this the gesture pill sat on
                 // top of it. safeDrawing rather than navigationBars so it also
