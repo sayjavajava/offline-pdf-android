@@ -5,28 +5,37 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.offgridpdf.android.ui.theme.LocalOffGridPalette
 
@@ -41,7 +50,12 @@ import com.offgridpdf.android.ui.theme.LocalOffGridPalette
  * - **Two kinds of text field on one screen.** `ToolScaffold`'s password
  *   field set palette colors; the 44 fields below it across the app did
  *   not, so they rendered with Material's own container and focus colors
- *   directly beneath a field that didn't.
+ *   directly beneath a field that didn't. A later pass also dropped
+ *   Material's outlined-with-notched-label field entirely: that cutout
+ *   does not follow a custom corner radius or these typefaces, so a
+ *   filled "Start at" sat next to a custom file-picker card of a
+ *   different height with a gap in its border. Fields are now the same
+ *   bordered box the dashboard search uses.
  * - **Option rows running off the screen.** A plain `Row` of Material
  *   buttons does not wrap, and several were far wider than a phone: six
  *   page-number positions need roughly 900dp against a 316dp content
@@ -55,32 +69,12 @@ import com.offgridpdf.android.ui.theme.LocalOffGridPalette
  */
 
 /**
- * The palette colors every text field in the app uses, tinted by the tool's
- * own category [accent] on focus. Lifted out of `ToolScaffold`, which was
- * the only place that had them.
+ * A text field in the app's own style: label above, value in the same
+ * bordered `paperRaised` card as [FilePickerCard] and the dashboard
+ * search. Not Material's outlined field — that notches the border around
+ * a floating label, and the notch does not line up with these corners
+ * or fonts once the field has a value.
  */
-@Composable
-fun offGridTextFieldColors(accent: Color): TextFieldColors {
-    val palette = LocalOffGridPalette.current
-    return OutlinedTextFieldDefaults.colors(
-        focusedBorderColor = accent,
-        unfocusedBorderColor = palette.hairlineStrong,
-        focusedContainerColor = palette.paperRaised,
-        unfocusedContainerColor = palette.paperRaised,
-        focusedTextColor = palette.ink,
-        unfocusedTextColor = palette.ink,
-        focusedLabelColor = accent,
-        unfocusedLabelColor = palette.inkTertiary,
-        cursorColor = accent,
-    )
-}
-
-/**
- * A text field in the app's own style. Same arguments a screen was already
- * passing to `OutlinedTextField`, minus the shape and colors it should
- * never have been choosing for itself.
- */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ToolTextField(
     value: String,
@@ -94,19 +88,66 @@ fun ToolTextField(
     singleLine: Boolean = true,
     enabled: Boolean = true,
 ) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(label) },
-        placeholder = placeholder?.let { { Text(it) } },
-        keyboardOptions = keyboardOptions,
-        visualTransformation = visualTransformation,
-        singleLine = singleLine,
-        enabled = enabled,
-        shape = RoundedCornerShape(10.dp),
-        colors = offGridTextFieldColors(accent),
+    val palette = LocalOffGridPalette.current
+    var focused by remember { mutableStateOf(false) }
+    val border = when {
+        !enabled -> palette.hairline
+        focused -> accent
+        else -> palette.hairlineStrong
+    }
+
+    Column(
+        verticalArrangement = Arrangement.spacedBy(6.dp),
         modifier = modifier.fillMaxWidth(),
-    )
+    ) {
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = when {
+                !enabled -> palette.inkTertiary
+                focused -> accent
+                else -> palette.inkSecondary
+            },
+        )
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            enabled = enabled,
+            singleLine = singleLine,
+            keyboardOptions = keyboardOptions,
+            visualTransformation = visualTransformation,
+            textStyle = MaterialTheme.typography.bodyMedium.copy(
+                color = if (enabled) palette.ink else palette.inkTertiary,
+            ),
+            cursorBrush = SolidColor(accent),
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { focused = it.isFocused },
+            decorationBox = { inner ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(palette.paperRaised)
+                        .border(BorderStroke(1.dp, border), RoundedCornerShape(10.dp))
+                        // Same inset as FilePickerCard so a password field
+                        // stacked under "Choose a file" shares an edge and
+                        // a height, instead of Material's 56dp min sitting
+                        // next to a ~47dp card.
+                        .padding(horizontal = 14.dp, vertical = 13.dp),
+                ) {
+                    if (value.isEmpty() && placeholder != null) {
+                        Text(
+                            placeholder,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = palette.inkTertiary,
+                        )
+                    }
+                    inner()
+                }
+            },
+        )
+    }
 }
 
 /**
@@ -238,16 +279,18 @@ fun RadioRow(
             .clip(RoundedCornerShape(9.dp))
             .clickable(enabled = enabled, onClick = onSelect),
     ) {
-        RadioButton(
-            selected = selected,
-            // See CheckboxRow: the row owns the click, so the control must not.
-            onClick = null,
-            enabled = enabled,
-            colors = RadioButtonDefaults.colors(
-                selectedColor = accent,
-                unselectedColor = palette.hairlineStrong,
-            ),
-        )
+        CompactChoiceControl {
+            RadioButton(
+                selected = selected,
+                // See CheckboxRow: the row owns the click, so the control must not.
+                onClick = null,
+                enabled = enabled,
+                colors = RadioButtonDefaults.colors(
+                    selectedColor = accent,
+                    unselectedColor = palette.hairlineStrong,
+                ),
+            )
+        }
         Text(
             label,
             style = MaterialTheme.typography.bodyMedium,
@@ -278,24 +321,45 @@ fun CheckboxRow(
             .clip(RoundedCornerShape(9.dp))
             .clickable(enabled = enabled) { onCheckedChange(!checked) },
     ) {
-        Checkbox(
-            checked = checked,
-            enabled = enabled,
-            // Null, not a duplicate of the row's own handler: the row
-            // carries the click, and letting the box carry it too makes a
-            // tap on the box toggle twice back to where it started.
-            onCheckedChange = null,
-            colors = CheckboxDefaults.colors(
-                checkedColor = accent,
-                checkmarkColor = palette.onAccent,
-                uncheckedColor = palette.hairlineStrong,
-            ),
-        )
+        CompactChoiceControl {
+            Checkbox(
+                checked = checked,
+                enabled = enabled,
+                // Null, not a duplicate of the row's own handler: the row
+                // carries the click, and letting the box carry it too makes a
+                // tap on the box toggle twice back to where it started.
+                onCheckedChange = null,
+                colors = CheckboxDefaults.colors(
+                    checkedColor = accent,
+                    checkmarkColor = palette.onAccent,
+                    uncheckedColor = palette.hairlineStrong,
+                ),
+            )
+        }
         Text(
             label,
             style = MaterialTheme.typography.bodyMedium,
             color = if (enabled) palette.ink else palette.inkTertiary,
             modifier = Modifier.padding(start = 4.dp, end = 8.dp),
         )
+    }
+}
+
+/**
+ * Material's checkbox/radio is a 20dp glyph inside a 48dp minimum touch
+ * target, which insets the glyph ~14dp from the row's left edge — so a
+ * [SectionLabel] and a [ToolTextField] share a left edge that the box
+ * next to them does not. The row is already the click target, so the
+ * extra 48dp is padding we don't need.
+ */
+@Composable
+private fun CompactChoiceControl(content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides Dp.Unspecified) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.size(24.dp),
+        ) {
+            content()
+        }
     }
 }

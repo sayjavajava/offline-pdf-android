@@ -157,6 +157,7 @@ fun MergeScreen() {
                 else -> "${files.size} files selected"
             },
             onClick = { pickLauncher.launch(arrayOf("application/pdf")) },
+            accent = accent,
         )
 
         ToolBodyText("Files are merged in the order shown. Pick at least two.")

@@ -156,6 +156,7 @@ fun ImagesToPdfScreen() {
                 else -> "${files.size} images selected"
             },
             onClick = { pickLauncher.launch(arrayOf("image/jpeg", "image/png")) },
+            accent = accent,
         )
 
         ToolBodyText(

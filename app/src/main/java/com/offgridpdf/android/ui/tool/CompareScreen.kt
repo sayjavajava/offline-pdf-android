@@ -14,12 +14,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -69,7 +66,6 @@ import kotlinx.coroutines.withContext
  * Read-only — nothing is modified, and no PDF is produced, just a report
  * of what differs between PDF A and PDF B, page by page.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CompareScreen() {
     val context = LocalContext.current
@@ -142,7 +138,7 @@ fun CompareScreen() {
         // width cap and controls below are the scaffold's, by hand.
         Box(modifier = Modifier.padding(innerPadding), contentAlignment = Alignment.TopCenter) {
         LazyColumn(
-            modifier = Modifier.fillMaxWidth().widthIn(max = TOOL_CONTENT_MAX_WIDTH),
+            modifier = Modifier.widthIn(max = TOOL_CONTENT_MAX_WIDTH).fillMaxWidth(),
             contentPadding = PaddingValues(horizontal = 22.dp, vertical = 18.dp),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
@@ -159,6 +155,7 @@ fun CompareScreen() {
                     FilePickerCard(
                         fileName = displayNameA,
                         onClick = { pickLauncherA.launch(arrayOf("application/pdf")) },
+                        accent = accent,
                     )
                     ToolTextField(
                         value = passwordA,
@@ -175,6 +172,7 @@ fun CompareScreen() {
                     FilePickerCard(
                         fileName = displayNameB,
                         onClick = { pickLauncherB.launch(arrayOf("application/pdf")) },
+                        accent = accent,
                     )
                     ToolTextField(
                         value = passwordB,

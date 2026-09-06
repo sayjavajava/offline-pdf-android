@@ -1,5 +1,6 @@
 package com.offgridpdf.android.ui.tool
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -13,13 +14,11 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -30,6 +29,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
@@ -104,7 +104,6 @@ private const val MIN_BOX_PT = 4f / PREVIEW_SCALE
  * rather than using `ToolScaffold` (its multi-step load → edit → apply
  * flow doesn't fit that single-button shape).
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RedactScreen() {
     val context = LocalContext.current
@@ -305,7 +304,7 @@ fun RedactScreen() {
         // this treatment).
         Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.TopCenter) {
         LazyColumn(
-            modifier = Modifier.fillMaxWidth().widthIn(max = 560.dp).padding(horizontal = 22.dp),
+            modifier = Modifier.widthIn(max = 560.dp).fillMaxWidth().padding(horizontal = 22.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item {
@@ -321,7 +320,11 @@ fun RedactScreen() {
                 )
             }
             item {
-                FilePickerCard(fileName = rememberDisplayName(pickedUri), onClick = { pickLauncher.launch(arrayOf("application/pdf")) })
+                FilePickerCard(
+                    fileName = rememberDisplayName(pickedUri),
+                    onClick = { pickLauncher.launch(arrayOf("application/pdf")) },
+                    accent = accent,
+                )
             }
             if (pickedUri != null && document == null) {
                 item {
@@ -503,9 +506,17 @@ fun RedactScreen() {
                                 style = MaterialTheme.typography.bodyMedium.copy(fontFamily = PlexMono),
                                 color = palette.ink,
                             )
-                            TextButton(onClick = {
-                                redactions = redactions + (pageNumber to currentPageBoxes.filterIndexed { index, _ -> index != i })
-                            }) { Text("Remove", color = palette.securityLabel) }
+                            Text(
+                                "Remove",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = palette.securityLabel,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(9.dp))
+                                    .clickable {
+                                        redactions = redactions + (pageNumber to currentPageBoxes.filterIndexed { index, _ -> index != i })
+                                    }
+                                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                            )
                         }
                     }
                 }
