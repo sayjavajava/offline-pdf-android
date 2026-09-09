@@ -147,7 +147,7 @@ jobs:
       # asset-aware check above is what actually guards against a genuine
       # double-run, not this step.
       - name: Publish the GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.version.outputs.tag }}
           name: OffGridPDF ${{ steps.version.outputs.name }}
