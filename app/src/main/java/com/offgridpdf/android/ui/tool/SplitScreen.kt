@@ -192,6 +192,8 @@ fun SplitScreen() {
         resultMessage = resultMessage,
         savedFile = savedFile,
         chainableBytes = lastResultBytes,
+        chainOriginBaseName = chainOriginBaseName,
+        chainedFileName = chainedFileName,
         options = {
             ToolTextField(
                 value = pagesText,
