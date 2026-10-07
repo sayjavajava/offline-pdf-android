@@ -24,7 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/dependency-review-action@v4
+      - uses: actions/dependency-review-action@v5
         with:
           # Fails the check on a high or critical advisory. Moderate and low
           # are reported in the job summary without blocking: this app has
