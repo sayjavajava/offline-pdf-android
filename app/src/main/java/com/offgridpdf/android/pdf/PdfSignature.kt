@@ -3,7 +3,10 @@ package com.offgridpdf.android.pdf
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.pdmodel.PDPageContentStream
 import com.tom_roush.pdfbox.pdmodel.graphics.image.PDImageXObject
+import com.tom_roush.pdfbox.util.Matrix
 import java.io.ByteArrayOutputStream
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * A visual stamp — drawn, typed, or an uploaded image — placed on one
@@ -14,14 +17,12 @@ import java.io.ByteArrayOutputStream
  * (`pdf-signature.ts`).
  *
  * [page] is 1-based, matching the web version's own `SignaturePlacement`.
- * [x]/[y]/[width]/[height] are in PDF points, bottom-left origin — the
- * page's own native coordinate space, not pixels. This project has no
- * page-rendering yet (`ANDROID_IMPLEMENTATION_PLAN.md`'s Spike A, not
- * done), so unlike the web tool's drag-on-a-rendered-preview placement,
- * this placement is entered directly in that same point space rather
- * than converted from a pixel drag — the plan's own explicit fallback
- * for exactly this situation ("ship with a simpler placement UI... don't
- * block this tool on rendering").
+ * [x]/[y]/[width]/[height] are in PDF points, bottom-left origin, on the
+ * page *as displayed*: after `/Rotate`, relative to the visible box. That
+ * is the space a drag on the rendered preview produces and what the screen
+ * means by "points from the page's bottom-left corner". [addSignature]
+ * converts it to the page's own coordinates (`PageSpace.kt`), which differ
+ * on rotated or offset pages.
  */
 data class SignaturePlacement(val page: Int, val x: Float, val y: Float, val width: Float, val height: Float)
 
@@ -56,11 +57,37 @@ fun addSignature(document: PDDocument, imageBytes: ByteArray, imageName: String,
         throw IllegalArgumentException("Could not read the signature image: ${e.message}", e)
     }
 
+    val (a, b, c, d, e, f) = signatureImageTransform(placement, visibleBox(page), page.rotation)
     PDPageContentStream(document, page, PDPageContentStream.AppendMode.APPEND, true, true).use { stream ->
-        stream.drawImage(xObject, placement.x, placement.y, placement.width, placement.height)
+        stream.drawImage(xObject, Matrix(a, b, c, d, e, f))
     }
 
     val out = ByteArrayOutputStream()
     document.save(out)
     return out.toByteArray()
+}
+
+/** An affine transform `[a b c d e f]`, as the PDF `cm` operator takes it. */
+data class Transform(val a: Float, val b: Float, val c: Float, val d: Float, val e: Float, val f: Float)
+
+/**
+ * Pure. Where the image's unit square must go in user space so it lands on
+ * [placement] (displayed space) and reads upright: scaled to width × height,
+ * turned counter-clockwise by the page's own rotation (undoing the clockwise
+ * turn the page is displayed with), and moved to the placement's displayed
+ * bottom-left corner mapped into user space. Split out from [addSignature]
+ * so it can be unit-tested; embedding the image itself needs Android's
+ * `BitmapFactory`. Web reference: `displayedToUserSpace` (`page-space.ts`).
+ */
+fun signatureImageTransform(placement: SignaturePlacement, box: PageBox, rotation: Int): Transform {
+    val r = normalizeRotation(rotation)
+    val (anchorX, anchorY) = toUserSpace(placement.x, placement.y, box, r)
+    val radians = Math.toRadians(r.toDouble())
+    val cos = cos(radians).toFloat()
+    val sin = sin(radians).toFloat()
+    return Transform(
+        placement.width * cos, placement.width * sin,
+        -placement.height * sin, placement.height * cos,
+        anchorX, anchorY,
+    )
 }

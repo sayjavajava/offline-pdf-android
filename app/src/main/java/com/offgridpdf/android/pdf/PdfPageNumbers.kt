@@ -3,6 +3,7 @@ package com.offgridpdf.android.pdf
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.pdmodel.PDPageContentStream
 import com.tom_roush.pdfbox.pdmodel.font.PDType1Font
+import com.tom_roush.pdfbox.util.Matrix
 import java.io.ByteArrayOutputStream
 
 enum class PageNumberFormat { N, N_OF_TOTAL, BATES }
@@ -87,9 +88,14 @@ fun addPageNumbers(document: PDDocument, options: PageNumberOptions = PageNumber
 
     targets.forEachIndexed { ordinal, pageIndex ->
         val page = document.getPage(pageIndex)
-        val mediaBox = page.mediaBox
-        val width = mediaBox.width
-        val height = mediaBox.height
+        // Laid out on the page as a reader sees it, then mapped into the
+        // page's own coordinates (PageSpace.kt). Using the MediaBox directly
+        // put "bottom-centre" sideways on the left edge of a /Rotate 90 page,
+        // and off the page entirely when its box doesn't start at (0,0).
+        // Web reference: same fix in `addPageNumbers` (`pdf-ops.ts`).
+        val box = visibleBox(page)
+        val rotation = normalizeRotation(page.rotation)
+        val (width, height) = displayedSize(box, rotation)
         val label = formatPageNumber(options.start + ordinal, targets.size, options.format, options.prefix, options.digits)
         val labelWidth = font.getStringWidth(label) / 1000f * options.fontSize
 
@@ -112,7 +118,8 @@ fun addPageNumbers(document: PDDocument, options: PageNumberOptions = PageNumber
             stream.beginText()
             stream.setFont(font, options.fontSize)
             stream.setNonStrokingColor(color.red, color.green, color.blue)
-            stream.newLineAtOffset(x, y)
+            val (userX, userY) = toUserSpace(x, y, box, rotation)
+            stream.setTextMatrix(Matrix.getRotateInstance(Math.toRadians(rotation.toDouble()), userX, userY))
             stream.showText(label)
             stream.endText()
         }

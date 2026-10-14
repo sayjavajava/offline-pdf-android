@@ -218,7 +218,9 @@ fun SignatureScreen() {
             previewImage = rendered.bitmap.asImageBitmap()
             previewBitmapWidth = rendered.bitmapWidth
             previewBitmapHeight = rendered.bitmapHeight
-            previewPageHeightPts = rendered.pageHeightPts
+            // Displayed height, not the MediaBox's: the drag below produces
+            // displayed-space coordinates, which `addSignature` converts.
+            previewPageHeightPts = rendered.displayedHeightPts
             previewMessage = null
         } catch (e: CancellationException) {
             // A page turn cancels this render; that is the mechanism working,

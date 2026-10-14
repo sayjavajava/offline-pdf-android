@@ -57,12 +57,17 @@ fun addWatermark(document: PDDocument, text: String, options: WatermarkOptions):
 
     val font = PDType1Font.HELVETICA_BOLD
     val textWidth = font.getStringWidth(text) / 1000f * options.fontSize
-    val radians = Math.toRadians(options.rotation.toDouble())
 
     for (page in document.pages) {
-        val mediaBox = page.mediaBox
-        val width = mediaBox.width
-        val height = mediaBox.height
+        // Laid out on the page as a reader sees it (PageSpace.kt): centred on
+        // the visible box rather than a MediaBox assumed to start at (0,0),
+        // and turned by the page's own /Rotate on top of the chosen angle, so
+        // a horizontal watermark reads horizontally on a landscape scan.
+        // Web reference: same fix in `addWatermark` (`pdf-ops.ts`).
+        val box = visibleBox(page)
+        val pageRotation = normalizeRotation(page.rotation)
+        val (width, height) = displayedSize(box, pageRotation)
+        val radians = Math.toRadians((options.rotation + pageRotation).toDouble())
 
         PDPageContentStream(document, page, PDPageContentStream.AppendMode.APPEND, true, true).use { stream ->
             val graphicsState = PDExtendedGraphicsState()
@@ -82,7 +87,8 @@ fun addWatermark(document: PDDocument, text: String, options: WatermarkOptions):
                 while (y < height + stepY) {
                     var x = 0f
                     while (x < width + stepX) {
-                        stream.setTextMatrix(Matrix.getRotateInstance(radians, x, y))
+                        val (userX, userY) = toUserSpace(x, y, box, pageRotation)
+                        stream.setTextMatrix(Matrix.getRotateInstance(radians, userX, userY))
                         stream.showText(text)
                         x += stepX
                     }
@@ -94,8 +100,9 @@ fun addWatermark(document: PDDocument, text: String, options: WatermarkOptions):
                 // text's *rotated* footprint along each axis, not simply
                 // halving the page dimensions -- same formula as the web
                 // version's addWatermark.
-                val x = width / 2f - (textWidth / 2f) * cos(radians).toFloat()
-                val y = height / 2f - (textWidth / 2f) * sin(radians).toFloat()
+                val (centreX, centreY) = toUserSpace(width / 2f, height / 2f, box, pageRotation)
+                val x = centreX - (textWidth / 2f) * cos(radians).toFloat()
+                val y = centreY - (textWidth / 2f) * sin(radians).toFloat()
                 stream.setTextMatrix(Matrix.getRotateInstance(radians, x, y))
                 stream.showText(text)
             }
