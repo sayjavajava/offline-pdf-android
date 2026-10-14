@@ -6,10 +6,12 @@ sibling web repo's `CHANGELOG.md`: an entry for anything **user-facing** — a
 new tool, a behaviour change, a bug someone would notice. Internal-only
 changes (CI, tooling, refactors, spikes, release plumbing) don't get one.
 
-Nothing has been released yet: `versionCode` is still 1 and no tag has been
-cut, so everything below is in the first release when it happens.
-
 ## [Unreleased]
+
+## [0.1.0] - 2026-10-07
+
+The first release: everything the app could do at launch, built up below.
+Shipped as `versionCode` 1, so the next release must use 2 or higher.
 
 ### Added
 
