@@ -271,4 +271,53 @@ class PdfFormsTest {
             assertEquals("Ada", text.value)
         }
     }
+
+    // --- fields the screen can't represent are left untouched ------------
+
+    /** What the fill screen sends when the user changes nothing: every field's value as read. */
+    private fun untouchedValues(document: PDDocument): Map<String, Any> =
+        readFormFields(document).fields.associate { field ->
+            field.name to when (field) {
+                is FormFieldInfo.Text -> field.value
+                is FormFieldInfo.Checkbox -> field.value
+                is FormFieldInfo.Dropdown -> field.value
+                is FormFieldInfo.Radio -> field.value
+            }
+        }
+
+    @Test
+    fun `keeps every selection of a multi-select dropdown the user never touched`() {
+        val (document, acroForm) = buildFormDocument()
+        val field = PDComboBox(acroForm)
+        field.partialName = "langs"
+        field.setOptions(listOf("en", "fr", "de"))
+        field.isMultiSelect = true
+        attachWidget(document.getPage(0), acroForm, field)
+        field.setValue(listOf("en", "de"))
+
+        assertEquals(listOf("langs"), readFormFields(document).unsupportedFields)
+        applyFormFieldValues(document, untouchedValues(document))
+        // Used to come back as ["en"]: the screen holds one value per dropdown.
+        assertEquals(listOf("en", "de"), field.value)
+        document.close()
+    }
+
+    @Test
+    fun `reports a rich-text field as unsupported and does not rewrite it`() {
+        val (document, acroForm) = buildFormDocument()
+        val field = PDTextField(acroForm)
+        field.partialName = "notes"
+        field.isRichText = true
+        attachWidget(document.getPage(0), acroForm, field)
+        field.setValue("styled")
+
+        val result = readFormFields(document)
+        assertTrue(result.fields.isEmpty())
+        assertEquals(listOf("notes"), result.unsupportedFields)
+
+        applyFormFieldValues(document, mapOf("notes" to "replaced"))
+        assertEquals("styled", field.value)
+        assertTrue(field.isRichText)
+        document.close()
+    }
 }

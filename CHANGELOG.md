@@ -8,6 +8,14 @@ changes (CI, tooling, refactors, spikes, release plumbing) don't get one.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Fill PDF Forms lost data in two kinds of field.** A dropdown that allows
+  several selections kept only the first one when the form was saved, even
+  if you never touched it, and a rich-text field lost its formatting. Both
+  are now listed as fields this tool doesn't edit and left exactly as they
+  were.
+
 ## [0.1.0] - 2026-10-07
 
 The first release: everything the app could do at launch, built up below.
