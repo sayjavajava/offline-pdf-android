@@ -15,6 +15,13 @@ import java.io.ByteArrayOutputStream
  * rather than silently dropped or crashed on, same "disclose what we
  * can't do" choice this project already makes elsewhere. Web reference:
  * `FormFieldInfo`/`FormFieldsResult` (`pdf-forms.ts`).
+ *
+ * Two variants of supported types are reported the same way, because the
+ * fill screen re-applies every field's value on save, touched or not:
+ * a multi-select dropdown (the UI holds one value per dropdown, so a saved
+ * ["en", "de"] would come back as "en"), and a rich-text field (setting its
+ * value regenerates a plain appearance, losing the formatting even when the
+ * text is unchanged). Web reference: same rule in `readFormFields`.
  */
 sealed class FormFieldInfo {
     abstract val name: String
@@ -70,11 +77,13 @@ fun readFormFields(document: PDDocument): FormFieldsResult {
         val readOnly = field.isReadOnly
 
         when (field) {
-            is PDTextField -> fields.add(
-                FormFieldInfo.Text(name, field.value ?: "", readOnly, field.maxLen.takeIf { it > 0 }),
-            )
+            is PDTextField -> if (field.isRichText) {
+                unsupported.add(name)
+            } else {
+                fields.add(FormFieldInfo.Text(name, field.value ?: "", readOnly, field.maxLen.takeIf { it > 0 }))
+            }
             is PDCheckBox -> fields.add(FormFieldInfo.Checkbox(name, field.isChecked, readOnly))
-            is PDComboBox -> fields.add(
+            is PDComboBox -> if (field.isMultiSelect) unsupported.add(name) else fields.add(
                 FormFieldInfo.Dropdown(name, field.value.firstOrNull().orEmpty(), field.options, readOnly),
             )
             is PDRadioButton -> {
@@ -121,9 +130,9 @@ fun applyFormFieldValues(document: PDDocument, values: Map<String, Any>) {
         val value = values.getValue(name)
 
         when {
-            field is PDTextField && value is String -> field.setValue(value)
+            field is PDTextField && !field.isRichText && value is String -> field.setValue(value)
             field is PDCheckBox && value is Boolean -> if (value) field.check() else field.unCheck()
-            field is PDComboBox && value is String -> if (value.isNotEmpty()) field.setValue(value)
+            field is PDComboBox && !field.isMultiSelect && value is String -> if (value.isNotEmpty()) field.setValue(value)
             field is PDRadioButton && value is String -> field.setValue(value.ifEmpty { "Off" })
         }
     }

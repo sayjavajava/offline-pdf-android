@@ -238,8 +238,8 @@ fun FillFormScreen() {
             if (unsupportedFields.isNotEmpty()) {
                 ToolBodyText(
                     "${unsupportedFields.size} field(s) in this PDF (${unsupportedFields.joinToString(", ")}) " +
-                        "are a type this tool doesn't edit (buttons, option lists, or signature " +
-                        "fields) and will be left as-is.",
+                        "are a type this tool doesn't edit (buttons, option lists, multi-select " +
+                        "dropdowns, rich-text fields, or signature fields) and will be left as-is.",
                 )
             }
 
