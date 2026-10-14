@@ -10,6 +10,14 @@ changes (CI, tooling, refactors, spikes, release plumbing) don't get one.
 
 ### Fixed
 
+- **Add Signature, Add Page Numbers and Add Watermark misplaced their stamp on
+  rotated pages.** On a landscape scan (a page turned 90°) a signature landed
+  away from where you placed it and came out sideways. A "bottom-centre" page
+  number ran up the left edge, and a horizontal watermark ran up the side of
+  the page. On pages whose coordinates don't start at the sheet's corner,
+  page numbers could land off the page entirely. All three now place and
+  orient their stamp on the page as you see it. Ordinary pages come out
+  exactly as before.
 - **Fill PDF Forms lost data in two kinds of field.** A dropdown that allows
   several selections kept only the first one when the form was saved, even
   if you never touched it, and a rich-text field lost its formatting. Both

@@ -43,6 +43,12 @@ const val PREVIEW_SCALE = 1.5f
  * its MediaBox places boxes inconsistently there. That predates this class
  * and is not something it can fix on its own -- the export path has to
  * agree on one space first.
+ *
+ * [displayedWidthPts]/[displayedHeightPts] are the visible box as the
+ * bitmap shows it: `PDFRenderer` also applies `/Rotate`, so for a
+ * quarter-turned page they are the CropBox's height and width. A caller
+ * that converts a drag into displayed-space coordinates (see `PageSpace.kt`)
+ * flips against [displayedHeightPts].
  */
 data class RenderedPagePreview(
     val bitmap: Bitmap,
@@ -50,6 +56,8 @@ data class RenderedPagePreview(
     val pageHeightPts: Float,
     val renderedWidthPts: Float,
     val renderedHeightPts: Float,
+    val displayedWidthPts: Float = renderedWidthPts,
+    val displayedHeightPts: Float = renderedHeightPts,
 ) {
     val bitmapWidth: Int get() = bitmap.width
     val bitmapHeight: Int get() = bitmap.height
@@ -85,11 +93,14 @@ fun renderPageForPreview(
         advice = "This page cannot be previewed on this device.",
     )
     val bitmap = PDFRenderer(document).renderImageWithDPI(pageIndex, scale * 72f)
+    val (displayedWidth, displayedHeight) = displayedSize(visibleBox(page), page.rotation)
     return RenderedPagePreview(
         bitmap = bitmap,
         pageWidthPts = mediaBox.width,
         pageHeightPts = mediaBox.height,
         renderedWidthPts = cropBox.width,
         renderedHeightPts = cropBox.height,
+        displayedWidthPts = displayedWidth,
+        displayedHeightPts = displayedHeight,
     )
 }
