@@ -142,6 +142,10 @@ keystore or its passwords. Lose that key and no update can ever install over an 
 track, even one never published, it can never be reused. **Neither workflow reads or validates
 it**; bumping it is a human step nothing in CI catches.
 
+**Released so far:** `v0.1.0` (2026-10-07, `versionCode` 1). The next release therefore needs
+`versionCode` ≥ 2 as well as a new `versionName`, and its notes start from `## [Unreleased]` in
+`CHANGELOG.md` (rename it to the new version, then add a fresh empty one).
+
 ## 6. Landmines — each of these cost a real investigation
 
 **JVM-stubbed unit tests hide runtime-only failures, and this already nearly shipped a disaster.**
