@@ -3,9 +3,9 @@
 # sibling web repo's package-lock.json discipline: dependency bumps are
 # reviewed and CI-verified on their own, never folded into a feature PR).
 [versions]
-agp = "9.4.1"
-kotlin = "2.4.20"
-composeBom = "2026.09.00"
+agp = "9.5.2"
+kotlin = "2.4.21"
+composeBom = "2026.11.01"
 coreKtx = "1.19.1"
 lifecycleRuntimeKtx = "2.9.0"
 activityCompose = "1.10.0"
@@ -30,7 +30,7 @@ pdfboxAndroid = "2.0.27.0"
 # (fixed in 1.78). Not a dormant dependency: bcprov sits behind PdfBox's
 # encrypted-PDF path, so it parses bytes that came from a file the user
 # did not necessarily write.
-bouncyCastle = "1.86"
+bouncyCastle = "1.87"
 junit = "4.13.2"
 kotlinxCoroutines = "1.11.0"
 # Spike B (ANDROID_IMPLEMENTATION_PLAN.md, tool-docs repo) only — not yet
